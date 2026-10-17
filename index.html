@@ -108,6 +108,7 @@
   .menu .mi:hover,.menu .mi:focus{background:var(--panel);outline:none}.menu .mi.red{color:var(--red)}.menu .mi.red:hover{background:var(--red-bg)}
   .menu hr{border:0;border-top:1px solid var(--line);margin:5px 2px}
   .dot-prev{display:inline-block;width:7px;height:7px;border-radius:50%;background:#9AA4B2;margin-left:6px;vertical-align:2px;cursor:help}
+  .b-share{background:#E7F8EE!important;color:#128C4A!important;border:1px solid #BDEBCF!important}
   .b-cxc{background:var(--blue-bg)!important;color:var(--blue)!important;border:1px solid #BCD3F5!important}.b-cxc:hover{background:#CADDF8!important}
   .b-cobro{background:var(--green-bg)!important;color:var(--green)!important;border:1px solid #B9EBCB!important}.b-cobro:hover{background:#C9F0D7!important}
   .imp-t{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0}.imp-t td,.imp-t th{padding:6px 8px;border-bottom:1px solid #e3e8ef;text-align:left;vertical-align:top}
@@ -1092,8 +1093,9 @@ $("btn-emit").onclick = async () => {
     const url = urlDe(c);
     msg.innerHTML = `<div class="box okb"><b>${esc(c.numero)} · ${esc(c.cliente)} · ${money(c.total)}</b><br>
       En 1–2 minutos el QR mostrará «Documento Verificado» en:<br><a href="${url}" target="_blank" rel="noopener">${url}</a>
-      <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="dl-now">Descargar PDF</button><button class="b-ghost b-cxc" id="cxc-now">Enviar a cuentas por cobrar</button><button class="b-ghost" id="new-now">Nueva cotización</button></div></div>`;
+      <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="dl-now">Descargar PDF</button><button class="b-ghost b-share" id="share-now">📤 Compartir PDF</button><button class="b-ghost b-cxc" id="cxc-now">Enviar a cuentas por cobrar</button><button class="b-ghost" id="new-now">Nueva cotización</button></div></div>`;
     $("dl-now").onclick = () => bajarPDF(pdfDe(c), nombrePDF(c));
+    $("share-now").onclick = () => compartirPDF(pdfBytes(pdfDe(c)), nombrePDF(c), `Cotización ${c.numero} · Grupo LEAN`, $("emit-status"));
     $("new-now").onclick = () => nueva();
     $("cxc-now").onclick = () => { show("hist"); setHView("cot"); pedirCxc("cot", c); };
     EDIT = c; $("f-fecha-opt").classList.remove("hidden"); numHint();
@@ -1101,6 +1103,27 @@ $("btn-emit").onclick = async () => {
   }catch(e){ console.error(e); st.className="status bad"; st.textContent = "No se pudo emitir: " + e.message; }
   $("btn-emit").disabled = false;
 };
+
+/* ==================== compartir PDF (menú de compartir del iPhone / PC) ==================== */
+const pdfBytes = doc => new Uint8Array(doc.output("arraybuffer"));
+async function compartirPDF(bytes, nombre, titulo, st){
+  const file = new File([bytes], nombre, {type:"application/pdf"});
+  const msg = (cls, t) => { if(st){ st.className = "status " + cls; st.innerHTML = t; } };
+  if(navigator.canShare && navigator.share && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:titulo}); msg("ok", "✓ Listo. Elige WhatsApp (u otra app) en el menú de compartir."); return; }
+    catch(e){
+      if(e.name==="AbortError"){ if(st) st.textContent = ""; return; }
+      if(e.name==="NotAllowedError"){   // el navegador pide un toque nuevo (pasó tiempo cargando el PDF)
+        msg("", `PDF listo. <button class="b-navy b-sm" id="share-again">Compartir ahora</button>`);
+        const bt = document.getElementById("share-again"); if(bt) bt.onclick = () => compartirPDF(bytes, nombre, titulo, st);
+        return;
+      }
+      console.warn(e);
+    }
+  }
+  bajarBytes(bytes, nombre);
+  msg("warn", "Este navegador no abre el menú de compartir: se descargó el PDF para que lo adjuntes en WhatsApp (clip 📎 → Documento).");
+}
 
 /* ==================== menú «⋯» de acciones ==================== */
 function menuHTML(items){
@@ -1160,6 +1183,7 @@ function pintarHist(){
     <td class="acts-td"><div class="acts">
       <button class="b-navy b-sm" data-a="pdf" data-c="${esc(c.codigo)}" title="Descargar PDF">Descargar</button>
       ${menuHTML([
+        `<button class="mi" data-a="share" data-c="${esc(c.codigo)}">📤 Compartir PDF</button>`,
         c.resumen || c.anulado ? "" : `<button class="mi" data-a="edit" data-c="${esc(c.codigo)}">✏️ Corregir</button>`,
         c.publicado===false ? "" : `<a class="mi" href="${urlDe(c)}" target="_blank" rel="noopener">🌐 Ver en el portal</a>`,
         !c.anulado && !c.cxc && !c.resumen ? `<button class="mi" data-a="cxc" data-c="${esc(c.codigo)}">💲 Enviar a cuentas por cobrar</button>` : "",
@@ -1168,6 +1192,12 @@ function pintarHist(){
     </div></td></tr>`).join("");
   tb.querySelectorAll("button[data-a]").forEach(b => b.onclick = async () => {
     const c = HIST.cotizaciones.find(x => x.codigo===b.dataset.c); if(!c) return;
+    if(b.dataset.a==="share"){
+      const st = $("h-status"), tit = `Cotización ${c.numero} · Grupo LEAN`;
+      if(c.origen==="excel" && c.publicado){ st.className="status"; st.textContent="Preparando el PDF original…";
+        try{ return compartirPDF(await pdfPortal(c.codigo), nombrePDF(c), tit, st); }catch(e){ st.className="status bad"; st.textContent = "No se pudo obtener el PDF: " + e.message; return; } }
+      return compartirPDF(pdfBytes(pdfDe(c)), nombrePDF(c), tit, st);
+    }
     if((b.dataset.a==="ver" || b.dataset.a==="pdf") && c.origen==="excel" && c.publicado){   // el PDF original publicado desde Excel
       const st = $("h-status"); st.className="status"; st.textContent="Abriendo el PDF original del portal…";
       const w = b.dataset.a==="ver" ? ventanaPrevia() : null;
@@ -1370,8 +1400,9 @@ $("fx-emit").onclick = async () => {
     const url = fUrl(d);
     msg.innerHTML = `<div class="box okb"><b>${esc(d.tipo)} ${esc(d.numero)} · ${esc(d.cliente)} · ${money(d.total)}</b><br>
       En 1–2 minutos el QR mostrará «Documento Verificado» en:<br><a href="${url}" target="_blank" rel="noopener">${url}</a>
-      <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="fx-dl-now">Descargar PDF</button>${d.conXml ? '<button class="b-ghost" id="fx-xml-now">Descargar XML</button>' : ""}<button class="b-ghost b-cxc" id="fx-cxc-now">Enviar a cuentas por cobrar</button><button class="b-ghost" id="fx-new-now">Nuevo recibo / factura</button></div></div>`;
+      <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="fx-dl-now">Descargar PDF</button><button class="b-ghost b-share" id="fx-share-now">📤 Compartir PDF</button>${d.conXml ? '<button class="b-ghost" id="fx-xml-now">Descargar XML</button>' : ""}<button class="b-ghost b-cxc" id="fx-cxc-now">Enviar a cuentas por cobrar</button><button class="b-ghost" id="fx-new-now">Nuevo recibo / factura</button></div></div>`;
     $("fx-dl-now").onclick = () => bajarPDF(fPdf(d), fNombre(d));
+    $("fx-share-now").onclick = () => compartirPDF(pdfBytes(fPdf(d)), fNombre(d), `${d.tipo} ${d.numero} · Grupo LEAN`, $("fx-status"));
     if(d.conXml) $("fx-xml-now").onclick = () => bajarXML(d);
     $("fx-new-now").onclick = fNueva;
     $("fx-cxc-now").onclick = () => { show("hist"); setHView("fac"); pedirCxc("fac", d); };
@@ -1445,6 +1476,7 @@ function pintarFac(){
     <td class="acts-td"><div class="acts">
       <button class="b-navy b-sm" data-f="pdf" data-c="${esc(d.codigo)}">Descargar</button>
       ${menuHTML([
+        `<button class="mi" data-f="share" data-c="${esc(d.codigo)}">📤 Compartir PDF</button>`,
         d.conXml ? `<button class="mi" data-f="xml" data-c="${esc(d.codigo)}">🧾 Descargar XML</button>` : "",
         d.anulado ? "" : `<button class="mi" data-f="edit" data-c="${esc(d.codigo)}">✏️ Corregir</button>`,
         `<a class="mi" href="${fUrl(d)}" target="_blank" rel="noopener">🌐 Ver en el portal</a>`,
@@ -1457,6 +1489,7 @@ function pintarFac(){
     if(b.dataset.f==="ver") abrirPDF(fPdf(d));
     if(b.dataset.f==="pdf") bajarPDF(fPdf(d), fNombre(d));
     if(b.dataset.f==="xml") bajarXML(d);
+    if(b.dataset.f==="share") compartirPDF(pdfBytes(fPdf(d)), fNombre(d), `${d.tipo} ${d.numero} · Grupo LEAN`, $("h-status"));
     if(b.dataset.f==="edit") fCargar(d, "editar");
     if(b.dataset.f==="anular" || b.dataset.f==="react") return pedirAnular("fac", d, b.dataset.f==="anular");
     if(b.dataset.f==="cxc") return pedirCxc("fac", d);
