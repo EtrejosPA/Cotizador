@@ -77,6 +77,7 @@
   .dot{width:10px;height:10px;border-radius:50%;display:inline-block}.d-bad{background:#E0554F}.d-warn{background:#E9B23A}.d-ok{background:#22A05A}
   table.cx td.cx-desc{max-width:280px;color:var(--muted);font-size:13px}
   table.cx tr.cx-sub td{background:var(--panel);font-weight:700;color:var(--navy)}
+  table.cx tr.cx-sin td{color:var(--muted)}
   #sec-cxc select{width:100%;padding:10px 12px;border:1px solid #CBD3DF;border-radius:10px;font:inherit;background:#fff}
   #cx-box select{width:100%;padding:10px 12px;border:1px solid #CBD3DF;border-radius:10px;font:inherit;background:#fff}
   @media (max-width:980px){ .kpis{grid-template-columns:repeat(3,1fr)} }
@@ -374,7 +375,7 @@
       <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Fecha de cobro</th><th>Método</th><th class="r">Monto</th><th class="r"></th></tr></thead><tbody id="cx-cob"></tbody></table></div></div>
 
     <div class="card"><h2>Por cotización <span class="pill p-blue" id="cx-n-cot"></span></h2>
-      <p class="hint" style="margin-bottom:8px">Recibos y facturas enlazados a una cotización (con «Pedido N.º»): cuánto se ha cobrado de cada una y cuánto falta.</p>
+      <p class="hint" style="margin-bottom:8px">Todas tus cotizaciones. Las que tienen recibos enlazados (con «Pedido N.º») o están en cuentas por cobrar muestran cuánto se ha cobrado y cuánto falta. Si una cotización se cobra sin recibo, pulsa «Por cobrar».</p>
       <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>Cotización</th><th>Cliente</th><th>Recibos</th><th class="r">Cotizado</th><th class="r">Cobrado</th><th class="r">Falta por cobrar</th></tr></thead><tbody id="cx-cot"></tbody></table></div></div>
 
     <div class="card hidden" id="cx-anul-card"><details><summary style="cursor:pointer"><h2 style="display:inline-flex;margin:0">Cuentas anuladas <span class="pill p-gray" id="cx-n-anul"></span></h2></summary>
@@ -1840,16 +1841,21 @@ function pintarCxc(){
   // por cotización
   const grupos = {};
   L.forEach(d => { const k = d.cotRef || (d.pedido && d.pedido!==d.numero ? normCot(d.pedido) : null); if(k) (grupos[k] ||= []).push(d); });
+  // todas las cotizaciones (no anuladas) aparecen, tengan o no algo en cuentas por cobrar
+  (HIST?.cotizaciones||[]).filter(c => !c.anulado && !c.resumen && (!sel.value || c.cliente.trim()===sel.value)).forEach(c => { grupos[c.numero] ||= []; });
   const ks = Object.keys(grupos).sort((a,b) => Number(b.split("-")[1]) - Number(a.split("-")[1]));
   $("cx-n-cot").textContent = ks.length;
   $("cx-cot").innerHTML = ks.length ? ks.map(k => {
     const ds = grupos[k], c = (HIST?.cotizaciones||[]).find(x => x.numero===k) || OLDCOT[k];
+    if(!ds.length) return `<tr class="cx-sin"><td><b>${esc(k)}</b><div class="hint">${esc(PDFFAC.dmy(c.fecha))}</div></td><td>${esc(c.cliente)}</td>
+      <td><span class="hint">Sin cuenta por cobrar</span></td><td class="r">${money(c.total)}</td><td class="r">—</td>
+      <td class="r"><button class="b-ghost b-sm b-cxc" data-x="enviarcot" data-c="${esc(c.codigo)}" title="Enviar esta cotización a cuentas por cobrar">Por cobrar</button></td></tr>`;
     const cobK = sum(ds, cobradoDe), cotT = c ? r2(c.total) : null, falta = cotT==null ? null : r2(Math.max(0, cotT - cobK));
     return `<tr><td><b>${esc(k)}</b>${c?.anulado ? '<div class="hint bad">Anulada</div>' : ""}</td><td>${esc(c?.cliente || ds[0].cliente)}</td>
       <td>${ds.map(d => `<span class="pill ${estadoCxc(d)==="Cobrado"?"p-ok":estadoCxc(d)==="Vencido"?"p-bad":"p-warn"}" style="padding:2px 8px;margin:1px">${d._k==="cot" ? "Cuenta de la cotización" : esc(d.numero)} · ${money(d.total)}</span>`).join(" ")}</td>
       <td class="r">${cotT==null ? '<span class="hint">no está en el historial</span>' : money(cotT)}</td><td class="r"><b>${money(cobK)}</b></td>
       <td class="r">${falta==null ? "—" : falta <= 0.004 ? '<span class="pill p-ok">Completa</span>' : `<b class="bad">${money(falta)}</b>`}</td></tr>`; }).join("")
-    : vacio(6, "Aún no hay recibos enlazados a cotizaciones.");
+    : vacio(6, "Aún no has emitido cotizaciones.");
   const an = cuentasAnuladas().filter(d => !sel.value || d.cliente.trim()===sel.value);
   $("cx-anul-card").classList.toggle("hidden", !an.length); $("cx-n-anul").textContent = an.length;
   $("cx-anul").innerHTML = an.map(d => `<tr><td><b>${esc(d.numero)}</b>${tagCx(d)}</td><td>${esc(d.cliente)}</td><td class="cx-desc">${esc(descDe(d))}</td><td class="r">${money(d.total)}</td>
@@ -1861,6 +1867,7 @@ function pintarCxc(){
   });
   $("cx-n-ven").textContent = ven.length; $("cx-n-por").textContent = por.length; $("cx-n-cob").textContent = cob.length;
   document.querySelectorAll("#sec-cxc button[data-x]").forEach(b => b.onclick = () => {
+    if(b.dataset.x==="enviarcot"){ const c = (HIST?.cotizaciones||[]).find(x => x.codigo===b.dataset.c); if(c) pedirCxc("cot", c, "cxc"); return; }
     const d = [...todasCuentas(), ...cuentasAnuladas()].find(x => x.codigo===b.dataset.c); if(!d) return;
     if(b.dataset.x==="cobrar") pedirCobro(d); else if(b.dataset.x==="deshacer") pedirDeshacer(d);
     else if(b.dataset.x==="quitar") pedirQuitarCx(d); else if(b.dataset.x==="restaurar") restaurarCx(d);
@@ -1969,8 +1976,8 @@ async function restaurarCx(d){
   }catch(e){ $("cx-status").className = "status bad"; $("cx-status").textContent = "No se pudo: " + e.message; }
 }
 function cotDeDoc(d){ return d.cotRef || (d.pedido && d.pedido!==d.numero ? normCot(d.pedido) : null); }
-function pedirCxc(kind, rec){   // enviar un recibo/factura o una cotización a cuentas por cobrar
-  const box = $("h-imp"); let choque = null;
+function pedirCxc(kind, rec, ctx="hist"){   // enviar un recibo/factura o una cotización a cuentas por cobrar
+  const box = ctx==="cxc" ? $("cx-box") : $("h-imp"); let choque = null;
   if(kind==="fac"){
     const k = cotDeDoc(rec), c = k && (HIST?.cotizaciones||[]).find(x => x.numero===k && x.cxc && !x.anulado);
     if(c) choque = `La cotización <b>${esc(c.numero)}</b> de este documento ya está en Cuentas por cobrar por ${money(c.total)}. Para no cobrar dos veces, registra este pago allí (Cuentas por cobrar → ${esc(c.numero)} → Registrar cobro).`;
@@ -1997,8 +2004,9 @@ function pedirCxc(kind, rec){   // enviar un recibo/factura o una cotización a 
         x.cxc = kind==="cot" ? {desde:hoyISO(), vence:masDias(hoyISO(), dias)} : {desde:hoyISO()}; delete x.cxcAnulada;
         if(!x.cobro) x.cobro = {estado:"Pendiente"};
       }, `Enviar a cuentas por cobrar · ${kind==="cot" ? "cotización" : rec.tipo.toLowerCase()} ${rec.numero}`);
-      box.innerHTML = ""; $("h-status").className = "status ok"; $("h-status").textContent = `✓ ${kind==="cot" ? "Cotización" : rec.tipo} ${rec.numero} enviad${kind==="cot" || rec.tipo==="Factura" ? "a" : "o"} a Cuentas por cobrar.`;
-      kind==="cot" ? pintarHist() : pintarFac();
+      const stOut = ctx==="cxc" ? $("cx-status") : $("h-status");
+      box.innerHTML = ""; stOut.className = "status ok"; stOut.textContent = `✓ ${kind==="cot" ? "Cotización" : rec.tipo} ${rec.numero} enviad${kind==="cot" || rec.tipo==="Factura" ? "a" : "o"} a Cuentas por cobrar.`;
+      if(ctx==="cxc") pintarCxc(); else kind==="cot" ? pintarHist() : pintarFac();
     }catch(e){ console.error(e); st.className = "status bad"; st.textContent = "No se pudo: " + e.message; $("ex-ok").disabled = false; }
   };
 }
