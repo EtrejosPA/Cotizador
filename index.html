@@ -1095,7 +1095,7 @@ $("btn-emit").onclick = async () => {
       En 1–2 minutos el QR mostrará «Documento Verificado» en:<br><a href="${url}" target="_blank" rel="noopener">${url}</a>
       <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="dl-now">Descargar PDF</button><button class="b-ghost b-share" id="share-now">📤 Compartir PDF</button><button class="b-ghost b-cxc" id="cxc-now">Enviar a cuentas por cobrar</button><button class="b-ghost" id="new-now">Nueva cotización</button></div></div>`;
     $("dl-now").onclick = () => bajarPDF(pdfDe(c), nombrePDF(c));
-    $("share-now").onclick = () => compartirPDF(pdfBytes(pdfDe(c)), nombrePDF(c), `Cotización ${c.numero} · Grupo LEAN`, $("emit-status"));
+    $("share-now").onclick = () => compartirPDF(pdfBytes(pdfDe(c)), nombrePDF(c), `Cotización ${c.numero} · Grupo LEAN`, $("emit-status"), mensajeWA("Cotización", c, urlDe(c)));
     $("new-now").onclick = () => nueva();
     $("cxc-now").onclick = () => { show("hist"); setHView("cot"); pedirCxc("cot", c); };
     EDIT = c; $("f-fecha-opt").classList.remove("hidden"); numHint();
@@ -1106,23 +1106,32 @@ $("btn-emit").onclick = async () => {
 
 /* ==================== compartir PDF (menú de compartir del iPhone / PC) ==================== */
 const pdfBytes = doc => new Uint8Array(doc.output("arraybuffer"));
-async function compartirPDF(bytes, nombre, titulo, st){
+function mensajeWA(tipo, rec, url){   // mensaje por defecto que acompaña al PDF
+  const cli = String(rec.cliente||"").trim();
+  const empresa = /\b(s\.?\s?a\.?|inc\.?|corp\.?|ltda\.?|s\.?r\.?l\.?|llc|group|grupo|company|cía|cia)(\b|$)/i.test(cli);
+  const doc = tipo==="Cotización" ? `cotización ${rec.numero}` : `${tipo==="Factura" ? "factura" : "recibo"} ${rec.numero}`;
+  const saludo = empresa || !cli ? `Buen día${cli ? ", " + cli : ""}` : `Hola ${(n => n.charAt(0).toUpperCase() + n.slice(1))(cli.split(/\s+/)[0])}`;
+  return `${saludo}, le comparto su ${doc} por ${money(rec.total)}. Puede verla y validarla aquí: ${url}`.replace("verla y validarla", tipo==="Cotización" || tipo==="Factura" ? "verla y validarla" : "verlo y validarlo");
+}
+async function compartirPDF(bytes, nombre, titulo, st, texto){
   const file = new File([bytes], nombre, {type:"application/pdf"});
   const msg = (cls, t) => { if(st){ st.className = "status " + cls; st.innerHTML = t; } };
+  if(texto){ try{ navigator.clipboard && navigator.clipboard.writeText(texto).catch(() => {}); }catch(e){} }   // copia de respaldo
   if(navigator.canShare && navigator.share && navigator.canShare({files:[file]})){
-    try{ await navigator.share({files:[file], title:titulo}); msg("ok", "✓ Listo. Elige WhatsApp (u otra app) en el menú de compartir."); return; }
+    try{ await navigator.share({files:[file], title:titulo, ...(texto ? {text:texto} : {})});
+         msg("ok", "✓ Listo." + (texto ? " El mensaje también quedó copiado: si WhatsApp no lo muestra, mantén presionado y pega." : "")); return; }
     catch(e){
       if(e.name==="AbortError"){ if(st) st.textContent = ""; return; }
       if(e.name==="NotAllowedError"){   // el navegador pide un toque nuevo (pasó tiempo cargando el PDF)
         msg("", `PDF listo. <button class="b-navy b-sm" id="share-again">Compartir ahora</button>`);
-        const bt = document.getElementById("share-again"); if(bt) bt.onclick = () => compartirPDF(bytes, nombre, titulo, st);
+        const bt = document.getElementById("share-again"); if(bt) bt.onclick = () => compartirPDF(bytes, nombre, titulo, st, texto);
         return;
       }
       console.warn(e);
     }
   }
   bajarBytes(bytes, nombre);
-  msg("warn", "Este navegador no abre el menú de compartir: se descargó el PDF para que lo adjuntes en WhatsApp (clip 📎 → Documento).");
+  msg("warn", "Este navegador no abre el menú de compartir: se descargó el PDF para que lo adjuntes en WhatsApp (clip 📎 → Documento)." + (texto ? " El mensaje quedó copiado para que lo pegues." : ""));
 }
 
 /* ==================== menú «⋯» de acciones ==================== */
@@ -1195,8 +1204,8 @@ function pintarHist(){
     if(b.dataset.a==="share"){
       const st = $("h-status"), tit = `Cotización ${c.numero} · Grupo LEAN`;
       if(c.origen==="excel" && c.publicado){ st.className="status"; st.textContent="Preparando el PDF original…";
-        try{ return compartirPDF(await pdfPortal(c.codigo), nombrePDF(c), tit, st); }catch(e){ st.className="status bad"; st.textContent = "No se pudo obtener el PDF: " + e.message; return; } }
-      return compartirPDF(pdfBytes(pdfDe(c)), nombrePDF(c), tit, st);
+        try{ return compartirPDF(await pdfPortal(c.codigo), nombrePDF(c), tit, st, mensajeWA("Cotización", c, urlDe(c))); }catch(e){ st.className="status bad"; st.textContent = "No se pudo obtener el PDF: " + e.message; return; } }
+      return compartirPDF(pdfBytes(pdfDe(c)), nombrePDF(c), tit, st, mensajeWA("Cotización", c, urlDe(c)));
     }
     if((b.dataset.a==="ver" || b.dataset.a==="pdf") && c.origen==="excel" && c.publicado){   // el PDF original publicado desde Excel
       const st = $("h-status"); st.className="status"; st.textContent="Abriendo el PDF original del portal…";
@@ -1402,7 +1411,7 @@ $("fx-emit").onclick = async () => {
       En 1–2 minutos el QR mostrará «Documento Verificado» en:<br><a href="${url}" target="_blank" rel="noopener">${url}</a>
       <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="fx-dl-now">Descargar PDF</button><button class="b-ghost b-share" id="fx-share-now">📤 Compartir PDF</button>${d.conXml ? '<button class="b-ghost" id="fx-xml-now">Descargar XML</button>' : ""}<button class="b-ghost b-cxc" id="fx-cxc-now">Enviar a cuentas por cobrar</button><button class="b-ghost" id="fx-new-now">Nuevo recibo / factura</button></div></div>`;
     $("fx-dl-now").onclick = () => bajarPDF(fPdf(d), fNombre(d));
-    $("fx-share-now").onclick = () => compartirPDF(pdfBytes(fPdf(d)), fNombre(d), `${d.tipo} ${d.numero} · Grupo LEAN`, $("fx-status"));
+    $("fx-share-now").onclick = () => compartirPDF(pdfBytes(fPdf(d)), fNombre(d), `${d.tipo} ${d.numero} · Grupo LEAN`, $("fx-status"), mensajeWA(d.tipo, d, fUrl(d)));
     if(d.conXml) $("fx-xml-now").onclick = () => bajarXML(d);
     $("fx-new-now").onclick = fNueva;
     $("fx-cxc-now").onclick = () => { show("hist"); setHView("fac"); pedirCxc("fac", d); };
@@ -1489,7 +1498,7 @@ function pintarFac(){
     if(b.dataset.f==="ver") abrirPDF(fPdf(d));
     if(b.dataset.f==="pdf") bajarPDF(fPdf(d), fNombre(d));
     if(b.dataset.f==="xml") bajarXML(d);
-    if(b.dataset.f==="share") compartirPDF(pdfBytes(fPdf(d)), fNombre(d), `${d.tipo} ${d.numero} · Grupo LEAN`, $("h-status"));
+    if(b.dataset.f==="share") compartirPDF(pdfBytes(fPdf(d)), fNombre(d), `${d.tipo} ${d.numero} · Grupo LEAN`, $("h-status"), mensajeWA(d.tipo, d, fUrl(d)));
     if(b.dataset.f==="edit") fCargar(d, "editar");
     if(b.dataset.f==="anular" || b.dataset.f==="react") return pedirAnular("fac", d, b.dataset.f==="anular");
     if(b.dataset.f==="cxc") return pedirCxc("fac", d);
