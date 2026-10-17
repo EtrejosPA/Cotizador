@@ -1521,7 +1521,7 @@ function pedirAnular(kind, rec, anular){
   box.innerHTML = anular
     ? `<div class="box badb"><b>⚠ ¿Anular ${esc(nom)}?</b> · ${esc(rec.cliente)} · ${money(rec.total)}<br>
        Seguirá en tu historial marcada como <b>${fem?"Anulada":"Anulado"}</b> y su número no se volverá a usar. Si alguien escanea su QR, el portal mostrará <b>«Documento anulado»</b> y no podrá abrir el PDF.
-       <div style="margin-top:8px"><input type="text" id="an-motivo" maxlength="120" placeholder="Motivo (opcional; se muestra en el portal)" style="max-width:440px"></div>
+       <div style="margin-top:8px"><input type="text" id="an-motivo" maxlength="120" placeholder="Motivo (obligatorio; se muestra en el portal)" style="max-width:440px"></div>
        <div class="actions" style="justify-content:flex-start;margin-top:8px"><button class="b-red" id="an-ok">Sí, anular</button><button class="b-ghost" id="an-no">Cancelar</button></div>
        <div class="status" id="an-st"></div></div>`
     : `<div class="box warnb"><b>¿Reactivar ${esc(nom)}?</b> · ${esc(rec.cliente)} · ${money(rec.total)}<br>
@@ -1531,8 +1531,10 @@ function pedirAnular(kind, rec, anular){
   box.scrollIntoView({behavior:"smooth", block:"center"});
   $("an-no").onclick = () => box.innerHTML = "";
   $("an-ok").onclick = async () => {
-    const st = $("an-st"); $("an-ok").disabled = true; $("an-no").disabled = true;
-    const marca = anular ? {fecha: hoyISO(), ...($("an-motivo").value.trim() ? {motivo: $("an-motivo").value.trim()} : {})} : null;
+    const st = $("an-st");
+    if(anular && !$("an-motivo").value.trim()){ st.className = "status bad"; st.textContent = "Escribe el motivo de la anulación (es obligatorio)."; $("an-motivo").focus(); return; }
+    $("an-ok").disabled = true; $("an-no").disabled = true;
+    const marca = anular ? {fecha: hoyISO(), motivo: $("an-motivo").value.trim()} : null;
     try{
       if(rec.publicado!==false){ st.className="status"; st.textContent = "Actualizando el portal de validación…"; await portalMarcar(rec.codigo, marca); }
       st.className="status"; st.textContent = "Guardando en el historial…";
@@ -1945,16 +1947,17 @@ function pedirQuitarCx(d){
   const box = $("cx-box"), nom = d._k==="cot" ? `de la cotización ${d.numero}` : `${d.tipo==="Factura"?"de la factura":"del recibo"} ${d.numero}`;
   box.innerHTML = `<div class="box badb"><b>⚠ ¿Anular la cuenta por cobrar ${esc(nom)}?</b> · ${esc(d.cliente)} · ${money(d.total)}${cobradoDe(d) > 0 ? ` (tiene cobros por ${money(cobradoDe(d))})` : ""}<br>
     Se quita de Cuentas por cobrar y deja de sumar en los indicadores. ${d._k==="prev" ? "" : "El documento sigue válido en tu historial y en el portal (para anular el documento usa Historial → Anular)."}
-    <div style="margin-top:8px"><input type="text" id="qx-motivo" maxlength="120" placeholder="Motivo (opcional)" style="max-width:440px"></div>
+    <div style="margin-top:8px"><input type="text" id="qx-motivo" maxlength="120" placeholder="Motivo (obligatorio)" style="max-width:440px"></div>
     <div class="actions" style="justify-content:flex-start;margin-top:8px"><button class="b-red" id="qx-ok">Sí, anular la cuenta</button><button class="b-ghost" id="qx-no">Cancelar</button></div>
     <div class="status" id="qx-st"></div></div>`;
   box.scrollIntoView({behavior:"smooth", block:"center"});
   $("qx-no").onclick = () => box.innerHTML = "";
   $("qx-ok").onclick = async () => {
-    const st = $("qx-st"); $("qx-ok").disabled = true; st.className = "status"; st.textContent = "Guardando…";
-    const motivo = $("qx-motivo").value.trim();
+    const st = $("qx-st"), motivo = $("qx-motivo").value.trim();
+    if(!motivo){ st.className = "status bad"; st.textContent = "Escribe el motivo de la anulación (es obligatorio)."; $("qx-motivo").focus(); return; }
+    $("qx-ok").disabled = true; st.className = "status"; st.textContent = "Guardando…";
     try{
-      await guardarCobro(d, x => { x.cxcAnulada = {fecha:hoyISO(), ...(motivo ? {motivo} : {}), antes:x.cxc ?? true}; x.cxc = false; }, `Anular cuenta por cobrar · ${d.tipo.toLowerCase()} ${d.numero}`);
+      await guardarCobro(d, x => { x.cxcAnulada = {fecha:hoyISO(), motivo, antes:x.cxc ?? true}; x.cxc = false; }, `Anular cuenta por cobrar · ${d.tipo.toLowerCase()} ${d.numero}`);
       box.innerHTML = ""; $("cx-status").className = "status ok"; $("cx-status").textContent = `✓ Cuenta ${nom} anulada; ya no suma en los indicadores.`; pintarCxc();
     }catch(e){ console.error(e); st.className = "status bad"; st.textContent = "No se pudo: " + e.message; $("qx-ok").disabled = false; }
   };
