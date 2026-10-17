@@ -78,7 +78,7 @@
   table.cx td.cx-desc{max-width:280px;color:var(--muted);font-size:13px}
   table.cx tr.cx-sub td{background:var(--panel);font-weight:700;color:var(--navy)}
   table.cx tr.cx-sin td{color:var(--muted)}
-  table.cx td .acts{flex-wrap:nowrap}
+  table.h.cx td .acts{flex-wrap:nowrap}
   #sec-cxc select{width:100%;padding:10px 12px;border:1px solid #CBD3DF;border-radius:10px;font:inherit;background:#fff}
   #cx-box select{width:100%;padding:10px 12px;border:1px solid #CBD3DF;border-radius:10px;font:inherit;background:#fff}
   @media (max-width:980px){ .kpis{grid-template-columns:repeat(3,1fr)} }
@@ -1874,7 +1874,9 @@ function pintarCxc(){
       return `<tr><td><b>${esc(numCx(d))}</b>${tagCx(d)}</td><td>${esc(d.cliente)}</td><td class="cx-desc">${esc(descDe(d))}</td><td>${esc(PDFFAC.dmy(d.fecha))}</td>
       <td>${u?.fecha ? esc(PDFFAC.dmy(u.fecha)) : "—"}${(d.cobro?.abonos||[]).length > 1 ? `<div class="hint">${d.cobro.abonos.length} abonos</div>` : ""}</td><td>${esc(u?.metodo || "—")}</td>
       <td class="r"><b>${money(cobradoDe(d))}</b>${parcial ? `<div class="hint"><span class="pill p-warn" style="padding:1px 8px">Abono parcial</span> saldo ${money(saldoDe(d))}</div>` : ""}</td>
-      <td class="r"><div class="acts">${menuCx(d)}</div></td></tr>`; }).join("")
+      <td class="r"><div class="acts">${d._k==="prev"   // solo dos acciones: botones a la vista
+        ? `<button class="b-ghost b-sm" data-x="deshacer" data-c="${esc(d.codigo)}" title="Quitar el último cobro registrado">Deshacer</button><button class="b-ghost b-sm b-anular" data-x="quitar" data-c="${esc(d.codigo)}">Anular</button>`
+        : menuCx(d)}</div></td></tr>`; }).join("")
       + `<tr class="cx-sub"><td colspan="6">Total cobrado</td><td class="r"><b>${money(cobT)}</b></td><td></td></tr>` : vacio(8, "Todavía no has registrado cobros.");
   // por cotización
   const grupos = {};
