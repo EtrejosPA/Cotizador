@@ -251,9 +251,21 @@
       <div class="pedbox">
         <label>Pedido N.º</label>
         <label class="chk"><input type="checkbox" id="fx-ped-igual" checked> Igual al N.º del documento</label>
+        <div class="hint" style="margin-top:2px">Déjalo marcado si el recibo no viene de una cotización. Quítalo para enlazarlo a una.</div>
         <div id="fx-ped-box" class="hidden" style="margin-top:8px">
           <input type="text" id="fx-pedido" class="in" placeholder="N.º de la cotización (ej. H-064 o H-64)" style="max-width:320px" autocomplete="off">
           <div class="hint" id="fx-ped-info" style="margin-top:6px"></div>
+          <div id="fx-ped-old" class="hidden box" style="background:var(--blue-bg);margin-top:8px">
+            <b>¿Es una cotización anterior al Cotizador?</b> Tráela de una de estas dos formas (no se agrega a tu historial):
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
+              <button class="b-navy b-sm" id="fx-old-xl">Buscar en mi Excel de cotizaciones</button>
+              <input type="file" id="fx-old-file" accept=".xlsx,.xlsm,.xls" class="hidden">
+              <span class="hint">o</span>
+              <input type="text" id="fx-old-code" placeholder="Pega el enlace o código del QR" style="max-width:280px">
+              <button class="b-ghost b-sm" id="fx-old-go">Traer del portal</button>
+            </div>
+            <div class="status" id="fx-old-st"></div>
+          </div>
           <div id="fx-ped-opts" class="hidden" style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px">
             <label class="chk"><input type="checkbox" id="fx-ped-mo" checked> <span id="fx-ped-mo-lbl">Mano de obra</span></label>
             <label class="chk"><input type="checkbox" id="fx-ped-mat"> <span id="fx-ped-mat-lbl">Materiales (con ITBMS)</span></label>
@@ -1121,7 +1133,7 @@ $("fx-btn-ultimo").onclick = async () => {
 function fNueva(){
   FEDIT = null; $("fx-title").firstChild.textContent = "Nuevo recibo / factura "; $("fx-badge").textContent = "";
   ["fx-cliente","fx-ruc","fx-dir","fx-tel","fx-pedido"].forEach(id => { $(id).value = ""; delete $(id).dataset.auto; }); $("fx-dias").value = 4;
-  $("fx-ped-igual").checked = true; $("fx-ped-box").classList.add("hidden"); $("fx-ped-mo").checked = true; $("fx-ped-mat").checked = false; FPED = null; $("fx-ped-info").textContent = ""; $("fx-ped-opts").classList.add("hidden");
+  $("fx-ped-igual").checked = true; $("fx-ped-box").classList.add("hidden"); $("fx-ped-mo").checked = true; $("fx-ped-mat").checked = false; FPED = null; $("fx-ped-info").textContent = ""; $("fx-ped-opts").classList.add("hidden"); $("fx-ped-old").classList.add("hidden"); $("fx-old-code").value = "";
   document.querySelector('input[name="fx-tipo"][value="Recibo"]').checked = true;
   document.querySelectorAll('input[name="fx-tipo"]').forEach(r => r.disabled = false);
   $("fx-pago").checked = true; $("fx-pie").checked = true;
@@ -1262,7 +1274,8 @@ function setHView(v){
 /* ----- Pedido N.º enlazado a una cotización ----- */
 let FPED = null;
 function normCot(s){ const m = String(s||"").toUpperCase().replace(/\s+/g,"").match(/^([A-ZÑ])-?0*(\d{1,4})$/); return m ? `${m[1]}-${pad3(Number(m[2]))}` : null; }
-function buscarCot(s){ const num = normCot(s); return num ? (HIST?.cotizaciones||[]).find(c => c.numero.toUpperCase()===num) || null : null; }
+const OLDCOT = {};   // cotizaciones anteriores traídas del Excel o del portal (solo en esta sesión; no van al historial)
+function buscarCot(s){ const num = normCot(s); return num ? (HIST?.cotizaciones||[]).find(c => c.numero.toUpperCase()===num) || OLDCOT[num] || null : null; }
 function rowVacia(r){ return [...r.querySelectorAll("input,textarea")].every(el => el.value.trim()===""); }
 function filasMO(c){
   if(!c.incMO) return [];
@@ -1288,14 +1301,16 @@ function fEnlazar(c, regen=true){
     opts.classList.add("hidden");
     if(regen) [...$("fx-rows").children].filter(r => r.dataset.auto).forEach(r => r.remove());
     info.className = "hint";
-    info.innerHTML = $("fx-ped-igual").checked || !v ? "" : normCot(v)
-      ? `No encontré la cotización <b>${esc(normCot(v))}</b> en el historial. Llena el detalle a mano, o impórtala en <b>Historial → Importar desde Excel</b>.`
+    const nn = normCot(v), mostrarOld = !$("fx-ped-igual").checked && !!nn;
+    info.innerHTML = $("fx-ped-igual").checked || !v ? "" : nn
+      ? `La cotización <b>${esc(nn)}</b> no está en el historial del Cotizador. Puedes traerla aquí abajo, o llenar el detalle a mano (el recibo queda enlazado igual).`
       : "Escribe el N.º de la cotización, por ejemplo H-064.";
+    $("fx-ped-old").classList.toggle("hidden", !mostrarOld); $("fx-old-st").textContent = "";
     if(!$("fx-rows").children.length) fAdd();
     fCalc(); return;
   }
-  info.className = "hint ok";
-  info.innerHTML = `✓ Cotización <b>${esc(c.numero)}</b> · ${esc(c.cliente)} · total cotizado ${money(c.total)}`;
+  info.className = "hint ok"; $("fx-ped-old").classList.add("hidden");
+  info.innerHTML = `✓ Cotización <b>${esc(c.numero)}</b>${c._old ? ` <span style="font-weight:500">(${esc(c._old)})</span>` : ""} · ${esc(c.cliente)} · total cotizado ${money(c.total)}`;
   $("fx-ped-mo-lbl").textContent = c.incMO ? `Mano de obra (${money(r2(c.tot.moSub))})` : "Mano de obra (no tiene)";
   $("fx-ped-mat-lbl").textContent = c.incMat ? `Materiales con ITBMS (${money(r2(c.tot.matTotal))})` : "Materiales (no tiene)";
   $("fx-ped-mo").disabled = !c.incMO; $("fx-ped-mat").disabled = !c.incMat;
@@ -1322,6 +1337,34 @@ $("fx-pedido").addEventListener("blur", () => { const n = normCot($("fx-pedido")
 $("fx-ped-mo").onchange = () => { if(FPED){ ponerAuto("mo", $("fx-ped-mo").checked ? filasMO(FPED) : []); if(!$("fx-rows").children.length) fAdd(); fCalc(); } };
 $("fx-ped-mat").onchange = () => { if(FPED){ ponerAuto("mat", $("fx-ped-mat").checked ? filaMat(FPED) : []); if(!$("fx-rows").children.length) fAdd(); fCalc(); } };
 ["fx-cliente","fx-ruc"].forEach(id => $(id).addEventListener("input", () => delete $(id).dataset.auto));
+
+$("fx-old-xl").onclick = () => { $("fx-old-file").value = ""; $("fx-old-file").click(); };
+$("fx-old-file").onchange = async e => {
+  const f = e.target.files[0], st = $("fx-old-st"), num = normCot($("fx-pedido").value); if(!f || !num) return;
+  st.className = "status"; st.textContent = `Buscando ${num} en ${f.name}…`;
+  try{
+    const wb = XLSX.read(new Uint8Array(await f.arrayBuffer()), {type:"array"});
+    let n = 0;
+    wb.SheetNames.forEach(name => { const q = leerPlantilla(wb.Sheets[name]); if(q && !OLDCOT[q.numero]){ q.fecha = hoyISO(); const r = registroCot(q); r._old = "de tu Excel"; OLDCOT[q.numero] = r; n++; } });
+    if(OLDCOT[num]){ st.textContent = ""; fEnlazar(OLDCOT[num]); }
+    else { st.className = "status bad"; st.textContent = `No encontré la hoja de la cotización ${num} en ese archivo (leí ${n} cotización(es)). Prueba con el código del QR o llena el detalle a mano.`; }
+  }catch(err){ st.className = "status bad"; st.textContent = "No pude leer el archivo: " + err.message; }
+};
+$("fx-old-go").onclick = async () => {
+  const st = $("fx-old-st"), raw = $("fx-old-code").value.trim(), num = normCot($("fx-pedido").value);
+  const m = raw.toUpperCase().match(/([A-ZÑ]\d{1,4}-[0-9A-Z]{4}-[0-9A-Z]{4})/);
+  if(!m){ st.className = "status bad"; st.textContent = "Pega el enlace del QR (…?c=H064-XXXX-XXXX) o solo el código."; return; }
+  st.className = "status"; st.textContent = "Consultando el portal…";
+  const P = await datosPortal(m[1]);
+  if(!P || P.tipo!=="Cotización"){ st.className = "status bad"; st.textContent = "Ese código no corresponde a una cotización publicada en el portal."; return; }
+  const pn = normCot(P.numero) || P.numero;
+  if(num && pn!==num){ st.className = "status bad"; st.textContent = `Ese QR es de la cotización ${pn}, no de la ${num}.`; return; }
+  const mat = (P.desglose||[]).find(x => /material/i.test(x[0])), mo = (P.desglose||[]).find(x => /mano/i.test(x[0]));
+  const matTotal = mat ? Number(mat[1]) : 0, moSub = mo ? Number(mo[1]) : (mat ? 0 : Number(P.total));
+  OLDCOT[pn] = { numero:pn, cliente:P.cliente||"", ruc:P.ruc||"", incMat:!!mat, incMO:!!mo || !mat, materiales:[], manoObra:[],
+    tot:{matSub:r2(matTotal/1.07), matItbms:r2(matTotal-matTotal/1.07), matTotal, moSub}, total:Number(P.total), _old:"del portal" };
+  st.textContent = ""; $("fx-pedido").value = pn; fEnlazar(OLDCOT[pn]);
+};
 
 /* ----- PDF original del portal (cotizaciones publicadas desde Excel) ----- */
 async function pdfPortal(codigo){
