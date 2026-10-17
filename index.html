@@ -1007,9 +1007,8 @@ function pintarHist(){
     <td class="acts-td"><div class="acts">
       <button class="b-navy b-sm" data-a="pdf" data-c="${esc(c.codigo)}" title="Descargar PDF">Descargar</button>
       ${c.resumen || c.anulado ? '' : `<button class="b-ghost b-sm" data-a="edit" data-c="${esc(c.codigo)}">Corregir</button>`}
-      ${c.resumen ? '' : `<button class="b-ghost b-sm" data-a="dup" data-c="${esc(c.codigo)}">Duplicar</button>`}
-      ${c.anulado ? `<button class="b-ghost b-sm" data-a="react" data-c="${esc(c.codigo)}">Reactivar</button>` : `<button class="b-ghost b-sm b-anular" data-a="anular" data-c="${esc(c.codigo)}">Anular</button>`}
       ${c.publicado===false ? '' : `<a class="b-ghost b-sm" style="text-decoration:none;border-radius:8px;font-weight:700;display:inline-block" href="${urlDe(c)}" target="_blank" rel="noopener">Portal</a>`}
+      ${c.anulado ? `<button class="b-ghost b-sm" data-a="react" data-c="${esc(c.codigo)}">Reactivar</button>` : `<button class="b-ghost b-sm b-anular" data-a="anular" data-c="${esc(c.codigo)}">Anular</button>`}
     </div></td></tr>`).join("");
   tb.querySelectorAll("button[data-a]").forEach(b => b.onclick = async () => {
     const c = HIST.cotizaciones.find(x => x.codigo===b.dataset.c); if(!c) return;
@@ -1240,9 +1239,8 @@ function pintarFac(){
     <td class="acts-td"><div class="acts">
       <button class="b-navy b-sm" data-f="pdf" data-c="${esc(d.codigo)}">Descargar</button>
       ${d.anulado ? '' : `<button class="b-ghost b-sm" data-f="edit" data-c="${esc(d.codigo)}">Corregir</button>`}
-      <button class="b-ghost b-sm" data-f="dup" data-c="${esc(d.codigo)}">Duplicar</button>
-      ${d.anulado ? `<button class="b-ghost b-sm" data-f="react" data-c="${esc(d.codigo)}">Reactivar</button>` : `<button class="b-ghost b-sm b-anular" data-f="anular" data-c="${esc(d.codigo)}">Anular</button>`}
       <a class="b-ghost b-sm" style="text-decoration:none;border-radius:8px;font-weight:700;display:inline-block" href="${fUrl(d)}" target="_blank" rel="noopener">Portal</a>
+      ${d.anulado ? `<button class="b-ghost b-sm" data-f="react" data-c="${esc(d.codigo)}">Reactivar</button>` : `<button class="b-ghost b-sm b-anular" data-f="anular" data-c="${esc(d.codigo)}">Anular</button>`}
     </div></td></tr>`).join("");
   tb.querySelectorAll("button[data-f]").forEach(b => b.onclick = () => {
     const d = FHIST.docs.find(x => x.codigo===b.dataset.c); if(!d) return;
