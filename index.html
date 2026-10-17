@@ -68,6 +68,7 @@
   .kpi span{font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
   .kpi b{font-size:20px;color:var(--text);font-variant-numeric:tabular-nums}.kpi small{font-size:12px;color:var(--muted)}
   .kpi.k-bad{background:var(--red-bg);border-color:#F5C2C2}.kpi.k-warn{background:var(--amber-bg);border-color:#F3DDA9}.kpi.k-ok{background:var(--green-bg);border-color:#B9EBCB}
+  .kpi.k-blue{background:var(--blue-bg);border-color:#BCD3F5}.kpi.k-navy{background:#E3ECF5;border-color:#C3D3E6}.kpi.k-lila{background:#F0E7FB;border-color:#DCCCF2}
   .cx-bar-wrap{margin-top:14px}.cx-bar-t{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px}
   .cx-bar{display:flex;gap:2px;height:14px;border-radius:7px;overflow:hidden;background:var(--panel)}
   .seg-b{min-width:4px}.s-ok{background:#22A05A}.s-bad{background:#E0554F}.s-warn{background:#E9B23A}.s-empty{background:var(--line)}
@@ -1812,13 +1813,13 @@ function pintarCxc(){
     kp("Total vencido", money(venT), `${ven.length} documento(s)`, "k-bad") +
     kp("Total por vencer", money(porT), `${por.length} documento(s)`, "k-warn") +
     kp("Total cobrado", money(cobT), `${pct(cobT)} del facturado`, "k-ok") +
+    kp("Total cotizado", money(cotT), cotMat > 0 ? `M. de obra ${money(cotMO)} · Mat. ${money(cotMat)}` : `${cots.length} cotización(es) · solo mano de obra`, "k-blue") +
     kp("Saldo por cobrar", money(saldoT), `${pct(saldoT)} del facturado`, "k-navy") +
-    kp("Total cotizado", money(cotT), cotMat > 0 ? `M. de obra ${money(cotMO)} · Mat. ${money(cotMat)}` : `${cots.length} cotización(es) · solo mano de obra`, "k-navy") +
-    kp("Facturado", money(fact), `${pct(cobT)} cobrado`, "k-navy");
+    kp("Facturado", money(fact), `${pct(cobT)} cobrado`, "k-lila");
   const segs = [["Cobrado", cobT, "s-ok"], ["Vencido", venT, "s-bad"], ["Por vencer", porT, "s-warn"]];
   $("cx-bar").innerHTML = fact ? segs.filter(s => s[1] > 0).map(([t,v,c]) => `<div class="seg-b ${c}" style="flex:${v}" title="${t}: ${money(v)} (${pct(v)})"></div>`).join("") : '<div class="seg-b s-empty" style="flex:1"></div>';
   $("cx-pend").innerHTML = (ven.length + por.length)
-    ? `<b>${ven.length + por.length}</b> pendiente(s) de cobro de <b>${L.length}</b> en cuentas por cobrar · ${ven.length} vencido(s) · ${por.length} por vencer`
+    ? `<b>${ven.length + por.length}</b> pendiente(s) de cobro de <b>${L.length}</b> en cuentas por cobrar`
     : (L.length ? `Sin pendientes · ${L.length} cuenta(s) cobradas` : "Aún no has enviado documentos a cuentas por cobrar (botón «Por cobrar» en el Historial).");
   $("cx-leg").innerHTML = segs.map(([t,v,c]) => `<span><i class="${c}"></i>${t} <b>${money(v)}</b> · ${pct(v)}</span>`).join("");
   const btnCobro = d => `<div class="acts"><button class="b-ghost b-sm b-cobro" data-x="cobrar" data-c="${esc(d.codigo)}">Registrar cobro</button>${btnAnCx(d)}</div>`;
