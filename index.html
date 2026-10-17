@@ -63,6 +63,7 @@
   input.ro{background:#EEF2F7;color:var(--navy);font-weight:700}
   .pedbox{margin-top:14px;padding-top:14px;border-top:1px solid var(--line, #e3e8ef)}
   .hint.ok{color:var(--green);font-weight:600}
+  .num-link.anul{text-decoration:line-through;opacity:.6}.b-anular{background:var(--red-bg)!important;color:var(--red)!important;border:1px solid #F5C2C2!important}.b-anular:hover{background:#FBDADA!important}
   .imp-t{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0}.imp-t td,.imp-t th{padding:6px 8px;border-bottom:1px solid #e3e8ef;text-align:left;vertical-align:top}
   .imp-t th{font-size:11px;text-transform:uppercase;color:var(--muted)}
   @media (max-width:720px){ .fgrid{grid-template-columns:1fr 1fr} }
@@ -998,15 +999,16 @@ function pintarHist(){
   $("h-count").textContent = (HIST?.cotizaciones||[]).length;
   if(!L.length){ tb.innerHTML = `<tr><td colspan="6" class="empty">${(HIST?.cotizaciones||[]).length ? "Sin resultados para la búsqueda." : "Todavía no has emitido cotizaciones con el cotizador."}</td></tr>`; return; }
   tb.innerHTML = L.map(c => `<tr>
-    <td><button class="num-link" data-a="ver" data-c="${esc(c.codigo)}" title="Ver la cotización (PDF)">${esc(c.numero)}</button></td>
+    <td><button class="num-link${c.anulado?" anul":""}" data-a="ver" data-c="${esc(c.codigo)}" title="Ver la cotización (PDF)">${esc(c.numero)}</button></td>
     <td>${esc(fechaLarga(c.fecha))}</td>
     <td>${esc(c.cliente)}${c.ruc?`<div class="hint">${esc(c.ruc)}</div>`:""}</td>
     <td class="r"><b>${money(c.total)}</b></td>
-    <td>${vencida(c) ? '<span class="pill p-warn">Vencida</span>' : '<span class="pill p-ok">Vigente</span>'}${c.publicado===false ? ' <span class="pill p-bad" title="Este código aún no está en el portal">No publicada</span>' : ''}${c.origen==="excel" ? '<div class="hint">De Excel</div>' : ''}</td>
+    <td>${c.anulado ? `<span class="pill p-bad">Anulada</span><div class="hint">${esc(PDFFAC.dmy(c.anulado.fecha))}${c.anulado.motivo ? " · " + esc(c.anulado.motivo) : ""}</div>` : vencida(c) ? '<span class="pill p-warn">Vencida</span>' : '<span class="pill p-ok">Vigente</span>'}${c.publicado===false ? ' <span class="pill p-bad" title="Este código aún no está en el portal">No publicada</span>' : ''}${c.origen==="excel" ? '<div class="hint">De Excel</div>' : ''}</td>
     <td class="acts-td"><div class="acts">
       <button class="b-navy b-sm" data-a="pdf" data-c="${esc(c.codigo)}" title="Descargar PDF">Descargar</button>
-      ${c.resumen ? '' : `<button class="b-ghost b-sm" data-a="edit" data-c="${esc(c.codigo)}">Corregir</button>
-      <button class="b-ghost b-sm" data-a="dup" data-c="${esc(c.codigo)}">Duplicar</button>`}
+      ${c.resumen || c.anulado ? '' : `<button class="b-ghost b-sm" data-a="edit" data-c="${esc(c.codigo)}">Corregir</button>`}
+      ${c.resumen ? '' : `<button class="b-ghost b-sm" data-a="dup" data-c="${esc(c.codigo)}">Duplicar</button>`}
+      ${c.anulado ? `<button class="b-ghost b-sm" data-a="react" data-c="${esc(c.codigo)}">Reactivar</button>` : `<button class="b-ghost b-sm b-anular" data-a="anular" data-c="${esc(c.codigo)}">Anular</button>`}
       ${c.publicado===false ? '' : `<a class="b-ghost b-sm" style="text-decoration:none;border-radius:8px;font-weight:700;display:inline-block" href="${urlDe(c)}" target="_blank" rel="noopener">Portal</a>`}
     </div></td></tr>`).join("");
   tb.querySelectorAll("button[data-a]").forEach(b => b.onclick = async () => {
@@ -1020,6 +1022,7 @@ function pintarHist(){
     if(b.dataset.a==="ver") abrirPDF(pdfDe(c));
     if(b.dataset.a==="pdf") bajarPDF(pdfDe(c), nombrePDF(c));
     if(b.dataset.a==="edit") cargar(c, "editar");
+    if(b.dataset.a==="anular" || b.dataset.a==="react") return pedirAnular("cot", c, b.dataset.a==="anular");
     if(b.dataset.a==="dup") cargar(c, "duplicar");
   });
 }
@@ -1030,13 +1033,13 @@ $("h-export").onclick = () => { if(HVIEW==="fac") return exportarFac();
     "N° cotización": c.numero, "Fecha de emisión": c.fecha.split("-").reverse().join("/"), "Válida hasta": c.validoHasta.split("-").reverse().join("/"),
     "Cliente": c.cliente, "CIP/RUC": c.ruc||"", "Materiales sub-total": r2(c.tot.matSub), "ITBMS (7%)": r2(c.tot.matItbms),
     "Total materiales": r2(c.tot.matTotal), "Mano de obra": r2(c.tot.moSub), "Total cotización": c.total,
-    "Estado": vencida(c) ? "Vencida" : "Vigente", "Duración estimada": c.incMO ? c.duracion : "", "Código de validación": c.codigo, "Enlace del QR": urlDe(c) }));
+    "Estado": c.anulado ? "Anulada" : vencida(c) ? "Vencida" : "Vigente", "Anulada el": c.anulado ? PDFFAC.dmy(c.anulado.fecha) : "", "Motivo de anulación": c.anulado?.motivo || "", "Duración estimada": c.incMO ? c.duracion : "", "Código de validación": c.codigo, "Enlace del QR": urlDe(c) }));
   const det = [];
   cs.forEach(c => [["Materiales", c.materiales], ["Mano de obra", c.manoObra]].forEach(([hoja, arr]) => arr.forEach((it,i) =>
     det.push({"N° cotización": c.numero, "Cliente": c.cliente, "Hoja": hoja, "#": i+1, "Descripción": it.desc, "Cant.": it.cant, "Precio unit.": it.precio, "Total": r2(it.cant*it.precio)}))));
   const wb = XLSX.utils.book_new();
   const s1 = XLSX.utils.json_to_sheet(resumen), s2 = XLSX.utils.json_to_sheet(det);
-  s1["!cols"] = [12,14,14,30,20,14,11,14,13,14,10,18,22,52].map(w=>({wch:w}));
+  s1["!cols"] = [12,14,14,30,20,14,11,14,13,14,10,12,26,18,22,52].map(w=>({wch:w}));
   s2["!cols"] = [12,30,13,4,60,8,12,12].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb, s1, "Cotizaciones"); XLSX.utils.book_append_sheet(wb, s2, "Detalle");
   XLSX.writeFile(wb, `Historial_Cotizaciones_${hoyISO()}.xlsx`);
@@ -1221,7 +1224,7 @@ $("fx-emit").onclick = async () => {
 
 /* ----- historial de recibos y facturas ----- */
 let FSORT_DESC = true, HVIEW = "cot";
-function fVencido(d){ return (d.cobro?.estado||"Pendiente")!=="Cobrado" && new Date(d.vence+"T23:59:59-05:00") < new Date(); }
+function fVencido(d){ return !d.anulado && (d.cobro?.estado||"Pendiente")!=="Cobrado" && new Date(d.vence+"T23:59:59-05:00") < new Date(); }
 function pintarFac(){
   const q = $("h-q").value.trim().toLowerCase(), tb = $("hf-body");
   const L = (FHIST?.docs||[]).filter(d => !q || [d.numero, d.tipo, d.cliente, d.ruc, d.items.map(i=>i.desc).join(" ")].join(" ").toLowerCase().includes(q))
@@ -1229,15 +1232,16 @@ function pintarFac(){
   $("h-count").textContent = (FHIST?.docs||[]).length;
   if(!L.length){ tb.innerHTML = `<tr><td colspan="7" class="empty">${(FHIST?.docs||[]).length ? "Sin resultados para la búsqueda." : "Todavía no has emitido recibos ni facturas."}</td></tr>`; return; }
   tb.innerHTML = L.map(d => `<tr>
-    <td><button class="num-link" data-f="ver" data-c="${esc(d.codigo)}" title="Ver el documento (PDF)">${esc(d.numero)}</button></td>
+    <td><button class="num-link${d.anulado?" anul":""}" data-f="ver" data-c="${esc(d.codigo)}" title="Ver el documento (PDF)">${esc(d.numero)}</button></td>
     <td>${esc(d.tipo)}</td><td>${esc(PDFFAC.dmy(d.fecha))}</td>
     <td>${esc(d.cliente)}<div class="hint">${esc((d.items[0]?.desc||"").split("\n")[0].slice(0,60))}</div></td>
     <td class="r"><b>${money(d.total)}</b></td>
-    <td>${(d.cobro?.estado)==="Cobrado" ? '<span class="pill p-ok">Cobrado</span>' : fVencido(d) ? '<span class="pill p-bad">Vencido</span>' : '<span class="pill p-warn">Por vencer</span>'}</td>
+    <td>${d.anulado ? `<span class="pill p-bad">${d.tipo==="Factura"?"Anulada":"Anulado"}</span><div class="hint">${esc(PDFFAC.dmy(d.anulado.fecha))}${d.anulado.motivo ? " · " + esc(d.anulado.motivo) : ""}</div>` : (d.cobro?.estado)==="Cobrado" ? '<span class="pill p-ok">Cobrado</span>' : fVencido(d) ? '<span class="pill p-bad">Vencido</span>' : '<span class="pill p-warn">Por vencer</span>'}</td>
     <td class="acts-td"><div class="acts">
       <button class="b-navy b-sm" data-f="pdf" data-c="${esc(d.codigo)}">Descargar</button>
-      <button class="b-ghost b-sm" data-f="edit" data-c="${esc(d.codigo)}">Corregir</button>
+      ${d.anulado ? '' : `<button class="b-ghost b-sm" data-f="edit" data-c="${esc(d.codigo)}">Corregir</button>`}
       <button class="b-ghost b-sm" data-f="dup" data-c="${esc(d.codigo)}">Duplicar</button>
+      ${d.anulado ? `<button class="b-ghost b-sm" data-f="react" data-c="${esc(d.codigo)}">Reactivar</button>` : `<button class="b-ghost b-sm b-anular" data-f="anular" data-c="${esc(d.codigo)}">Anular</button>`}
       <a class="b-ghost b-sm" style="text-decoration:none;border-radius:8px;font-weight:700;display:inline-block" href="${fUrl(d)}" target="_blank" rel="noopener">Portal</a>
     </div></td></tr>`).join("");
   tb.querySelectorAll("button[data-f]").forEach(b => b.onclick = () => {
@@ -1245,6 +1249,7 @@ function pintarFac(){
     if(b.dataset.f==="ver") abrirPDF(fPdf(d));
     if(b.dataset.f==="pdf") bajarPDF(fPdf(d), fNombre(d));
     if(b.dataset.f==="edit") fCargar(d, "editar");
+    if(b.dataset.f==="anular" || b.dataset.f==="react") return pedirAnular("fac", d, b.dataset.f==="anular");
     if(b.dataset.f==="dup") fCargar(d, "duplicar");
   });
 }
@@ -1253,13 +1258,13 @@ function exportarFac(){
   if(!ds.length){ $("h-status").className="status warn"; $("h-status").textContent="No hay recibos ni facturas para exportar."; return; }
   const res = ds.map(d => ({"N.º": d.numero, "Tipo": d.tipo, "Pedido N.º": d.pedido, "Fecha": PDFFAC.dmy(d.fecha), "Vencimiento": PDFFAC.dmy(d.vence),
     "Cliente": d.cliente, "CIP/RUC": d.ruc||"", "Descripción": d.items.map(i=>i.desc).filter(Boolean).join(" | "), "Total": d.total,
-    "Estado de cobro": d.cobro?.estado==="Cobrado" ? "Cobrado" : (fVencido(d) ? "Vencido" : "Por vencer"), "Fecha de cobro": d.cobro?.fecha ? PDFFAC.dmy(d.cobro.fecha) : "",
+    "Estado de cobro": d.anulado ? (d.tipo==="Factura"?"Anulada":"Anulado") : d.cobro?.estado==="Cobrado" ? "Cobrado" : (fVencido(d) ? "Vencido" : "Por vencer"), "Fecha de cobro": d.cobro?.fecha ? PDFFAC.dmy(d.cobro.fecha) : "", "Motivo de anulación": d.anulado?.motivo || "",
     "Código de validación": d.codigo, "Enlace del QR": fUrl(d)}));
   const det = []; ds.forEach(d => d.items.forEach((it,i) => det.push({"N.º": d.numero, "Tipo": d.tipo, "Cliente": d.cliente, "#": i+1, "Descripción": it.desc||"",
     "Empresa": it.empresa||"", "Lugar donde recoge": it.recoge||"", "Lugar donde entrega": it.entrega||"", "KM": it.km||"", "Vehículo": it.vehiculo||"",
     "Observaciones": it.obs||"", "Fecha": it.fecha ? PDFFAC.dmy(it.fecha) : "", "Cantidad": it.cant??"", "Precio unitario": it.precio??"", "Total": it.total})));
   const wb = XLSX.utils.book_new(), s1 = XLSX.utils.json_to_sheet(res), s2 = XLSX.utils.json_to_sheet(det);
-  s1["!cols"] = [7,9,10,11,12,28,22,50,10,13,12,22,52].map(w=>({wch:w})); s2["!cols"] = [7,9,26,4,44,16,22,22,6,10,22,11,9,12,10].map(w=>({wch:w}));
+  s1["!cols"] = [7,9,10,11,12,28,22,50,10,13,12,26,22,52].map(w=>({wch:w})); s2["!cols"] = [7,9,26,4,44,16,22,22,6,10,22,11,9,12,10].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb, s1, "Recibos y facturas"); XLSX.utils.book_append_sheet(wb, s2, "Detalle");
   XLSX.writeFile(wb, `Historial_Recibos_Facturas_${hoyISO()}.xlsx`);
   $("h-status").className="status ok"; $("h-status").textContent = `✓ Exportados ${ds.length} documentos.`;
@@ -1310,7 +1315,7 @@ function fEnlazar(c, regen=true){
     fCalc(); return;
   }
   info.className = "hint ok"; $("fx-ped-old").classList.add("hidden");
-  info.innerHTML = `✓ Cotización <b>${esc(c.numero)}</b>${c._old ? ` <span style="font-weight:500">(${esc(c._old)})</span>` : ""} · ${esc(c.cliente)} · total cotizado ${money(c.total)}`;
+  info.innerHTML = `✓ Cotización <b>${esc(c.numero)}</b>${c._old ? ` <span style="font-weight:500">(${esc(c._old)})</span>` : ""} · ${esc(c.cliente)} · total cotizado ${money(c.total)}${c.anulado ? ' <span style="color:var(--red)">· ⚠ esta cotización está ANULADA</span>' : ""}`;
   $("fx-ped-mo-lbl").textContent = c.incMO ? `Mano de obra (${money(r2(c.tot.moSub))})` : "Mano de obra (no tiene)";
   $("fx-ped-mat-lbl").textContent = c.incMat ? `Materiales con ITBMS (${money(r2(c.tot.matTotal))})` : "Materiales (no tiene)";
   $("fx-ped-mo").disabled = !c.incMO; $("fx-ped-mat").disabled = !c.incMat;
@@ -1365,6 +1370,56 @@ $("fx-old-go").onclick = async () => {
     tot:{matSub:r2(matTotal/1.07), matItbms:r2(matTotal-matTotal/1.07), matTotal, moSub}, total:Number(P.total), _old:"del portal" };
   st.textContent = ""; $("fx-pedido").value = pn; fEnlazar(OLDCOT[pn]);
 };
+
+/* ----- anular / reactivar ----- */
+async function portalMarcar(codigo, anulado){   // pone o quita la marca «anulado» en el portal
+  const k = await clavesPortal(codigo), pj = `data/${k.id}.json`;
+  const f = await ghGet(CFG.repoVal, pj); if(!f) return false;
+  const env = JSON.parse(td.decode(f.bytes));
+  const doc = JSON.parse(td.decode(await descifrar(k.key, unb64(env.iv), unb64(env.ct))));
+  if(anulado) doc.anulado = anulado; else delete doc.anulado;
+  const ej = await cifrar(k.key, te.encode(JSON.stringify(doc)));
+  await ghPut(CFG.repoVal, pj, te.encode(JSON.stringify({iv:b64(ej.iv), ct:b64(ej.ct)})), f.sha, `${anulado?"Anular":"Reactivar"} ${doc.tipo} ${doc.numero}`);
+  return true;
+}
+function pedirAnular(kind, rec, anular){
+  const box = $("h-imp"), fem = kind==="cot" || rec.tipo==="Factura";
+  const nom = kind==="cot" ? `la cotización ${rec.numero}` : `${rec.tipo==="Factura"?"la factura":"el recibo"} ${rec.numero}`;
+  box.innerHTML = anular
+    ? `<div class="box badb"><b>⚠ ¿Anular ${esc(nom)}?</b> · ${esc(rec.cliente)} · ${money(rec.total)}<br>
+       Seguirá en tu historial marcada como <b>${fem?"Anulada":"Anulado"}</b> y su número no se volverá a usar. Si alguien escanea su QR, el portal mostrará <b>«Documento anulado»</b> y no podrá abrir el PDF.
+       <div style="margin-top:8px"><input type="text" id="an-motivo" maxlength="120" placeholder="Motivo (opcional; se muestra en el portal)" style="max-width:440px"></div>
+       <div class="actions" style="justify-content:flex-start;margin-top:8px"><button class="b-red" id="an-ok">Sí, anular</button><button class="b-ghost" id="an-no">Cancelar</button></div>
+       <div class="status" id="an-st"></div></div>`
+    : `<div class="box warnb"><b>¿Reactivar ${esc(nom)}?</b> · ${esc(rec.cliente)} · ${money(rec.total)}<br>
+       Volverá a estar ${fem?"vigente":"vigente"} y su QR mostrará otra vez «Documento Verificado».
+       <div class="actions" style="justify-content:flex-start;margin-top:8px"><button class="b-navy" id="an-ok">Sí, reactivar</button><button class="b-ghost" id="an-no">Cancelar</button></div>
+       <div class="status" id="an-st"></div></div>`;
+  box.scrollIntoView({behavior:"smooth", block:"center"});
+  $("an-no").onclick = () => box.innerHTML = "";
+  $("an-ok").onclick = async () => {
+    const st = $("an-st"); $("an-ok").disabled = true; $("an-no").disabled = true;
+    const marca = anular ? {fecha: hoyISO(), ...($("an-motivo").value.trim() ? {motivo: $("an-motivo").value.trim()} : {})} : null;
+    try{
+      if(rec.publicado!==false){ st.className="status"; st.textContent = "Actualizando el portal de validación…"; await portalMarcar(rec.codigo, marca); }
+      st.className="status"; st.textContent = "Guardando en el historial…";
+      for(let i=0;i<3;i++){
+        try{
+          if(kind==="cot"){ await recargarHist(); const x = HIST.cotizaciones.find(c => c.codigo===rec.codigo); if(!x) throw new Error("no está en el historial");
+            if(marca) x.anulado = marca; else delete x.anulado; x.actualizado = new Date().toISOString();
+            await guardarHist(`${anular?"Anular":"Reactivar"} cotización ${rec.numero}`); }
+          else { await cargarFac(); const x = FHIST.docs.find(d => d.codigo===rec.codigo); if(!x) throw new Error("no está en el historial");
+            if(marca) x.anulado = marca; else delete x.anulado; x.actualizado = new Date().toISOString();
+            await guardarFac(`${anular?"Anular":"Reactivar"} ${rec.tipo.toLowerCase()} ${rec.numero}`); }
+          break;
+        }catch(e){ if(e.status!==409 || i===2) throw e; }
+      }
+      box.innerHTML = ""; $("h-status").className = "status ok";
+      $("h-status").textContent = `✓ ${kind==="cot" ? "Cotización" : rec.tipo} ${rec.numero} ${anular ? (fem?"anulada":"anulado") : (fem?"reactivada":"reactivado")}.`;
+      kind==="cot" ? pintarHist() : pintarFac();
+    }catch(e){ console.error(e); st.className="status bad"; st.textContent = "No se pudo completar: " + e.message; $("an-ok").disabled = false; $("an-no").disabled = false; }
+  };
+}
 
 /* ----- PDF original del portal (cotizaciones publicadas desde Excel) ----- */
 async function pdfPortal(codigo){
