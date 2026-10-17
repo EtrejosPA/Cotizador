@@ -461,7 +461,9 @@ async function ghShaOf(repo, path){ const r = await gh(repo, `/contents/${path}?
 async function ghPut(repo, path, bytes, sha, msg){
   const r = await gh(repo, `/contents/${path}`, {method:"PUT", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({message:msg, content:b64(bytes), branch:CFG.branch, ...(sha?{sha}:{})})});
-  if(!r.ok){ const t = await r.text(); const e = new Error(`GitHub ${r.status}: ${t.slice(0,160)}`); e.status = r.status; throw e; }
+  if(!r.ok){ const t = await r.text();
+    const e = new Error(r.status===403 ? `La clave no tiene permiso de escritura en el repositorio ${repo}. Agrégalo a tu clave en GitHub.` : `GitHub ${r.status}: ${t.slice(0,160)}`);
+    e.status = r.status; throw e; }
   return (await r.json()).content.sha;
 }
 
@@ -478,6 +480,13 @@ async function checkToken(){
     if(!a.ok){ st.className="status bad"; st.innerHTML="La clave no tiene acceso al repositorio <b>Validar</b>."; return false; }
     const [ja, jb] = [await a.json(), await b.json()];
     if(!(ja.permissions?.push && jb.permissions?.push)){ st.className="status bad"; st.textContent="La clave necesita permiso de escritura (Contents: Read and write) en Validar y Cotizador."; return false; }
+    // prueba real de escritura (crea un dato interno invisible, no aparece en el repositorio)
+    const sinPermiso = [];
+    for(const repo of [CFG.repoVal, CFG.repoCot]){
+      const p = await gh(repo, "/git/blobs", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({content:"prueba", encoding:"utf-8"})});
+      if(p.status===403 || p.status===404) sinPermiso.push(repo);
+    }
+    if(sinPermiso.length){ st.className="status bad"; st.innerHTML = "Tu clave no tiene permiso para escribir en <b>"+sinPermiso.join("</b> y <b>")+"</b>. En GitHub, edita la clave «Publicador LEAN» → Repository access → agrega <b>"+sinPermiso.join("</b> y <b>")+"</b> → Update."; return false; }
     st.className="status ok"; st.textContent="✓ Conectado a Validar y Cotizador"; $("token").value="••••••••••••";
     return true;
   }catch(e){ st.className="status bad"; st.textContent="No se pudo conectar con GitHub. Revisa tu internet."; return false; }
