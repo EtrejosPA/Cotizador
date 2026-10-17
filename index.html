@@ -299,6 +299,7 @@
       <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:14px">
         <label class="chk"><input type="checkbox" id="fx-pago" checked> Incluir «Método de pago»</label>
         <label class="chk"><input type="checkbox" id="fx-pie" checked> Incluir pie de página</label>
+        <label class="chk" title="Archivo de datos que usan algunos programas de facturación"><input type="checkbox" id="fx-xml"> Generar también archivo XML</label>
       </div>
     </div>
 
@@ -627,10 +628,10 @@ const PDFFAC = (() => {
     });
     return y;
   }
-  function pago(doc, y){
-    T(doc, "Método de Pago", 125, y, {f:"LS", st:"bold", sz:11, c:C.navy});
+  function pago(doc, y){   // alineado con «Total» (margen izquierdo de la tabla)
+    T(doc, "Método de Pago", 41, y, {f:"LS", st:"bold", sz:11, c:C.navy});
     [["Yappy, ACH",0],["ELIECER HERMINIO TREJOS VALDES",1],["Banco General",0],["Cuenta de ahorros",0],["0470019748772",0]]
-      .forEach(([t,b],i) => T(doc, t, 125, y + 17 + i*15, {f:"LS", st:b?"bold":"normal", sz:10}));
+      .forEach(([t,b],i) => T(doc, t, 41, y + 17 + i*15, {f:"LS", st:b?"bold":"normal", sz:10}));
   }
   function pie(doc){
     R(doc, 54, 697, 504, 0.6, [170,180,195]);
@@ -652,7 +653,7 @@ const PDFFAC = (() => {
     y += 39.8;
     T(doc, "Total", 41, y, {st:"bold", sz:13, c:C.navy});
     T(doc, money(d.total), 571, y, {st:"bold", sz:13, c:C.navy, al:"right"});
-    y += 38;
+    y += 30;
     if(d.conPago){ if(y > 600){ doc.addPage(); y = 60; } pago(doc, y); }
     if(d.conPie){ const n = doc.getNumberOfPages(); for(let i=1;i<=n;i++){ doc.setPage(i); pie(doc); } }
     return doc;
@@ -1147,7 +1148,7 @@ function fNueva(){
   $("fx-ped-igual").checked = true; $("fx-ped-box").classList.add("hidden"); $("fx-ped-mo").checked = true; $("fx-ped-mat").checked = false; FPED = null; $("fx-ped-info").textContent = ""; $("fx-ped-opts").classList.add("hidden"); $("fx-ped-old").classList.add("hidden"); $("fx-old-code").value = "";
   document.querySelector('input[name="fx-tipo"][value="Recibo"]').checked = true;
   document.querySelectorAll('input[name="fx-tipo"]').forEach(r => r.disabled = false);
-  $("fx-pago").checked = true; $("fx-pie").checked = true;
+  $("fx-pago").checked = true; $("fx-pie").checked = true; $("fx-xml").checked = false;
   $("fx-rows").innerHTML = ""; fAdd(); $("fx-status").textContent = ""; $("fx-msg").innerHTML = ""; fCalc();
 }
 function fCargar(d, modo){
@@ -1159,7 +1160,7 @@ function fCargar(d, modo){
   $("fx-ped-igual").checked = !enl; $("fx-ped-box").classList.toggle("hidden", !enl); $("fx-pedido").value = enl ? d.pedido : "";
   $("fx-ped-mo").checked = d.pedOpts ? !!d.pedOpts.mo : true; $("fx-ped-mat").checked = d.pedOpts ? !!d.pedOpts.mat : false;
   ["fx-cliente","fx-ruc"].forEach(id => delete $(id).dataset.auto); $("fx-dias").value = d.dias ?? 4;
-  $("fx-pago").checked = !!d.conPago; $("fx-pie").checked = !!d.conPie;
+  $("fx-pago").checked = !!d.conPago; $("fx-pie").checked = !!d.conPie; $("fx-xml").checked = !!d.conXml;
   $("fx-rows").innerHTML = ""; (d.items.length ? d.items : [{}]).forEach(it => { fAdd(it); if(it._auto) $("fx-rows").lastChild.dataset.auto = it._auto; });
   fEnlazar(enl ? buscarCot(d.pedido) : null, false);
   $("fx-title").firstChild.textContent = modo==="editar" ? `Corregir ${d.tipo.toLowerCase()} ` : `${d.tipo==="Factura"?"Nueva factura":"Nuevo recibo"} (copia) `;
@@ -1186,7 +1187,7 @@ function fArmar(){
   const pedido = igual ? numero : (normCot(pedTxt) || pedTxt);
   return { tipo, n, numero, pedido, cotRef: !igual && FPED ? FPED.numero : null, pedOpts: !igual && FPED ? {mo:$("fx-ped-mo").checked, mat:$("fx-ped-mat").checked} : null, codigo, fecha, vence, dias, cliente,
            ruc:$("fx-ruc").value.trim(), direccion:$("fx-dir").value.trim(), telefono:$("fx-tel").value.trim(),
-           items, subtotal: total, total, conPago:$("fx-pago").checked, conPie:$("fx-pie").checked,
+           items, subtotal: total, total, conPago:$("fx-pago").checked, conPie:$("fx-pie").checked, conXml:$("fx-xml").checked,
            cobro: FEDIT?.cobro || {estado:"Pendiente"}, creado: FEDIT ? FEDIT.creado : new Date().toISOString(), actualizado: new Date().toISOString() };
 }
 const fUrl = d => CFG.site + "?c=" + d.codigo;
@@ -1221,14 +1222,61 @@ $("fx-emit").onclick = async () => {
     const url = fUrl(d);
     msg.innerHTML = `<div class="box okb"><b>${esc(d.tipo)} ${esc(d.numero)} · ${esc(d.cliente)} · ${money(d.total)}</b><br>
       En 1–2 minutos el QR mostrará «Documento Verificado» en:<br><a href="${url}" target="_blank" rel="noopener">${url}</a>
-      <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="fx-dl-now">Descargar PDF</button><button class="b-ghost" id="fx-new-now">Nuevo recibo / factura</button></div></div>`;
+      <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="fx-dl-now">Descargar PDF</button>${d.conXml ? '<button class="b-ghost" id="fx-xml-now">Descargar XML</button>' : ""}<button class="b-ghost" id="fx-new-now">Nuevo recibo / factura</button></div></div>`;
     $("fx-dl-now").onclick = () => bajarPDF(fPdf(d), fNombre(d));
+    if(d.conXml) $("fx-xml-now").onclick = () => bajarXML(d);
     $("fx-new-now").onclick = fNueva;
     FEDIT = d; document.querySelectorAll('input[name="fx-tipo"]').forEach(r => r.disabled = true);
     $("fx-title").firstChild.textContent = `Corregir ${d.tipo.toLowerCase()} `; $("fx-badge").textContent = d.numero; fHint();
   }catch(e){ console.error(e); st.className="status bad"; st.textContent = "No se pudo emitir: " + e.message; }
   $("fx-emit").disabled = false;
 };
+
+
+/* ----- archivo XML (datos estructurados del documento) ----- */
+const xesc = v => String(v ?? "").replace(/[<>&'"]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;","'":"&apos;",'"':"&quot;"}[c]));
+const xnum = v => Number(v ?? 0).toFixed(2);
+function xmlDe(d){
+  const tag = (t, v, ind="    ") => (v==null || v==="") ? "" : `${ind}<${t}>${xesc(v)}</${t}>\n`;
+  const items = d.items.map((it,i) => `    <Item linea="${i+1}">\n` +
+    tag("Descripcion", it.desc, "      ") + tag("Empresa", it.empresa, "      ") + tag("LugarRecoge", it.recoge, "      ") + tag("LugarEntrega", it.entrega, "      ") +
+    tag("KM", it.km, "      ") + tag("Vehiculo", it.vehiculo, "      ") + tag("Observaciones", it.obs, "      ") + tag("Fecha", it.fecha, "      ") +
+    (it.cant!=null ? `      <Cantidad>${it.cant}</Cantidad>\n` : "") + (it.precio!=null ? `      <PrecioUnitario>${xnum(it.precio)}</PrecioUnitario>\n` : "") +
+    `      <Total>${xnum(it.total)}</Total>\n    </Item>\n`).join("");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!-- ${d.tipo} digital Grupo Σ LEAN. Documento de datos; no es una factura electrónica fiscal autorizada por la DGI. -->
+<Documento tipo="${xesc(d.tipo)}" version="1.0">
+  <Encabezado>
+${tag("Numero", d.numero)}${tag("PedidoNumero", d.pedido)}${tag("FechaEmision", d.fecha)}${tag("FechaVencimiento", d.vence)}    <Moneda>USD</Moneda>
+${tag("CodigoValidacion", d.codigo)}${tag("UrlValidacion", fUrl(d))}${d.anulado ? tag("Anulado", d.anulado.fecha) : ""}  </Encabezado>
+  <Emisor>
+    <Nombre>Grupo Σ LEAN — Ingeniería &amp; Proyectos</Nombre>
+    <Direccion>Tocumen, Nuevo Belén, calle agua buena, ofi: A-01</Direccion>
+    <Correo>etrejos24@gmail.com</Correo>
+    <Telefono>+507 310-4763</Telefono>
+  </Emisor>
+  <Receptor>
+${tag("Nombre", d.cliente)}${tag("CIP_RUC", d.ruc)}${tag("Direccion", d.direccion)}${tag("Telefono", d.telefono)}  </Receptor>
+  <Detalle>
+${items}  </Detalle>
+  <Totales>
+    <Subtotal>${xnum(d.subtotal)}</Subtotal>
+    <Total>${xnum(d.total)}</Total>
+  </Totales>
+${d.conPago ? `  <FormaPago>
+    <Metodos>Yappy, ACH</Metodos>
+    <Titular>ELIECER HERMINIO TREJOS VALDES</Titular>
+    <Banco>Banco General</Banco>
+    <TipoCuenta>Cuenta de ahorros</TipoCuenta>
+    <Cuenta>0470019748772</Cuenta>
+  </FormaPago>
+` : ""}</Documento>
+`;
+}
+function bajarXML(d){
+  const url = URL.createObjectURL(new Blob([xmlDe(d)], {type:"application/xml"}));
+  const a = document.createElement("a"); a.href = url; a.download = `${d.tipo}_${d.numero}.xml`; document.body.appendChild(a); a.click(); a.remove();
+}
 
 /* ----- historial de recibos y facturas ----- */
 let FSORT_DESC = true, HVIEW = "cot";
@@ -1247,6 +1295,7 @@ function pintarFac(){
     <td>${d.anulado ? `<span class="pill p-gray">${d.tipo==="Factura"?"Anulada":"Anulado"}</span><div class="hint">${esc(PDFFAC.dmy(d.anulado.fecha))}${d.anulado.motivo ? " · " + esc(d.anulado.motivo) : ""}</div>` : (d.cobro?.estado)==="Cobrado" ? '<span class="pill p-ok">Cobrado</span>' : fVencido(d) ? '<span class="pill p-bad">Vencido</span>' : '<span class="pill p-warn">Por vencer</span>'}</td>
     <td class="acts-td"><div class="acts">
       <button class="b-navy b-sm" data-f="pdf" data-c="${esc(d.codigo)}">Descargar</button>
+      ${d.conXml ? `<button class="b-ghost b-sm" data-f="xml" data-c="${esc(d.codigo)}" title="Descargar el archivo XML">XML</button>` : ""}
       ${d.anulado ? '' : `<button class="b-ghost b-sm" data-f="edit" data-c="${esc(d.codigo)}">Corregir</button>`}
       <a class="b-ghost b-sm" style="text-decoration:none;border-radius:8px;font-weight:700;display:inline-block" href="${fUrl(d)}" target="_blank" rel="noopener">Portal</a>
       ${d.anulado ? `<button class="b-ghost b-sm" data-f="react" data-c="${esc(d.codigo)}">Reactivar</button>` : `<button class="b-ghost b-sm b-anular" data-f="anular" data-c="${esc(d.codigo)}">Anular</button>`}
@@ -1255,6 +1304,7 @@ function pintarFac(){
     const d = FHIST.docs.find(x => x.codigo===b.dataset.c); if(!d) return;
     if(b.dataset.f==="ver") abrirPDF(fPdf(d));
     if(b.dataset.f==="pdf") bajarPDF(fPdf(d), fNombre(d));
+    if(b.dataset.f==="xml") bajarXML(d);
     if(b.dataset.f==="edit") fCargar(d, "editar");
     if(b.dataset.f==="anular" || b.dataset.f==="react") return pedirAnular("fac", d, b.dataset.f==="anular");
     if(b.dataset.f==="dup") fCargar(d, "duplicar");
