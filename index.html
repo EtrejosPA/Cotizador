@@ -152,11 +152,8 @@
       <div class="grid g3">
         <div>
           <label>Cotización N°</label>
-          <div class="num">
-            <input type="text" id="f-letra" class="in" maxlength="3" placeholder="H" title="Inicial del cliente">
-            <input type="number" id="f-n" class="in" min="1" placeholder="065" title="Número consecutivo">
-          </div>
-          <div class="hint" id="f-num-hint" style="margin-top:4px"></div>
+          <input type="text" id="f-numero" disabled style="font-weight:800;color:var(--navy)">
+          <div class="hint" id="f-num-hint" style="margin-top:4px">Se asigna solo: inicial del cliente + siguiente número.</div>
         </div>
         <div><label>Fecha de emisión</label><input type="text" id="f-fecha" disabled></div>
         <div><label>Válido hasta</label><input type="text" id="f-vence" disabled></div>
@@ -164,6 +161,11 @@
       <div class="grid g2" style="margin-top:12px">
         <div><label>Cliente</label><input type="text" id="f-cliente" class="in" placeholder="Nombre del cliente o empresa"></div>
         <div><label>CIP / RUC</label><input type="text" id="f-ruc" class="in" placeholder="Opcional"></div>
+      </div>
+      <div id="f-inicio" class="hidden box warnb">
+        <b>Solo esta vez:</b> ¿cuál fue el <b>último número</b> de cotización que usaste en Excel? La siguiente continuará desde ahí y luego avanzará sola.
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><input type="number" id="f-ultimo" min="0" placeholder="Ej. 066" style="max-width:160px"><button class="b-navy" id="btn-ultimo">Guardar</button></div>
+        <div class="status" id="ultimo-status"></div>
       </div>
       <div id="f-fecha-opt" class="hidden" style="margin-top:10px">
         <label style="display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text);font-weight:500;cursor:pointer"><input type="checkbox" id="f-hoy"> Actualizar la fecha de emisión a hoy</label>
@@ -559,8 +561,13 @@ $("tab-hist").onclick = () => show("hist");
 
 /* ==================== formulario ==================== */
 let EDIT = null;      // registro que se está editando (o null)
-let LETRA_MANUAL = false;
-function siguienteN(){ const ns = (HIST?.cotizaciones||[]).map(c=>c.n); return ns.length ? Math.max(...ns)+1 : ""; }
+function siguienteN(){
+  const ns = (HIST?.cotizaciones||[]).map(c=>c.n);
+  const base = Math.max(0, ...(ns.length?ns:[0]), Number(HIST?.ultimoExcel||0));
+  return (ns.length || HIST?.ultimoExcel!=null) ? base+1 : null;
+}
+function letraActual(){ return EDIT ? EDIT.letra : inicial($("f-cliente").value); }
+function nActual(){ return EDIT ? EDIT.n : siguienteN(); }
 function rowHTML(kind, it={}){
   const div = document.createElement("div"); div.className = "row";
   div.innerHTML = `<div class="n"></div>
@@ -603,41 +610,43 @@ function calc(){
   numHint();
 }
 ["inc-mat","inc-mo"].forEach(id => $(id).onchange = calc);
-$("f-cliente").addEventListener("input", () => { if(!LETRA_MANUAL && !EDIT) $("f-letra").value = inicial($("f-cliente").value); numHint(); });
-$("f-letra").addEventListener("input", () => { LETRA_MANUAL = !!$("f-letra").value; $("f-letra").value = $("f-letra").value.toUpperCase().replace(/[^A-ZÑ]/g,""); numHint(); });
-$("f-n").addEventListener("input", numHint);
+$("f-cliente").addEventListener("input", numHint);
 $("f-hoy").onchange = fechas;
 function numHint(){
-  const L = $("f-letra").value, n = Number($("f-n").value), h = $("f-num-hint");
-  if(!L || !n){ h.textContent = HIST?.cotizaciones?.length ? "" : "Escribe el número que sigue en tu secuencia (ej. 067)."; h.className="hint"; return; }
-  const num = numeroDe(L,n), dup = (HIST.cotizaciones||[]).find(c => c.n===n && (!EDIT || c.codigo!==EDIT.codigo));
-  h.innerHTML = dup ? `<span class="bad">El número ${pad3(n)} ya existe (${esc(dup.numero)} · ${esc(dup.cliente)}).</span>` : `Quedará como <b>${esc(num)}</b>`;
+  const n = nActual(), L = letraActual(), out = $("f-numero");
+  $("f-inicio").classList.toggle("hidden", n!=null);
+  out.value = n==null ? "—" : (L ? numeroDe(L, n) : "?-" + pad3(n));
+  $("f-num-hint").textContent = EDIT ? "Número asignado (no cambia al corregir)." : (n==null ? "" : (L ? "Se asigna solo: inicial del cliente + siguiente número." : "Escribe el cliente para completar la letra."));
 }
+$("btn-ultimo").onclick = async () => {
+  const v = $("f-ultimo").value, st = $("ultimo-status");
+  if(v==="" || Number(v)<0){ st.className="status bad"; st.textContent="Escribe un número (ej. 066)."; return; }
+  st.className="status"; st.textContent="Guardando…";
+  try{ await recargarHist(); HIST.ultimoExcel = Math.floor(Number(v)); await guardarHist("Número inicial del consecutivo: " + pad3(HIST.ultimoExcel)); st.textContent=""; numHint(); }
+  catch(e){ st.className="status bad"; st.textContent = e.message; }
+};
 function fechas(){
   const f = EDIT && !$("f-hoy").checked ? EDIT.fecha : hoyISO();
   $("f-fecha").value = fechaLarga(f); $("f-vence").value = fechaLarga(masDias(f,30));
   return f;
 }
 function nueva(){
-  EDIT = null; LETRA_MANUAL = false;
+  EDIT = null;
   $("form-title").firstChild.textContent = "Nueva cotización "; $("form-badge").textContent = "";
-  ["f-letra","f-cliente","f-ruc"].forEach(id => $(id).value=""); $("f-n").value = siguienteN(); $("f-dur").value = "3 - 5 horas";
+  ["f-cliente","f-ruc"].forEach(id => $(id).value=""); $("f-dur").value = "3 - 5 horas";
   $("inc-mat").checked = true; $("inc-mo").checked = true;
   $("rows-mat").innerHTML=""; $("rows-mo").innerHTML=""; addRow("mat"); addRow("mo");
-  $("f-fecha-opt").classList.add("hidden"); $("f-hoy").checked=false; $("f-n").disabled=false; $("f-letra").disabled=false;
+  $("f-fecha-opt").classList.add("hidden"); $("f-hoy").checked=false;
   $("emit-status").textContent=""; $("emit-msg").innerHTML=""; fechas(); calc();
 }
 function cargar(c, modo){   // modo: "editar" | "duplicar"
-  EDIT = modo==="editar" ? c : null; LETRA_MANUAL = true;
-  $("f-letra").value = modo==="editar" ? c.letra : inicial(c.cliente) || c.letra;
-  $("f-n").value = modo==="editar" ? c.n : siguienteN();
+  EDIT = modo==="editar" ? c : null;
   $("f-cliente").value = c.cliente; $("f-ruc").value = c.ruc||""; $("f-dur").value = c.duracion||"3 - 5 horas";
   $("inc-mat").checked = c.incMat; $("inc-mo").checked = c.incMO;
   $("rows-mat").innerHTML=""; $("rows-mo").innerHTML="";
   (c.materiales.length ? c.materiales : [{}]).forEach(it => addRow("mat", it));
   (c.manoObra.length ? c.manoObra : [{}]).forEach(it => addRow("mo", it));
   $("f-fecha-opt").classList.toggle("hidden", modo!=="editar"); $("f-hoy").checked=false;
-  $("f-n").disabled = modo==="editar"; $("f-letra").disabled = modo==="editar";
   $("form-title").firstChild.textContent = modo==="editar" ? "Corregir cotización " : "Nueva cotización (copia) ";
   $("form-badge").textContent = modo==="editar" ? c.numero : "copia de " + c.numero;
   $("emit-status").textContent=""; $("emit-msg").innerHTML=""; fechas(); calc(); show("nueva");
@@ -645,10 +654,11 @@ function cargar(c, modo){   // modo: "editar" | "duplicar"
 $("btn-limpiar").onclick = () => { nueva(); };
 
 function armar(){   // valida y arma el registro
-  const L = $("f-letra").value.trim(), n = Number($("f-n").value), cliente = $("f-cliente").value.trim();
+  const cliente = $("f-cliente").value.trim(), L = letraActual(), n = nActual();
   const incMat = $("inc-mat").checked, incMO = $("inc-mo").checked;
   const mat = leerItems("mat"), mo = leerItems("mo"), errs = [];
-  if(!L) errs.push("la letra de la cotización"); if(!n) errs.push("el número de la cotización"); if(!cliente) errs.push("el cliente");
+  if(n==null) errs.push("indicar una sola vez el último número que usaste en Excel (recuadro amarillo arriba)");
+  if(!cliente) errs.push("el cliente"); else if(!L) errs.push("que el nombre del cliente empiece con una letra");
   if(!incMat && !incMO) errs.push("al menos una hoja (materiales o mano de obra)");
   [[incMat,mat,"materiales"],[incMO,mo,"mano de obra"]].forEach(([inc,arr,nom]) => {
     if(!inc) return;
@@ -656,7 +666,7 @@ function armar(){   // valida y arma el registro
     arr.forEach((it,i) => { if(!it.desc || it.cant==null || it.precio==null) errs.push(`completar la fila ${i+1} de ${nom} (descripción, cantidad y precio)`); });
   });
   const dup = (HIST.cotizaciones||[]).find(c => c.n===n && (!EDIT || c.codigo!==EDIT.codigo));
-  if(dup) errs.push(`otro número: el ${pad3(n)} ya existe (${dup.numero})`);
+  if(dup) errs.push(`actualizar: el número ${pad3(n)} ya existe (${dup.numero}). Recarga la página`);
   if(errs.length) throw new Error("Falta " + errs.join(", ") + ".");
   const fecha = fechas(), tot = totales(mat, mo, incMat, incMO);
   const numero = numeroDe(L, n);
@@ -684,6 +694,7 @@ $("btn-prev").onclick = () => {
 };
 $("btn-emit").onclick = async () => {
   const st = $("emit-status"), msg = $("emit-msg"); msg.innerHTML = "";
+  if(!EDIT){ try{ st.className="status"; st.textContent="Asignando número…"; await recargarHist(); numHint(); }catch(e){ st.className="status bad"; st.textContent = e.message; return; } }
   let c; try{ c = armar(); }catch(e){ st.className="status bad"; st.textContent = e.message; return; }
   $("btn-emit").disabled = true;
   try{
@@ -716,7 +727,7 @@ $("btn-emit").onclick = async () => {
       <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="dl-now">Descargar PDF</button><button class="b-ghost" id="new-now">Nueva cotización</button></div></div>`;
     $("dl-now").onclick = () => bajarPDF(pdfDe(c), nombrePDF(c));
     $("new-now").onclick = () => nueva();
-    EDIT = c; $("f-n").disabled = true; $("f-letra").disabled = true; $("f-fecha-opt").classList.remove("hidden");
+    EDIT = c; $("f-fecha-opt").classList.remove("hidden"); numHint();
     $("form-title").firstChild.textContent = "Corregir cotización "; $("form-badge").textContent = c.numero;
   }catch(e){ console.error(e); st.className="status bad"; st.textContent = "No se pudo emitir: " + e.message; }
   $("btn-emit").disabled = false;
