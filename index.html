@@ -50,7 +50,7 @@
   .ok{color:var(--green)}.bad{color:var(--red)}.warn{color:var(--amber)}
   .hidden{display:none!important}
   .pill:empty{display:none}
-  .p-bad{background:var(--red-bg);color:var(--red)}
+  .p-bad{background:var(--red-bg);color:var(--red)}.p-gray{background:#EEF0F3;color:#5B6472}
   .seg{display:inline-flex;background:var(--panel);border:1px solid #CBD3DF;border-radius:10px;padding:3px;gap:3px;flex-wrap:wrap}
   .segbtn,.segopt{background:transparent;color:var(--navy);border-radius:8px;padding:8px 14px;font-weight:700;font-size:14px;margin:0;text-transform:none;letter-spacing:0;cursor:pointer;display:flex;align-items:center;gap:6px}
   .segbtn.on,.segopt:has(input:checked){background:var(--navy);color:#fff}
@@ -989,6 +989,15 @@ let SORT_DESC = true;
 $("h-sort").onclick = () => { SORT_DESC = !SORT_DESC; FSORT_DESC = SORT_DESC; $("h-sort").textContent = SORT_DESC ? "Orden: más reciente primero ↓" : "Orden: más antigua primero ↑"; HVIEW==="cot" ? pintarHist() : pintarFac(); };
 $("h-q").addEventListener("input", () => HVIEW==="cot" ? pintarHist() : pintarFac());
 function vencida(c){ return new Date(c.validoHasta+"T23:59:59-05:00") < new Date(); }
+const DIAS_AVISO = 5;   // «Por vencer» cuando le quedan 5 días o menos
+const diasRestan = c => Math.round((new Date(c.validoHasta+"T12:00:00Z") - new Date(hoyISO()+"T12:00:00Z")) / 864e5);
+function estadoCot(c){   // Vigente (verde) · Por vencer (amarillo) · Vencida (rojo) · Anulada (gris)
+  if(c.anulado) return {t:"Anulada", cls:"p-gray"};
+  const d = diasRestan(c);
+  if(d < 0) return {t:"Vencida", cls:"p-bad"};
+  if(d <= DIAS_AVISO) return {t:"Por vencer", cls:"p-warn", nota: d===0 ? "vence hoy" : d===1 ? "vence mañana" : `vence en ${d} días`};
+  return {t:"Vigente", cls:"p-ok"};
+}
 function lista(){
   const q = $("h-q").value.trim().toLowerCase();
   return (HIST?.cotizaciones||[]).filter(c => !q || [c.numero, c.cliente, c.ruc, String(c.n)].join(" ").toLowerCase().includes(q))
@@ -1003,7 +1012,7 @@ function pintarHist(){
     <td>${esc(fechaLarga(c.fecha))}</td>
     <td>${esc(c.cliente)}${c.ruc?`<div class="hint">${esc(c.ruc)}</div>`:""}</td>
     <td class="r"><b>${money(c.total)}</b></td>
-    <td>${c.anulado ? `<span class="pill p-bad">Anulada</span><div class="hint">${esc(PDFFAC.dmy(c.anulado.fecha))}${c.anulado.motivo ? " · " + esc(c.anulado.motivo) : ""}</div>` : vencida(c) ? '<span class="pill p-warn">Vencida</span>' : '<span class="pill p-ok">Vigente</span>'}${c.publicado===false ? ' <span class="pill p-bad" title="Este código aún no está en el portal">No publicada</span>' : ''}${c.origen==="excel" ? '<div class="hint">De Excel</div>' : ''}</td>
+    <td>${(e => `<span class="pill ${e.cls}">${e.t}</span>${e.nota ? `<div class="hint">${e.nota}</div>` : ""}`)(estadoCot(c))}${c.anulado ? `<div class="hint">${esc(PDFFAC.dmy(c.anulado.fecha))}${c.anulado.motivo ? " · " + esc(c.anulado.motivo) : ""}</div>` : ""}${c.publicado===false ? ' <span class="pill p-bad" title="Este código aún no está en el portal">No publicada</span>' : ''}${c.origen==="excel" ? '<div class="hint">De Excel</div>' : ''}</td>
     <td class="acts-td"><div class="acts">
       <button class="b-navy b-sm" data-a="pdf" data-c="${esc(c.codigo)}" title="Descargar PDF">Descargar</button>
       ${c.resumen || c.anulado ? '' : `<button class="b-ghost b-sm" data-a="edit" data-c="${esc(c.codigo)}">Corregir</button>`}
@@ -1032,7 +1041,7 @@ $("h-export").onclick = () => { if(HVIEW==="fac") return exportarFac();
     "N° cotización": c.numero, "Fecha de emisión": c.fecha.split("-").reverse().join("/"), "Válida hasta": c.validoHasta.split("-").reverse().join("/"),
     "Cliente": c.cliente, "CIP/RUC": c.ruc||"", "Materiales sub-total": r2(c.tot.matSub), "ITBMS (7%)": r2(c.tot.matItbms),
     "Total materiales": r2(c.tot.matTotal), "Mano de obra": r2(c.tot.moSub), "Total cotización": c.total,
-    "Estado": c.anulado ? "Anulada" : vencida(c) ? "Vencida" : "Vigente", "Anulada el": c.anulado ? PDFFAC.dmy(c.anulado.fecha) : "", "Motivo de anulación": c.anulado?.motivo || "", "Duración estimada": c.incMO ? c.duracion : "", "Código de validación": c.codigo, "Enlace del QR": urlDe(c) }));
+    "Estado": estadoCot(c).t, "Anulada el": c.anulado ? PDFFAC.dmy(c.anulado.fecha) : "", "Motivo de anulación": c.anulado?.motivo || "", "Duración estimada": c.incMO ? c.duracion : "", "Código de validación": c.codigo, "Enlace del QR": urlDe(c) }));
   const det = [];
   cs.forEach(c => [["Materiales", c.materiales], ["Mano de obra", c.manoObra]].forEach(([hoja, arr]) => arr.forEach((it,i) =>
     det.push({"N° cotización": c.numero, "Cliente": c.cliente, "Hoja": hoja, "#": i+1, "Descripción": it.desc, "Cant.": it.cant, "Precio unit.": it.precio, "Total": r2(it.cant*it.precio)}))));
@@ -1235,7 +1244,7 @@ function pintarFac(){
     <td>${esc(d.tipo)}</td><td>${esc(PDFFAC.dmy(d.fecha))}</td>
     <td>${esc(d.cliente)}<div class="hint">${esc((d.items[0]?.desc||"").split("\n")[0].slice(0,60))}</div></td>
     <td class="r"><b>${money(d.total)}</b></td>
-    <td>${d.anulado ? `<span class="pill p-bad">${d.tipo==="Factura"?"Anulada":"Anulado"}</span><div class="hint">${esc(PDFFAC.dmy(d.anulado.fecha))}${d.anulado.motivo ? " · " + esc(d.anulado.motivo) : ""}</div>` : (d.cobro?.estado)==="Cobrado" ? '<span class="pill p-ok">Cobrado</span>' : fVencido(d) ? '<span class="pill p-bad">Vencido</span>' : '<span class="pill p-warn">Por vencer</span>'}</td>
+    <td>${d.anulado ? `<span class="pill p-gray">${d.tipo==="Factura"?"Anulada":"Anulado"}</span><div class="hint">${esc(PDFFAC.dmy(d.anulado.fecha))}${d.anulado.motivo ? " · " + esc(d.anulado.motivo) : ""}</div>` : (d.cobro?.estado)==="Cobrado" ? '<span class="pill p-ok">Cobrado</span>' : fVencido(d) ? '<span class="pill p-bad">Vencido</span>' : '<span class="pill p-warn">Por vencer</span>'}</td>
     <td class="acts-td"><div class="acts">
       <button class="b-navy b-sm" data-f="pdf" data-c="${esc(d.codigo)}">Descargar</button>
       ${d.anulado ? '' : `<button class="b-ghost b-sm" data-f="edit" data-c="${esc(d.codigo)}">Corregir</button>`}
