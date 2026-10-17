@@ -63,7 +63,25 @@
   input.ro{background:#EEF2F7;color:var(--navy);font-weight:700}
   .pedbox{margin-top:14px;padding-top:14px;border-top:1px solid var(--line, #e3e8ef)}
   .hint.ok{color:var(--green);font-weight:600}
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+  .kpi{border-radius:12px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;gap:3px;min-width:0}
+  .kpi span{font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
+  .kpi b{font-size:20px;color:var(--text);font-variant-numeric:tabular-nums}.kpi small{font-size:12px;color:var(--muted)}
+  .kpi.k-bad{background:var(--red-bg);border-color:#F5C2C2}.kpi.k-warn{background:var(--amber-bg);border-color:#F3DDA9}.kpi.k-ok{background:var(--green-bg);border-color:#B9EBCB}
+  .cx-bar-wrap{margin-top:14px}.cx-bar-t{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px}
+  .cx-bar{display:flex;gap:2px;height:14px;border-radius:7px;overflow:hidden;background:var(--panel)}
+  .seg-b{min-width:4px}.s-ok{background:#22A05A}.s-bad{background:#E0554F}.s-warn{background:#E9B23A}.s-empty{background:var(--line)}
+  .cx-leg{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:13px;color:var(--muted)}.cx-leg b{color:var(--text)}
+  .cx-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block}.d-bad{background:#E0554F}.d-warn{background:#E9B23A}.d-ok{background:#22A05A}
+  table.cx td.cx-desc{max-width:280px;color:var(--muted);font-size:13px}
+  table.cx tr.cx-sub td{background:var(--panel);font-weight:700;color:var(--navy)}
+  #sec-cxc select{width:100%;padding:10px 12px;border:1px solid #CBD3DF;border-radius:10px;font:inherit;background:#fff}
+  #cx-box select{width:100%;padding:10px 12px;border:1px solid #CBD3DF;border-radius:10px;font:inherit;background:#fff}
+  @media (max-width:980px){ .kpis{grid-template-columns:repeat(3,1fr)} }
+  @media (max-width:560px){ .kpis{grid-template-columns:1fr 1fr} }
   .num-link.anul{text-decoration:line-through;opacity:.6}.b-anular{background:var(--red-bg)!important;color:var(--red)!important;border:1px solid #F5C2C2!important}.b-anular:hover{background:#FBDADA!important}
+  .b-cobro{background:var(--green-bg)!important;color:var(--green)!important;border:1px solid #B9EBCB!important}.b-cobro:hover{background:#C9F0D7!important}
   .imp-t{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0}.imp-t td,.imp-t th{padding:6px 8px;border-bottom:1px solid #e3e8ef;text-align:left;vertical-align:top}
   .imp-t th{font-size:11px;text-transform:uppercase;color:var(--muted)}
   @media (max-width:720px){ .fgrid{grid-template-columns:1fr 1fr} }
@@ -120,6 +138,14 @@
     table.h td{border:0;padding:3px 6px}
     table.h td.acts-td{grid-column:1/-1}
     table.h td .acts{justify-content:flex-start}
+    table.cx tr{grid-template-columns:1fr 1fr;gap:2px 10px;padding:10px 0}
+    table.cx td[data-l]::before{content:attr(data-l);display:block;font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--muted);margin-bottom:1px}
+    table.cx td.r{text-align:left}
+    table.cx td.cx-desc{grid-column:1/-1;max-width:none}
+    table.cx td:last-child:not([colspan]){grid-column:1/-1}
+    table.cx td:last-child[data-l=""]::before{display:none}
+    table.cx tr.cx-sub{display:flex;justify-content:space-between}
+    table.cx tr.cx-sub td:empty{display:none}
   }
 </style>
 </head>
@@ -130,6 +156,7 @@
   <nav id="nav" class="hidden">
     <button class="b-ghost on" id="tab-nueva">Nueva cotización</button>
     <button class="b-ghost" id="tab-fac">Facturación</button>
+    <button class="b-ghost" id="tab-cxc">Cuentas por cobrar</button>
     <button class="b-ghost" id="tab-hist">Historial</button>
   </nav>
 </header>
@@ -312,6 +339,40 @@
       <div class="status" id="fx-status"></div>
       <div id="fx-msg"></div>
     </div>
+  </section>
+
+  <!-- ======== CUENTAS POR COBRAR ======== -->
+  <section id="sec-cxc" class="hidden" style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <h2>Cuentas por cobrar <span class="pill p-blue" id="cx-corte"></span></h2>
+      <div class="htools" style="margin-bottom:14px">
+        <select id="cx-cliente" style="flex:1;min-width:200px"><option value="">Todos los clientes</option></select>
+        <button class="b-ghost" id="cx-import">Importar pendientes del control anterior</button>
+        <button class="b-navy" id="cx-export">Exportar a Excel</button>
+        <input type="file" id="cx-file" accept=".xlsm,.xlsx,.xls" class="hidden">
+      </div>
+      <div class="kpis" id="cx-kpis"></div>
+      <div class="cx-bar-wrap">
+        <div class="cx-bar-t">Del total facturado</div>
+        <div class="cx-bar" id="cx-bar"></div>
+        <div class="cx-leg" id="cx-leg"></div>
+      </div>
+      <div id="cx-box"></div>
+      <div class="status" id="cx-status"></div>
+    </div>
+
+    <div class="card"><h2><span class="dot d-bad"></span>Vencidos <span class="pill p-bad" id="cx-n-ven"></span></h2>
+      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Vencimiento</th><th class="r">Días de atraso</th><th class="r">Saldo</th><th class="r"></th></tr></thead><tbody id="cx-ven"></tbody></table></div></div>
+
+    <div class="card"><h2><span class="dot d-warn"></span>Por vencer <span class="pill p-warn" id="cx-n-por"></span></h2>
+      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Vencimiento</th><th class="r">Días para vencer</th><th class="r">Saldo</th><th class="r"></th></tr></thead><tbody id="cx-por"></tbody></table></div></div>
+
+    <div class="card"><h2><span class="dot d-ok"></span>Cobrados <span class="pill p-ok" id="cx-n-cob"></span></h2>
+      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Fecha de cobro</th><th>Método</th><th class="r">Monto</th><th class="r"></th></tr></thead><tbody id="cx-cob"></tbody></table></div></div>
+
+    <div class="card"><h2>Por cotización <span class="pill p-blue" id="cx-n-cot"></span></h2>
+      <p class="hint" style="margin-bottom:8px">Recibos y facturas enlazados a una cotización (con «Pedido N.º»): cuánto se ha cobrado de cada una y cuánto falta.</p>
+      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>Cotización</th><th>Cliente</th><th>Recibos</th><th class="r">Cotizado</th><th class="r">Cobrado</th><th class="r">Falta por cobrar</th></tr></thead><tbody id="cx-cot"></tbody></table></div></div>
   </section>
 
   <!-- ======== HISTORIAL ======== -->
@@ -802,14 +863,16 @@ async function entrar(){
 
 /* ==================== navegación ==================== */
 function show(v){
-  $("sec-form").classList.toggle("hidden", v!=="nueva"); $("sec-hist").classList.toggle("hidden", v!=="hist"); $("sec-fac").classList.toggle("hidden", v!=="fac");
-  $("tab-nueva").classList.toggle("on", v==="nueva"); $("tab-hist").classList.toggle("on", v==="hist"); $("tab-fac").classList.toggle("on", v==="fac");
+  $("sec-form").classList.toggle("hidden", v!=="nueva"); $("sec-hist").classList.toggle("hidden", v!=="hist"); $("sec-fac").classList.toggle("hidden", v!=="fac"); $("sec-cxc").classList.toggle("hidden", v!=="cxc");
+  $("tab-nueva").classList.toggle("on", v==="nueva"); $("tab-hist").classList.toggle("on", v==="hist"); $("tab-fac").classList.toggle("on", v==="fac"); $("tab-cxc").classList.toggle("on", v==="cxc");
+  if(v==="cxc"){ $("cx-box").innerHTML = ""; $("cx-status").textContent = ""; pintarCxc(); }
   if(v==="hist") setHView(HVIEW);
   window.scrollTo({top:0, behavior:"smooth"});
 }
 $("tab-nueva").onclick = () => { if(EDIT) nueva(); show("nueva"); };
 $("tab-hist").onclick = () => show("hist");
 $("tab-fac").onclick = () => { if(FEDIT) fNueva(); show("fac"); };
+$("tab-cxc").onclick = async () => { show("cxc"); try{ await cargarFac(); pintarCxc(); }catch(e){ console.error(e); } };
 
 /* ==================== formulario ==================== */
 let EDIT = null;      // registro que se está editando (o null)
@@ -1209,7 +1272,7 @@ $("fx-emit").onclick = async () => {
     const ep = await cifrar(k.key, pdf); const bin = new Uint8Array(12+ep.ct.length); bin.set(ep.iv,0); bin.set(ep.ct,12);
     await ghPut(CFG.repoVal, pp, bin, shaP, `Publicar PDF · ${d.tipo} ${d.numero}`);
     const portal = { tipo:d.tipo, numero:d.numero, cliente:d.cliente, ruc:d.ruc||undefined, cotizacion: d.pedido!==d.numero ? d.pedido : undefined,
-                     fecha:d.fecha, vence:d.vence, desglose:[], total:d.total, pdf:true };
+                     fecha:d.fecha, vence:d.vence, desglose:[], total:d.total, pdf:true, ...portalCobro(d), ...(d.anulado ? {anulado:d.anulado} : {}) };
     const ej = await cifrar(k.key, te.encode(JSON.stringify(portal)));
     await ghPut(CFG.repoVal, pj, te.encode(JSON.stringify({iv:b64(ej.iv), ct:b64(ej.ct)})), shaJ, `Publicar datos · ${d.tipo} ${d.numero}`);
     st.textContent="Guardando en el historial…";
@@ -1292,7 +1355,7 @@ function pintarFac(){
     <td>${esc(d.tipo)}</td><td>${esc(PDFFAC.dmy(d.fecha))}</td>
     <td>${esc(d.cliente)}<div class="hint">${esc((d.items[0]?.desc||"").split("\n")[0].slice(0,60))}</div></td>
     <td class="r"><b>${money(d.total)}</b></td>
-    <td>${d.anulado ? `<span class="pill p-gray">${d.tipo==="Factura"?"Anulada":"Anulado"}</span><div class="hint">${esc(PDFFAC.dmy(d.anulado.fecha))}${d.anulado.motivo ? " · " + esc(d.anulado.motivo) : ""}</div>` : (d.cobro?.estado)==="Cobrado" ? '<span class="pill p-ok">Cobrado</span>' : fVencido(d) ? '<span class="pill p-bad">Vencido</span>' : '<span class="pill p-warn">Por vencer</span>'}</td>
+    <td>${d.anulado ? `<span class="pill p-gray">${d.tipo==="Factura"?"Anulada":"Anulado"}</span><div class="hint">${esc(PDFFAC.dmy(d.anulado.fecha))}${d.anulado.motivo ? " · " + esc(d.anulado.motivo) : ""}</div>` : (e => `<span class="pill ${e==="Cobrado"?"p-ok":e==="Vencido"?"p-bad":"p-warn"}">${e}</span>${e!=="Cobrado" && cobradoDe(d) > 0 ? `<div class="hint">abonado ${money(cobradoDe(d))}</div>` : ""}`)(estadoCxc(d))}</td>
     <td class="acts-td"><div class="acts">
       <button class="b-navy b-sm" data-f="pdf" data-c="${esc(d.codigo)}">Descargar</button>
       ${d.conXml ? `<button class="b-ghost b-sm" data-f="xml" data-c="${esc(d.codigo)}" title="Descargar el archivo XML">XML</button>` : ""}
@@ -1315,7 +1378,7 @@ function exportarFac(){
   if(!ds.length){ $("h-status").className="status warn"; $("h-status").textContent="No hay recibos ni facturas para exportar."; return; }
   const res = ds.map(d => ({"N.º": d.numero, "Tipo": d.tipo, "Pedido N.º": d.pedido, "Fecha": PDFFAC.dmy(d.fecha), "Vencimiento": PDFFAC.dmy(d.vence),
     "Cliente": d.cliente, "CIP/RUC": d.ruc||"", "Descripción": d.items.map(i=>i.desc).filter(Boolean).join(" | "), "Total": d.total,
-    "Estado de cobro": d.anulado ? (d.tipo==="Factura"?"Anulada":"Anulado") : d.cobro?.estado==="Cobrado" ? "Cobrado" : (fVencido(d) ? "Vencido" : "Por vencer"), "Fecha de cobro": d.cobro?.fecha ? PDFFAC.dmy(d.cobro.fecha) : "", "Motivo de anulación": d.anulado?.motivo || "",
+    "Estado de cobro": d.anulado ? (d.tipo==="Factura"?"Anulada":"Anulado") : estadoCxc(d), "Cobrado": cobradoDe(d), "Saldo": d.anulado ? 0 : saldoDe(d), "Fecha de cobro": d.cobro?.fecha ? PDFFAC.dmy(d.cobro.fecha) : "", "Motivo de anulación": d.anulado?.motivo || "",
     "Código de validación": d.codigo, "Enlace del QR": fUrl(d)}));
   const det = []; ds.forEach(d => d.items.forEach((it,i) => det.push({"N.º": d.numero, "Tipo": d.tipo, "Cliente": d.cliente, "#": i+1, "Descripción": it.desc||"",
     "Empresa": it.empresa||"", "Lugar donde recoge": it.recoge||"", "Lugar donde entrega": it.entrega||"", "KM": it.km||"", "Vehículo": it.vehiculo||"",
@@ -1507,7 +1570,11 @@ const xFecha = v => {   // dd/mm/aaaa, número de serie de Excel o ISO
   m = t.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[0];
   return fechaLarga(t) || null;
 };
-const filas = ws => XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null, blankrows:true});
+const filas = ws => {   // siempre desde la columna A / fila 1, para que los índices coincidan con las columnas
+  if(!ws || !ws["!ref"]) return [];
+  const R = XLSX.utils.decode_range(ws["!ref"]);
+  return XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null, blankrows:true, range:{s:{r:0,c:0}, e:R.e}});
+};
 const hoja = (wb, re) => wb.SheetNames.find(n => re.test(n));
 const codigoNuevo = pref => pref + "-" + [...crypto.getRandomValues(new Uint8Array(8))].map(b=>ALF[b%ALF.length]).join("").replace(/^(.{4})/,"$1-");
 
@@ -1661,6 +1728,238 @@ $("h-file").onchange = async e => {
     const wb = XLSX.read(new Uint8Array(await f.arrayBuffer()), {type:"array"});
     HVIEW==="fac" ? await impFac(wb) : await impCot(wb);
   }catch(err){ console.error(err); $("h-imp").innerHTML = `<div class="box badb">No pude leer el archivo: ${esc(err.message)}</div>`; }
+};
+
+
+/* ==================== CUENTAS POR COBRAR ==================== */
+const diasEntre = (a, b) => Math.round((new Date(b+"T12:00:00Z") - new Date(a+"T12:00:00Z")) / 864e5);
+function cobradoDe(d){
+  const ab = d.cobro?.abonos;
+  if(ab && ab.length) return r2(ab.reduce((s,a) => s + Number(a.monto||0), 0));
+  return d.cobro?.estado==="Cobrado" ? r2(d.total) : 0;
+}
+const saldoDe = d => r2(Math.max(0, d.total - cobradoDe(d)));
+function estadoCxc(d){   // Cobrado · Vencido · Por vencer (+ abonado)
+  if(d.anulado) return "Anulado";
+  if(saldoDe(d) <= 0.004) return "Cobrado";
+  return diasEntre(hoyISO(), d.vence) < 0 ? "Vencido" : "Por vencer";
+}
+function ultimoCobro(d){ const ab = d.cobro?.abonos || []; return ab.length ? ab[ab.length-1] : (d.cobro?.fecha ? {fecha:d.cobro.fecha, metodo:d.cobro.metodo||""} : null); }
+const descDe = d => (d.items?.map(i => i.desc).filter(Boolean).join(" · ") || "").replace(/\n/g, " ");
+function todasCuentas(){ return [...(FHIST?.docs||[]), ...(FHIST?.previos||[])].filter(d => !d.anulado); }
+function portalCobro(d){   // lo que el portal muestra del cobro
+  const c = cobradoDe(d), s = saldoDe(d);
+  if(c <= 0) return {};
+  if(s <= 0.004){ const u = ultimoCobro(d); return {estado: "Cobrado" + (u?.fecha ? " el " + PDFFAC.dmy(u.fecha) : "")}; }
+  return {estado: `Abono parcial (${money(c)})`, saldo: s};
+}
+async function portalPatch(codigo, fn, msg){
+  const k = await clavesPortal(codigo), pj = `data/${k.id}.json`;
+  const f = await ghGet(CFG.repoVal, pj); if(!f) return false;
+  const env = JSON.parse(td.decode(f.bytes));
+  const doc = JSON.parse(td.decode(await descifrar(k.key, unb64(env.iv), unb64(env.ct))));
+  fn(doc);
+  const ej = await cifrar(k.key, te.encode(JSON.stringify(doc)));
+  await ghPut(CFG.repoVal, pj, te.encode(JSON.stringify({iv:b64(ej.iv), ct:b64(ej.ct)})), f.sha, msg(doc));
+  return true;
+}
+const numCx = d => d.origen==="control" ? `${d.numero}` : d.numero;
+const tagCx = d => d.origen==="control" ? '<div class="hint">Control anterior</div>' : `<div class="hint">${esc(d.tipo)}</div>`;
+
+function pintarCxc(){
+  if(!FHIST) return;
+  $("cx-corte").textContent = "Corte: " + PDFFAC.dmy(hoyISO());
+  const sel = $("cx-cliente"), cur = sel.value;
+  const clientes = [...new Set(todasCuentas().map(d => d.cliente.trim()))].sort((a,b) => a.localeCompare(b, "es"));
+  sel.innerHTML = '<option value="">Todos los clientes</option>' + clientes.map(c => `<option${c===cur?" selected":""}>${esc(c)}</option>`).join("");
+  const L = todasCuentas().filter(d => !sel.value || d.cliente.trim()===sel.value);
+  const ven = L.filter(d => estadoCxc(d)==="Vencido").sort((a,b) => a.vence.localeCompare(b.vence));
+  const por = L.filter(d => estadoCxc(d)==="Por vencer").sort((a,b) => a.vence.localeCompare(b.vence));
+  const cob = L.filter(d => cobradoDe(d) > 0).sort((a,b) => (ultimoCobro(b)?.fecha||"").localeCompare(ultimoCobro(a)?.fecha||""));
+  const sum = (a, f) => r2(a.reduce((s,d) => s + f(d), 0));
+  const fact = sum(L, d => d.total), cobT = sum(L, cobradoDe), venT = sum(ven, saldoDe), porT = sum(por, saldoDe), saldoT = r2(venT + porT);
+  const pct = v => fact ? Math.round(v / fact * 100) + "%" : "0%";
+  const kp = (t, v, s, cls) => `<div class="kpi ${cls}"><span>${t}</span><b>${v}</b><small>${s}</small></div>`;
+  $("cx-kpis").innerHTML =
+    kp("Total vencido", money(venT), `${ven.length} documento(s)`, "k-bad") +
+    kp("Total por vencer", money(porT), `${por.length} documento(s)`, "k-warn") +
+    kp("Total cobrado", money(cobT), `${pct(cobT)} del facturado`, "k-ok") +
+    kp("Saldo por cobrar", money(saldoT), `${pct(saldoT)} del facturado`, "k-navy") +
+    kp("Pendientes", String(ven.length + por.length), `de ${L.length} emitidos`, "k-navy") +
+    kp("Facturado", money(fact), `${pct(cobT)} cobrado`, "k-navy");
+  const segs = [["Cobrado", cobT, "s-ok"], ["Vencido", venT, "s-bad"], ["Por vencer", porT, "s-warn"]];
+  $("cx-bar").innerHTML = fact ? segs.filter(s => s[1] > 0).map(([t,v,c]) => `<div class="seg-b ${c}" style="flex:${v}" title="${t}: ${money(v)} (${pct(v)})"></div>`).join("") : '<div class="seg-b s-empty" style="flex:1"></div>';
+  $("cx-leg").innerHTML = segs.map(([t,v,c]) => `<span><i class="${c}"></i>${t} <b>${money(v)}</b> · ${pct(v)}</span>`).join("");
+  const btnCobro = d => `<button class="b-ghost b-sm b-cobro" data-x="cobrar" data-c="${esc(d.codigo)}">Registrar cobro</button>`;
+  const fila = (d, dias) => `<tr><td><b>${esc(numCx(d))}</b>${tagCx(d)}</td><td>${esc(d.cliente)}</td><td class="cx-desc">${esc(descDe(d))}</td>
+    <td>${esc(PDFFAC.dmy(d.fecha))}</td><td>${esc(PDFFAC.dmy(d.vence))}</td><td class="r"><b>${dias===0 ? "Hoy" : dias}</b></td>
+    <td class="r"><b>${money(saldoDe(d))}</b>${cobradoDe(d) > 0 ? `<div class="hint">de ${money(d.total)} · abonado ${money(cobradoDe(d))}</div>` : ""}</td><td class="r">${btnCobro(d)}</td></tr>`;
+  const vacio = (n, t) => `<tr><td colspan="${n}" class="empty">${t}</td></tr>`;
+  $("cx-ven").innerHTML = ven.length ? ven.map(d => fila(d, diasEntre(d.vence, hoyISO()))).join("") + `<tr class="cx-sub"><td colspan="6">Subtotal vencidos</td><td class="r"><b>${money(venT)}</b></td><td></td></tr>` : vacio(8, "No hay documentos vencidos. 🎉");
+  $("cx-por").innerHTML = por.length ? por.map(d => fila(d, diasEntre(hoyISO(), d.vence))).join("") + `<tr class="cx-sub"><td colspan="6">Subtotal por vencer</td><td class="r"><b>${money(porT)}</b></td><td></td></tr>` : vacio(8, "No hay documentos por vencer.");
+  $("cx-cob").innerHTML = cob.length ? cob.map(d => { const u = ultimoCobro(d), parcial = saldoDe(d) > 0.004;
+      return `<tr><td><b>${esc(numCx(d))}</b>${tagCx(d)}</td><td>${esc(d.cliente)}</td><td class="cx-desc">${esc(descDe(d))}</td><td>${esc(PDFFAC.dmy(d.fecha))}</td>
+      <td>${u?.fecha ? esc(PDFFAC.dmy(u.fecha)) : "—"}${(d.cobro?.abonos||[]).length > 1 ? `<div class="hint">${d.cobro.abonos.length} abonos</div>` : ""}</td><td>${esc(u?.metodo || "—")}</td>
+      <td class="r"><b>${money(cobradoDe(d))}</b>${parcial ? `<div class="hint"><span class="pill p-warn" style="padding:1px 8px">Abono parcial</span> saldo ${money(saldoDe(d))}</div>` : ""}</td>
+      <td class="r"><button class="b-ghost b-sm" data-x="deshacer" data-c="${esc(d.codigo)}" title="Quitar el último cobro registrado">Deshacer</button></td></tr>`; }).join("")
+      + `<tr class="cx-sub"><td colspan="6">Total cobrado</td><td class="r"><b>${money(cobT)}</b></td><td></td></tr>` : vacio(8, "Todavía no has registrado cobros.");
+  // por cotización
+  const grupos = {};
+  L.forEach(d => { const k = d.cotRef || (d.pedido && d.pedido!==d.numero ? normCot(d.pedido) : null); if(k) (grupos[k] ||= []).push(d); });
+  const ks = Object.keys(grupos).sort((a,b) => Number(b.split("-")[1]) - Number(a.split("-")[1]));
+  $("cx-n-cot").textContent = ks.length;
+  $("cx-cot").innerHTML = ks.length ? ks.map(k => {
+    const ds = grupos[k], c = (HIST?.cotizaciones||[]).find(x => x.numero===k) || OLDCOT[k];
+    const cobK = sum(ds, cobradoDe), cotT = c ? r2(c.total) : null, falta = cotT==null ? null : r2(Math.max(0, cotT - cobK));
+    return `<tr><td><b>${esc(k)}</b>${c?.anulado ? '<div class="hint bad">Anulada</div>' : ""}</td><td>${esc(c?.cliente || ds[0].cliente)}</td>
+      <td>${ds.map(d => `<span class="pill ${estadoCxc(d)==="Cobrado"?"p-ok":estadoCxc(d)==="Vencido"?"p-bad":"p-warn"}" style="padding:2px 8px;margin:1px">${esc(d.numero)} · ${money(d.total)}</span>`).join(" ")}</td>
+      <td class="r">${cotT==null ? '<span class="hint">no está en el historial</span>' : money(cotT)}</td><td class="r"><b>${money(cobK)}</b></td>
+      <td class="r">${falta==null ? "—" : falta <= 0.004 ? '<span class="pill p-ok">Completa</span>' : `<b class="bad">${money(falta)}</b>`}</td></tr>`; }).join("")
+    : vacio(6, "Aún no hay recibos enlazados a cotizaciones.");
+  document.querySelectorAll("#sec-cxc table.cx").forEach(t => {   // etiquetas para la vista de celular
+    const th = [...t.querySelectorAll("thead th")].map(x => x.textContent.trim());
+    t.querySelectorAll("tbody tr:not(.cx-sub)").forEach(tr => [...tr.children].forEach((td,i) => { if(th[i] && td.colSpan===1) td.dataset.l = th[i]; }));
+  });
+  $("cx-n-ven").textContent = ven.length; $("cx-n-por").textContent = por.length; $("cx-n-cob").textContent = cob.length;
+  document.querySelectorAll("#sec-cxc button[data-x]").forEach(b => b.onclick = () => {
+    const d = todasCuentas().find(x => x.codigo===b.dataset.c); if(!d) return;
+    b.dataset.x==="cobrar" ? pedirCobro(d) : pedirDeshacer(d);
+  });
+}
+$("cx-cliente").onchange = pintarCxc;
+
+async function guardarCobro(d, cambio, msg){
+  for(let i=0;i<3;i++){
+    try{
+      await cargarFac();
+      const lista = d.origen==="control" ? (FHIST.previos ||= []) : FHIST.docs;
+      const x = lista.find(y => y.codigo===d.codigo); if(!x) throw new Error("el documento no está en el historial");
+      cambio(x); x.actualizado = new Date().toISOString();
+      await guardarFac(msg); return x;
+    }catch(e){ if(e.status!==409 || i===2) throw e; }
+  }
+}
+async function reflejarPortal(x){
+  if(x.origen==="control" || x.publicado===false) return;
+  try{ await portalPatch(x.codigo, doc => { delete doc.estado; delete doc.saldo; Object.assign(doc, portalCobro(x)); }, doc => `Estado de pago · ${doc.tipo} ${doc.numero}`); }
+  catch(e){ console.warn("portal", e); }
+}
+function pedirCobro(d){
+  const box = $("cx-box"), s = saldoDe(d);
+  box.innerHTML = `<div class="box okb"><b>Registrar cobro · ${esc(d.tipo)} ${esc(d.numero)}</b> · ${esc(d.cliente)} · saldo <b>${money(s)}</b>${cobradoDe(d) > 0 ? ` (ya abonado ${money(cobradoDe(d))} de ${money(d.total)})` : ""}
+    <div class="grid g3" style="margin-top:10px">
+      <div><label>Monto recibido</label><input type="number" id="cb-monto" step="0.01" min="0.01" max="${s}" value="${s}"></div>
+      <div><label>Fecha de cobro</label><input type="date" id="cb-fecha" value="${hoyISO()}" max="${hoyISO()}"></div>
+      <div><label>Método</label><select id="cb-metodo"><option>Yappy</option><option>ACH</option><option>Efectivo</option><option>Transferencia</option><option>Cheque</option><option>Otro</option></select></div>
+    </div>
+    <div style="margin-top:8px"><input type="text" id="cb-nota" maxlength="120" placeholder="Nota (opcional, ej. N.º de comprobante)"></div>
+    <p class="hint" style="margin-top:6px">Si recibes menos del saldo, queda como <b>abono parcial</b> y sigue pendiente lo que falta.</p>
+    <div class="actions" style="justify-content:flex-start;margin-top:8px"><button class="b-green" id="cb-ok">Guardar cobro</button><button class="b-ghost" id="cb-no">Cancelar</button></div>
+    <div class="status" id="cb-st"></div></div>`;
+  box.scrollIntoView({behavior:"smooth", block:"center"});
+  $("cb-no").onclick = () => box.innerHTML = "";
+  $("cb-ok").onclick = async () => {
+    const st = $("cb-st"), monto = r2(Number($("cb-monto").value)), fecha = $("cb-fecha").value;
+    if(!(monto > 0)){ st.className = "status bad"; st.textContent = "Escribe el monto recibido."; return; }
+    if(monto > s + 0.004){ st.className = "status bad"; st.textContent = `El monto no puede ser mayor que el saldo (${money(s)}).`; return; }
+    if(!fecha){ st.className = "status bad"; st.textContent = "Indica la fecha de cobro."; return; }
+    $("cb-ok").disabled = true; st.className = "status"; st.textContent = "Guardando…";
+    const ab = {fecha, monto, metodo:$("cb-metodo").value, ...($("cb-nota").value.trim() ? {nota:$("cb-nota").value.trim()} : {})};
+    try{
+      const x = await guardarCobro(d, x => {
+        const prev = x.cobro?.abonos ? [...x.cobro.abonos] : (x.cobro?.estado==="Cobrado" ? [{fecha:x.cobro.fecha||x.fecha, monto:x.total, metodo:x.cobro.metodo||""}] : []);
+        prev.push(ab); const c = r2(prev.reduce((t,a) => t + a.monto, 0));
+        x.cobro = {estado: c >= x.total - 0.004 ? "Cobrado" : "Parcial", abonos: prev, fecha: ab.fecha, metodo: ab.metodo};
+      }, `Cobro ${money(monto)} · ${d.tipo.toLowerCase()} ${d.numero}`);
+      st.textContent = "Actualizando el portal…"; await reflejarPortal(x);
+      box.innerHTML = ""; $("cx-status").className = "status ok";
+      $("cx-status").textContent = `✓ Cobro de ${money(monto)} registrado en ${d.tipo.toLowerCase()} ${d.numero}` + (saldoDe(x) > 0.004 ? ` · queda saldo ${money(saldoDe(x))}.` : " · quedó cobrado.");
+      pintarCxc();
+    }catch(e){ console.error(e); st.className = "status bad"; st.textContent = "No se pudo guardar: " + e.message; $("cb-ok").disabled = false; }
+  };
+}
+function pedirDeshacer(d){
+  const box = $("cx-box"), u = ultimoCobro(d);
+  box.innerHTML = `<div class="box warnb"><b>¿Quitar el último cobro de ${esc(d.tipo.toLowerCase())} ${esc(d.numero)}?</b> · ${esc(d.cliente)}<br>
+    Cobro del ${esc(PDFFAC.dmy(u?.fecha))}${u?.metodo ? " por " + esc(u.metodo) : ""}${u?.monto ? " · " + money(u.monto) : ""}. El documento volverá a quedar pendiente por ese monto.
+    <div class="actions" style="justify-content:flex-start;margin-top:8px"><button class="b-navy" id="cb-ok">Sí, quitar</button><button class="b-ghost" id="cb-no">Cancelar</button></div><div class="status" id="cb-st"></div></div>`;
+  box.scrollIntoView({behavior:"smooth", block:"center"});
+  $("cb-no").onclick = () => box.innerHTML = "";
+  $("cb-ok").onclick = async () => {
+    const st = $("cb-st"); $("cb-ok").disabled = true; st.className = "status"; st.textContent = "Guardando…";
+    try{
+      const x = await guardarCobro(d, x => {
+        const ab = x.cobro?.abonos ? [...x.cobro.abonos] : []; ab.pop();
+        const c = r2(ab.reduce((t,a) => t + a.monto, 0)), u2 = ab[ab.length-1];
+        x.cobro = ab.length ? {estado: c >= x.total - 0.004 ? "Cobrado" : "Parcial", abonos: ab, fecha: u2.fecha, metodo: u2.metodo} : {estado:"Pendiente"};
+      }, `Quitar cobro · ${d.tipo.toLowerCase()} ${d.numero}`);
+      await reflejarPortal(x);
+      box.innerHTML = ""; $("cx-status").className = "status ok"; $("cx-status").textContent = `✓ Se quitó el cobro de ${d.tipo.toLowerCase()} ${d.numero}.`; pintarCxc();
+    }catch(e){ console.error(e); st.className = "status bad"; st.textContent = "No se pudo: " + e.message; $("cb-ok").disabled = false; }
+  };
+}
+
+/* ----- importar pendientes del control anterior (.xlsm) ----- */
+$("cx-import").onclick = () => { $("cx-file").value = ""; $("cx-file").click(); };
+$("cx-file").onchange = async e => {
+  const f = e.target.files[0], box = $("cx-box"); if(!f) return;
+  try{
+    const wb = XLSX.read(new Uint8Array(await f.arrayBuffer()), {type:"array"});
+    const sn = hoja(wb, /^registro$/i);
+    if(!sn){ box.innerHTML = `<div class="box badb">No encontré la hoja «Registro» en ese archivo. Elige tu Control de cuentas por cobrar.</div>`; return; }
+    const ya = new Set([...(FHIST.previos||[]).map(d => d.numero), ...FHIST.docs.map(d => d.numero)]);
+    const out = [];
+    filas(wb.Sheets[sn]).forEach(r => {
+      const num = xTxt(r[1]).replace(/\D/g,""), cli = xTxt(r[2]), monto = xNum(r[6]), fe = xFecha(r[4]);
+      if(!num || !cli || monto==null || !fe) return;
+      const numero = pad3(Number(num)), cob = /^s[ií]$/i.test(xTxt(r[7])), fc = xFecha(r[8]);
+      const vence = xFecha(r[5]) || masDias(fe, 4);
+      out.push({ omitir: ya.has(numero), d: { tipo:"Recibo", n:Number(num), numero, pedido:numero, codigo:"CTRL-"+numero, cliente:cli, ruc:"",
+        items:[{desc:xTxt(r[3]), total:r2(monto)}], fecha:fe, vence, dias:diasEntre(fe, vence), subtotal:r2(monto), total:r2(monto),
+        cobro: cob ? {estado:"Cobrado", abonos:[{fecha: fc || fe, monto:r2(monto), metodo:""}], fecha: fc || fe} : {estado:"Pendiente"},
+        origen:"control", creado:new Date().toISOString(), actualizado:new Date().toISOString() } });
+    });
+    if(!out.length){ box.innerHTML = `<div class="box badb">No encontré recibos en la hoja «Registro».</div>`; return; }
+    const nuevos = out.filter(o => !o.omitir);
+    box.innerHTML = `<div class="box" style="background:var(--blue-bg)"><b>Recibos de tu control anterior</b> — se agregan solo a Cuentas por cobrar (no a tu historial de recibos):
+      <div style="overflow-x:auto"><table class="imp-t"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Monto</th><th>Estado</th></tr></thead><tbody>
+      ${out.map(o => `<tr style="${o.omitir?"opacity:.5":""}"><td><b>${o.d.numero}</b></td><td>${esc(o.d.cliente)}</td><td>${esc(o.d.items[0].desc)}</td><td>${PDFFAC.dmy(o.d.fecha)}</td><td>${money(o.d.total)}</td>
+        <td>${o.omitir ? "Ya está (se omite)" : o.d.cobro.estado==="Cobrado" ? "Cobrado " + PDFFAC.dmy(o.d.cobro.fecha) : estadoCxc(o.d)}</td></tr>`).join("")}</tbody></table></div>
+      <div class="actions" style="justify-content:flex-start">${nuevos.length ? `<button class="b-green" id="cxi-ok">Importar ${nuevos.length}</button>` : ""}<button class="b-ghost" id="cxi-no">${nuevos.length ? "Cancelar" : "Cerrar"}</button></div>
+      <div class="status" id="cxi-st"></div></div>`;
+    $("cxi-no").onclick = () => box.innerHTML = "";
+    if(nuevos.length) $("cxi-ok").onclick = async () => {
+      const st = $("cxi-st"); $("cxi-ok").disabled = true; st.className = "status"; st.textContent = "Guardando…";
+      try{
+        for(let i=0;i<3;i++){ try{ await cargarFac(); FHIST.previos ||= [];
+          const s2 = new Set(FHIST.previos.map(d => d.numero)); nuevos.forEach(o => { if(!s2.has(o.d.numero)) FHIST.previos.push(o.d); });
+          await guardarFac(`Importar ${nuevos.length} recibo(s) del control anterior`); break; }catch(e){ if(e.status!==409 || i===2) throw e; } }
+        box.innerHTML = ""; $("cx-status").className = "status ok"; $("cx-status").textContent = `✓ Importados ${nuevos.length} recibo(s) del control anterior.`; pintarCxc();
+      }catch(e){ st.className = "status bad"; st.textContent = "No se pudo importar: " + e.message; $("cxi-ok").disabled = false; }
+    };
+  }catch(err){ console.error(err); box.innerHTML = `<div class="box badb">No pude leer el archivo: ${esc(err.message)}</div>`; }
+};
+
+/* ----- exportar ----- */
+$("cx-export").onclick = () => {
+  const L = todasCuentas().sort((a,b) => a.fecha.localeCompare(b.fecha) || a.n - b.n);
+  if(!L.length){ $("cx-status").className = "status warn"; $("cx-status").textContent = "No hay cuentas para exportar."; return; }
+  const est = L.map(d => estadoCxc(d)), sum = f => r2(L.reduce((s,d,i) => s + f(d,i), 0)), fact = sum(d => d.total);
+  const ven = sum((d,i) => est[i]==="Vencido" ? saldoDe(d) : 0), por = sum((d,i) => est[i]==="Por vencer" ? saldoDe(d) : 0), cob = sum(cobradoDe);
+  const res = [{"Concepto":"Fecha de corte","Valor":PDFFAC.dmy(hoyISO())}, {"Concepto":"Facturado","Valor":fact}, {"Concepto":"Total cobrado","Valor":cob},
+    {"Concepto":"Total vencido","Valor":ven}, {"Concepto":"Total por vencer","Valor":por}, {"Concepto":"Saldo por cobrar","Valor":r2(ven+por)},
+    {"Concepto":"Pendientes","Valor":est.filter(e => e!=="Cobrado").length}, {"Concepto":"Documentos","Valor":L.length}];
+  const cuentas = L.map((d,i) => { const u = ultimoCobro(d); return {"N.º": d.numero, "Tipo": d.origen==="control" ? "Recibo (control anterior)" : d.tipo, "Cliente": d.cliente,
+    "Descripción": descDe(d), "Cotización": d.cotRef || (d.pedido && d.pedido!==d.numero ? d.pedido : ""), "Fecha emisión": PDFFAC.dmy(d.fecha), "Vencimiento": PDFFAC.dmy(d.vence),
+    "Monto": d.total, "Cobrado": cobradoDe(d), "Saldo": saldoDe(d), "Estado": est[i] + (est[i]!=="Cobrado" && cobradoDe(d) > 0 ? " (abono parcial)" : ""),
+    "Días de atraso": est[i]==="Vencido" ? diasEntre(d.vence, hoyISO()) : "", "Días para vencer": est[i]==="Por vencer" ? diasEntre(hoyISO(), d.vence) : "",
+    "Fecha de cobro": est[i]==="Cobrado" && u?.fecha ? PDFFAC.dmy(u.fecha) : "", "Método": u?.metodo || ""}; });
+  const abonos = []; L.forEach(d => (d.cobro?.abonos||[]).forEach(a => abonos.push({"N.º": d.numero, "Cliente": d.cliente, "Fecha": PDFFAC.dmy(a.fecha), "Monto": a.monto, "Método": a.metodo||"", "Nota": a.nota||""})));
+  const wb = XLSX.utils.book_new(), s1 = XLSX.utils.json_to_sheet(res), s2 = XLSX.utils.json_to_sheet(cuentas), s3 = XLSX.utils.json_to_sheet(abonos.length ? abonos : [{"N.º":"", "Cliente":"", "Fecha":"", "Monto":"", "Método":"", "Nota":""}]);
+  s1["!cols"] = [{wch:20},{wch:16}]; s2["!cols"] = [7,24,26,46,11,12,12,10,10,10,24,9,9,12,12].map(w=>({wch:w})); s3["!cols"] = [7,26,12,10,14,30].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, s1, "Resumen"); XLSX.utils.book_append_sheet(wb, s2, "Cuentas"); XLSX.utils.book_append_sheet(wb, s3, "Cobros");
+  XLSX.writeFile(wb, `Cuentas_por_cobrar_${hoyISO()}.xlsx`);
+  $("cx-status").className = "status ok"; $("cx-status").textContent = `✓ Exportadas ${L.length} cuentas.`;
 };
 
 $("hv-cot").onclick = () => setHView("cot");
