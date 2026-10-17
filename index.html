@@ -357,6 +357,7 @@
         <div class="cx-bar-t">Del total facturado</div>
         <div class="cx-bar" id="cx-bar"></div>
         <div class="cx-leg" id="cx-leg"></div>
+        <div class="hint" id="cx-pend" style="margin-top:6px"></div>
       </div>
       <div id="cx-box"></div>
       <div class="status" id="cx-status"></div>
@@ -1803,16 +1804,22 @@ function pintarCxc(){
   const sum = (a, f) => r2(a.reduce((s,d) => s + f(d), 0));
   const fact = sum(L, d => d.total), cobT = sum(L, cobradoDe), venT = sum(ven, saldoDe), porT = sum(por, saldoDe), saldoT = r2(venT + porT);
   const pct = v => fact ? Math.round(v / fact * 100) + "%" : "0%";
+  // total cotizado: cotizaciones vigentes o vencidas (no anuladas); algunas llevan materiales + mano de obra y otras solo mano de obra
+  const cots = (HIST?.cotizaciones||[]).filter(c => !c.anulado && (!sel.value || c.cliente.trim()===sel.value));
+  const cotMO = sum(cots, c => c.incMO ? r2(c.tot.moSub) : 0), cotMat = sum(cots, c => c.incMat ? r2(c.tot.matTotal) : 0), cotT = sum(cots, c => c.total);
   const kp = (t, v, s, cls) => `<div class="kpi ${cls}"><span>${t}</span><b>${v}</b><small>${s}</small></div>`;
   $("cx-kpis").innerHTML =
     kp("Total vencido", money(venT), `${ven.length} documento(s)`, "k-bad") +
     kp("Total por vencer", money(porT), `${por.length} documento(s)`, "k-warn") +
     kp("Total cobrado", money(cobT), `${pct(cobT)} del facturado`, "k-ok") +
     kp("Saldo por cobrar", money(saldoT), `${pct(saldoT)} del facturado`, "k-navy") +
-    kp("Pendientes", String(ven.length + por.length), `de ${L.length} emitidos`, "k-navy") +
+    kp("Total cotizado", money(cotT), cotMat > 0 ? `M. de obra ${money(cotMO)} · Mat. ${money(cotMat)}` : `${cots.length} cotización(es) · solo mano de obra`, "k-navy") +
     kp("Facturado", money(fact), `${pct(cobT)} cobrado`, "k-navy");
   const segs = [["Cobrado", cobT, "s-ok"], ["Vencido", venT, "s-bad"], ["Por vencer", porT, "s-warn"]];
   $("cx-bar").innerHTML = fact ? segs.filter(s => s[1] > 0).map(([t,v,c]) => `<div class="seg-b ${c}" style="flex:${v}" title="${t}: ${money(v)} (${pct(v)})"></div>`).join("") : '<div class="seg-b s-empty" style="flex:1"></div>';
+  $("cx-pend").innerHTML = (ven.length + por.length)
+    ? `<b>${ven.length + por.length}</b> pendiente(s) de cobro de <b>${L.length}</b> en cuentas por cobrar · ${ven.length} vencido(s) · ${por.length} por vencer`
+    : (L.length ? `Sin pendientes · ${L.length} cuenta(s) cobradas` : "Aún no has enviado documentos a cuentas por cobrar (botón «Por cobrar» en el Historial).");
   $("cx-leg").innerHTML = segs.map(([t,v,c]) => `<span><i class="${c}"></i>${t} <b>${money(v)}</b> · ${pct(v)}</span>`).join("");
   const btnCobro = d => `<div class="acts"><button class="b-ghost b-sm b-cobro" data-x="cobrar" data-c="${esc(d.codigo)}">Registrar cobro</button>${btnAnCx(d)}</div>`;
   const fila = (d, dias) => `<tr><td><b>${esc(numCx(d))}</b>${tagCx(d)}</td><td>${esc(d.cliente)}</td><td class="cx-desc">${esc(descDe(d))}</td>
@@ -2042,6 +2049,10 @@ $("cx-export").onclick = () => {
   const res = [{"Concepto":"Fecha de corte","Valor":PDFFAC.dmy(hoyISO())}, {"Concepto":"Facturado","Valor":fact}, {"Concepto":"Total cobrado","Valor":cob},
     {"Concepto":"Total vencido","Valor":ven}, {"Concepto":"Total por vencer","Valor":por}, {"Concepto":"Saldo por cobrar","Valor":r2(ven+por)},
     {"Concepto":"Pendientes","Valor":est.filter(e => e!=="Cobrado").length}, {"Concepto":"Documentos","Valor":L.length}];
+  const cs = (HIST?.cotizaciones||[]).filter(c => !c.anulado);
+  res.push({"Concepto":"Total cotizado","Valor":r2(cs.reduce((t,c) => t + c.total, 0))},
+           {"Concepto":"  · Mano de obra","Valor":r2(cs.reduce((t,c) => t + (c.incMO ? r2(c.tot.moSub) : 0), 0))},
+           {"Concepto":"  · Materiales (con ITBMS)","Valor":r2(cs.reduce((t,c) => t + (c.incMat ? r2(c.tot.matTotal) : 0), 0))});
   const cuentas = L.map((d,i) => { const u = ultimoCobro(d); return {"N.º": d.numero, "Tipo": d.origen==="control" ? "Recibo (control anterior)" : d.tipo, "Cliente": d.cliente,
     "Descripción": descDe(d), "Cotización": d.cotRef || (d.pedido && d.pedido!==d.numero ? d.pedido : ""), "Fecha emisión": PDFFAC.dmy(d.fecha), "Vencimiento": PDFFAC.dmy(d.vence),
     "Monto": d.total, "Cobrado": cobradoDe(d), "Saldo": saldoDe(d), "Estado": est[i] + (est[i]!=="Cobrado" && cobradoDe(d) > 0 ? " (abono parcial)" : ""),
