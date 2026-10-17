@@ -1111,7 +1111,7 @@ function mensajeWA(tipo, rec, url){   // mensaje por defecto que acompaña al PD
   const empresa = /\b(s\.?\s?a\.?|inc\.?|corp\.?|ltda\.?|s\.?r\.?l\.?|llc|group|grupo|company|cía|cia)(\b|$)/i.test(cli);
   const doc = tipo==="Cotización" ? `cotización ${rec.numero}` : `${tipo==="Factura" ? "factura" : "recibo"} ${rec.numero}`;
   const saludo = empresa || !cli ? `Buen día${cli ? ", " + cli : ""}` : `Hola ${(n => n.charAt(0).toUpperCase() + n.slice(1))(cli.split(/\s+/)[0])}`;
-  return `${saludo}, le comparto su ${doc} por ${money(rec.total)}. Puede verla y validarla aquí: ${url}`.replace("verla y validarla", tipo==="Cotización" || tipo==="Factura" ? "verla y validarla" : "verlo y validarlo");
+  return `${saludo}, le comparto su ${doc}. Puede verla y validarla aquí: ${url}`.replace("verla y validarla", tipo==="Cotización" || tipo==="Factura" ? "verla y validarla" : "verlo y validarlo");
 }
 async function compartirPDF(bytes, nombre, titulo, st, texto){
   const file = new File([bytes], nombre, {type:"application/pdf"});
