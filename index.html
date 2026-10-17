@@ -85,6 +85,9 @@
   table.h td.r,table.h th.r{text-align:right}
   table.h td .acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
   .empty{color:var(--muted);text-align:center;padding:30px 10px}
+  .num-link{background:none;border:0;padding:0;font:inherit;font-weight:800;color:var(--blue);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+  .num-link:hover{color:var(--navy)}
+  code{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:12px}
   @media (max-width:720px){
     .g2,.g3{grid-template-columns:1fr}
     .thead{display:none}
@@ -188,7 +191,7 @@
       <div class="part" id="part-mo">
         <div class="part-h">HOJA 2 · COTIZACIÓN DE MANO DE OBRA <label class="sw"><input type="checkbox" id="inc-mo" checked> Incluir</label></div>
         <div class="part-b">
-          <p class="hint" style="margin-bottom:10px">En la descripción, la primera línea sale en <b>negrita</b> (título). Las líneas que empiezan con <b>-</b> o <b>•</b> salen como viñetas.</p>
+          <p class="hint" style="margin-bottom:10px"><b>Formato de la descripción:</b> cada línea normal sale en <b>negrita</b> (título) · las líneas que empiezan con <b>-</b> o <b>•</b> salen como viñeta «•» en letra normal · una línea vacía deja un espacio.<br>Ejemplo: <code>Colocación de panel:</code> ↵ <code>- Corte de tuberías</code> ↵ <code>- Conexión de circuitos</code></p>
           <div class="thead"><span>#</span><span>Descripción</span><span>Cant.</span><span>Precio unit.</span><span>Total</span><span></span></div>
           <div class="rows" id="rows-mo"></div>
           <button class="b-ghost b-sm" style="margin-top:10px" data-add="mo">+ Agregar fila</button>
@@ -748,19 +751,20 @@ function pintarHist(){
   $("h-count").textContent = (HIST?.cotizaciones||[]).length;
   if(!L.length){ tb.innerHTML = `<tr><td colspan="6" class="empty">${(HIST?.cotizaciones||[]).length ? "Sin resultados para la búsqueda." : "Todavía no has emitido cotizaciones con el cotizador."}</td></tr>`; return; }
   tb.innerHTML = L.map(c => `<tr>
-    <td><b>${esc(c.numero)}</b></td>
+    <td><button class="num-link" data-a="ver" data-c="${esc(c.codigo)}" title="Ver la cotización (PDF)">${esc(c.numero)}</button></td>
     <td>${esc(fechaLarga(c.fecha))}</td>
     <td>${esc(c.cliente)}${c.ruc?`<div class="hint">${esc(c.ruc)}</div>`:""}</td>
     <td class="r"><b>${money(c.total)}</b></td>
     <td>${vencida(c) ? '<span class="pill p-warn">Vencida</span>' : '<span class="pill p-ok">Vigente</span>'}</td>
     <td class="acts-td"><div class="acts">
-      <button class="b-navy b-sm" data-a="pdf" data-c="${esc(c.codigo)}">PDF</button>
+      <button class="b-navy b-sm" data-a="pdf" data-c="${esc(c.codigo)}" title="Descargar PDF">Descargar</button>
       <button class="b-ghost b-sm" data-a="edit" data-c="${esc(c.codigo)}">Corregir</button>
       <button class="b-ghost b-sm" data-a="dup" data-c="${esc(c.codigo)}">Duplicar</button>
       <a class="b-ghost b-sm" style="text-decoration:none;border-radius:8px;font-weight:700;display:inline-block" href="${urlDe(c)}" target="_blank" rel="noopener">Portal</a>
     </div></td></tr>`).join("");
   tb.querySelectorAll("button[data-a]").forEach(b => b.onclick = () => {
     const c = HIST.cotizaciones.find(x => x.codigo===b.dataset.c); if(!c) return;
+    if(b.dataset.a==="ver") abrirPDF(pdfDe(c));
     if(b.dataset.a==="pdf") bajarPDF(pdfDe(c), nombrePDF(c));
     if(b.dataset.a==="edit") cargar(c, "editar");
     if(b.dataset.a==="dup") cargar(c, "duplicar");
