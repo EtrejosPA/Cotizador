@@ -147,7 +147,7 @@
   @media (max-width:560px){ .kpis{grid-template-columns:1fr 1fr} }
   .num-link.anul{text-decoration:line-through;opacity:.6}.b-anular{background:var(--red-bg)!important;color:var(--red)!important;border:1px solid #F5C2C2!important}.b-anular:hover{background:#FBDADA!important}
   .b-more{min-width:34px;font-size:18px!important;line-height:1;padding:4px 8px!important;letter-spacing:1px}
-  .menu{position:fixed;z-index:60;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(15,38,64,.18);padding:6px;min-width:230px;text-align:left}
+  .menu{position:fixed;z-index:60;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(15,38,64,.18);padding:6px;min-width:230px;text-align:left}
   .menu .mi{display:flex;width:100%;gap:10px;align-items:center;background:none;border:0;margin:0;padding:9px 10px;border-radius:7px;font:inherit;font-size:14px;font-weight:600;color:var(--navy);text-decoration:none;cursor:pointer;text-transform:none;letter-spacing:0;white-space:nowrap}
   .menu .mi:hover,.menu .mi:focus{background:var(--panel);outline:none}.menu .mi.red{color:var(--red)}.menu .mi.red:hover{background:var(--red-bg)}
   .menu hr{border:0;border-top:1px solid var(--line);margin:5px 2px}
@@ -1528,22 +1528,38 @@ function menuHTML(items){
   if(!its.length) return "";
   return `<button class="b-ghost b-sm b-more" type="button" title="Más acciones" aria-label="Más acciones">⋯</button><div class="menu hidden" role="menu">${its.map(i => i==="sep" ? "<hr>" : i).join("")}</div>`;
 }
-function cerrarMenus(){ document.querySelectorAll(".menu:not(.hidden)").forEach(m => m.classList.add("hidden")); }
+let MENU_BTN = null;   // botón ⋯ del menú abierto
+function cerrarMenus(){
+  document.querySelectorAll(".menu:not(.hidden)").forEach(m => { m.classList.add("hidden"); m.style.maxHeight = "";
+    const o = m._casa; if(o && o.isConnected){ o.after(m); } else if(o) m.remove(); });   // vuelve a su lugar en la tabla
+  MENU_BTN = null;
+}
 function posMenu(btn, m){
   const r = btn.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
   let left = Math.min(window.innerWidth - w - 8, r.right - w); left = Math.max(8, left);
   const nav = $("nav"), navH = nav && getComputedStyle(nav).position==="fixed" && !nav.classList.contains("hidden") ? nav.offsetHeight : 0;
   const limite = window.innerHeight - navH - 8;
-  let top = r.bottom + 4; if(top + h > limite) top = Math.max(8, r.top - h - 4);
+  const abajo = limite - r.bottom - 4, arriba = r.top - 12;
+  let top;
+  if(h <= abajo) top = r.bottom + 4;                                   // cabe debajo
+  else if(h <= arriba) top = r.top - h - 4;                             // cabe arriba
+  else if(abajo >= arriba){ top = r.bottom + 4; m.style.maxHeight = abajo + "px"; }   // no cabe: se desplaza por dentro
+  else { m.style.maxHeight = arriba + "px"; top = r.top - Math.min(h, arriba) - 4; }
   m.style.left = left + "px"; m.style.top = top + "px";
 }
 document.addEventListener("click", e => {
   const mb = e.target.closest(".b-more");
-  if(mb){ const m = mb.nextElementSibling, abierto = !m.classList.contains("hidden"); cerrarMenus(); if(!abierto){ m.classList.remove("hidden"); posMenu(mb, m); } e.stopPropagation(); e.preventDefault(); return; }
+  if(mb){ const m = mb._menu || (mb._menu = mb.nextElementSibling), abierto = !m.classList.contains("hidden"); cerrarMenus();
+    if(!abierto){ m._casa = mb; document.body.appendChild(m); m.classList.remove("hidden"); posMenu(mb, m); MENU_BTN = mb; }   // en <body>: así no lo mueven las tarjetas flotantes
+    e.stopPropagation(); e.preventDefault(); return; }
   if(e.target.closest(".menu .mi")){ setTimeout(cerrarMenus, 0); return; }
   if(!e.target.closest(".menu")) cerrarMenus();
 }, true);
-window.addEventListener("scroll", cerrarMenus, {passive:true}); window.addEventListener("resize", cerrarMenus);
+// al desplazar la página el menú sigue a su botón; solo se cierra si el botón sale de la pantalla
+function seguirMenu(){ const m = document.querySelector(".menu:not(.hidden)"); if(!m || !MENU_BTN) return;
+  const r = MENU_BTN.getBoundingClientRect(); if(!MENU_BTN.isConnected || r.bottom < 0 || r.top > window.innerHeight) return cerrarMenus();
+  m.style.maxHeight = ""; posMenu(MENU_BTN, m); }
+window.addEventListener("scroll", seguirMenu, {passive:true}); window.addEventListener("resize", seguirMenu);
 document.addEventListener("keydown", e => { if(e.key==="Escape") cerrarMenus(); });
 
 /* ==================== historial ==================== */
