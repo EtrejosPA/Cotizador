@@ -45,12 +45,20 @@
   header .t b{display:block;font-size:18px;color:var(--navy)}
   header .t span{font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase}
   nav{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
-  main{max-width:980px;margin:20px auto 60px;padding:0 16px;display:flex;flex-direction:column;gap:16px}
-  .card{background:var(--card);border-radius:14px;box-shadow:0 6px 20px rgba(15,38,64,.08);padding:20px}
+  body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:url("marca-agua.png") no-repeat center 58%/min(62vw,520px) auto;opacity:.09}
+  main{position:relative;z-index:1;max-width:980px;margin:22px auto 60px;padding:0 16px;display:flex;flex-direction:column;gap:20px}
+  .card{background:rgba(255,255,255,.90);border-radius:16px;padding:20px;border:1px solid rgba(26,53,84,.07);
+    box-shadow:0 14px 34px rgba(15,38,64,.10),0 2px 6px rgba(15,38,64,.05);
+    transition:border-color .25s ease,box-shadow .25s ease,transform .25s ease}
+  .card.activa{border-color:rgba(237,162,0,.85);box-shadow:0 0 0 1px rgba(237,162,0,.30),0 14px 34px rgba(237,162,0,.16),0 2px 6px rgba(15,38,64,.05)}
+  @media (hover:hover){ .card.activa{transform:translateY(-1px)} }
+  .seg-b{transition:flex-grow 1s cubic-bezier(.2,.8,.2,1)}
+  @media (prefers-reduced-motion:reduce){ .card,.seg-b{transition:none} }
   h2{font-size:16px;font-weight:800;color:var(--navy);margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .hint{color:var(--muted);font-size:13px;line-height:1.5}
   label{font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
-  input[type=text],input[type=password],input[type=number],input[type=search],input[type=date],textarea{width:100%;padding:10px 11px;border:1px solid #CBD3DF;border-radius:8px;font:inherit;font-size:15px;background:#fff;color:var(--text)}
+  input[type=text],input[type=email],input[type=password],input[type=number],input[type=search],input[type=date],textarea{width:100%;padding:10px 11px;border:1px solid #CBD3DF;border-radius:8px;font:inherit;font-size:15px;background:#fff;color:var(--text)}
   textarea{resize:vertical;min-height:40px;line-height:1.35}
   input:focus,textarea:focus{outline:2px solid #93B4E8;border-color:#93B4E8}
   input.in,textarea.in{background:var(--input)}
@@ -154,7 +162,7 @@
   .num-link:hover{color:var(--navy)}
   code{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:0 4px;font-size:12px}
   @media (max-width:720px), (pointer:coarse){
-    input[type=text],input[type=password],input[type=number],input[type=search],input[type=date],textarea,select{font-size:16px}
+    input[type=text],input[type=email],input[type=password],input[type=number],input[type=search],input[type=date],textarea,select{font-size:16px}
   }
   @media (max-width:720px){
     header{padding-bottom:10px}
@@ -256,9 +264,10 @@
         <div><label>Fecha de emisión</label><input type="text" id="f-fecha" disabled></div>
         <div><label>Válido hasta</label><input type="text" id="f-vence" disabled></div>
       </div>
-      <div class="grid g2" style="margin-top:12px">
+      <div class="grid g3" style="margin-top:12px">
         <div><label>Cliente</label><input type="text" id="f-cliente" class="in" placeholder="Nombre del cliente o empresa"></div>
         <div><label>CIP / RUC</label><input type="text" id="f-ruc" class="in" placeholder="Opcional"></div>
+        <div><label>Email</label><input type="email" id="f-email" class="in" placeholder="Opcional" inputmode="email" autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
       </div>
       <div id="f-inicio" class="hidden box warnb">
         <b>Solo esta vez:</b> ¿cuál fue el <b>último número</b> de cotización que usaste en Excel? La siguiente continuará desde ahí y luego avanzará sola.
@@ -362,6 +371,7 @@
       <div class="grid g2">
         <div><label>Cliente</label><input type="text" id="fx-cliente" class="in" placeholder="Nombre del cliente o empresa"></div>
         <div><label>CIP / RUC</label><input type="text" id="fx-ruc" class="in" placeholder="Opcional (ej. RUC: 155643349-2-2017 DV 2)"></div>
+        <div><label>Email</label><input type="email" id="fx-email" class="in" placeholder="Opcional" inputmode="email" autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
         <div><label>Dirección</label><input type="text" id="fx-dir" class="in" placeholder="Opcional"></div>
         <div><label>Teléfono</label><input type="text" id="fx-tel" class="in" placeholder="Opcional"></div>
       </div>
@@ -514,20 +524,24 @@ const PDFCOT = (() => {
     R(doc, 52, 157.6, 507.2, 11.2, C.band);
     T(doc, "Servicios especializados en electricidad, plomería, construcción y mantenimiento.", 54.4, 159.1, {st:"italic", sz:7.2, c:C.gray});
     T(doc, "Fecha: " + fechaLarga(d.fecha), 392.8, 159.3, {sz:8});
-    // cliente / empresa
-    R(doc, 52, 168, 58.4, 44.8, C.label); R(doc, 390.4, 168, 68, 44.8, C.label);
-    [168, 190.4, 212.8].forEach(y => hline(doc, y, C.border));
-    [52, 110.4, 390.4, 458.4, 558.4].forEach(x => vline(doc, x, 168, 213.6, C.border));
-    T(doc, "CLIENTE:", 54.4, 176.1, {st:"bold", c:C.navy});
-    T(doc, d.cliente, 112.8, 176.1);
-    T(doc, "CIP/RUC:", 392.8, 176.1, {st:"bold", c:C.navy});
-    if(d.ruc) T(doc, d.ruc, 460.8, 176.1);
-    T(doc, "EMPRESA:", 54.4, 198.5, {st:"bold", c:C.navy});
-    T(doc, "Grupo Σ LEAN — Ingeniería & Proyectos", 112.8, 198.5);
-    T(doc, "VÁLIDO HASTA:", 392.8, 198.5, {st:"bold", c:C.navy});
-    T(doc, fechaLarga(d.validoHasta), 460.8, 198.5);
-    T(doc, "DETALLE DE SERVICIOS", 54.4, 217.9, {st:"bold", sz:8.8, c:C.navy});
-    return tableHeader(doc, 227.2);
+    // cliente / empresa (fila EMAIL solo si se escribió un correo)
+    const mail = String(d.email||"").trim();
+    const filas = mail ? ["cli","mail","emp"] : ["cli","emp"], RH = 22.4, H = RH*filas.length, dy = H - 44.8;
+    filas.forEach((f,i) => { const y = 168 + i*RH;
+      R(doc, 52, y, 58.4, RH, C.label); if(f!=="mail") R(doc, 390.4, y, 68, RH, C.label);
+      hline(doc, y, C.border);
+      if(f!=="mail"){ vline(doc, 390.4, y, y+RH+(i===filas.length-1?0.8:0), C.border); vline(doc, 458.4, y, y+RH+(i===filas.length-1?0.8:0), C.border); }
+      const ty = y + 8.1;
+      if(f==="cli"){ T(doc, "CLIENTE:", 54.4, ty, {st:"bold", c:C.navy}); T(doc, d.cliente, 112.8, ty);
+                     T(doc, "CIP/RUC:", 392.8, ty, {st:"bold", c:C.navy}); if(d.ruc) T(doc, d.ruc, 460.8, ty); }
+      if(f==="mail"){ T(doc, "EMAIL:", 54.4, ty, {st:"bold", c:C.navy}); T(doc, mail, 112.8, ty); }
+      if(f==="emp"){ T(doc, "EMPRESA:", 54.4, ty, {st:"bold", c:C.navy}); T(doc, "Grupo Σ LEAN — Ingeniería & Proyectos", 112.8, ty);
+                     T(doc, "VÁLIDO HASTA:", 392.8, ty, {st:"bold", c:C.navy}); T(doc, fechaLarga(d.validoHasta), 460.8, ty); }
+    });
+    hline(doc, 168 + H, C.border);
+    [52, 110.4, 558.4].forEach(x => vline(doc, x, 168, 168 + H + 0.8, C.border));
+    T(doc, "DETALLE DE SERVICIOS", 54.4, 217.9 + dy, {st:"bold", sz:8.8, c:C.navy});
+    return tableHeader(doc, 227.2 + dy);
   }
   function tableHeader(doc, y){
     R(doc, 52, y, 507.2, 23.2, C.navy);
@@ -697,7 +711,7 @@ const PDFFAC = (() => {
     T(doc, "DESTINATARIO", 306.5, 176.2, {st:"bold", c:C.label});
     const anchoDest = d.url ? 178 : 265;
     let yy = 193.7;
-    [d.cliente, d.ruc, d.direccion, d.telefono].filter(Boolean).forEach(t => {
+    [d.cliente, d.ruc, d.email, d.direccion, d.telefono].filter(Boolean).forEach(t => {
       doc.setFont("Serif","normal"); doc.setFontSize(10.1);
       doc.splitTextToSize(String(t), anchoDest).forEach(ln => { T(doc, ln, 306.5, yy); yy += 13.5; });
     });
@@ -790,6 +804,7 @@ const store = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return n
 const hoyISO = () => new Intl.DateTimeFormat("en-CA",{timeZone:"America/Panama"}).format(new Date());
 const masDias = (iso,n) => { const d = new Date(iso+"T12:00:00Z"); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); };
 const pad3 = n => String(n).padStart(3,"0");
+const EMAIL_OK = e => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 const numeroDe = (letra, n) => `${String(letra).toUpperCase()}-${pad3(n)}`;
 const inicial = s => { const m = String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").match(/[A-Za-z]/); return m ? m[0].toUpperCase() : ""; };
 
@@ -922,12 +937,12 @@ function show(v){
   $("tab-nueva").classList.toggle("on", v==="nueva"); $("tab-hist").classList.toggle("on", v==="hist"); $("tab-fac").classList.toggle("on", v==="fac"); $("tab-cxc").classList.toggle("on", v==="cxc");
   if(v==="cxc"){ $("cx-box").innerHTML = ""; $("cx-status").textContent = ""; pintarCxc(); }
   if(v==="hist") setHView(HVIEW);
-  window.scrollTo({top:0, behavior:"smooth"});
+  window.scrollTo({top:0, behavior:"smooth"}); CARD_FOCO = null; setTimeout(actualizarActiva, 350);
 }
 $("tab-nueva").onclick = () => { if(EDIT) nueva(); show("nueva"); };
 $("tab-hist").onclick = () => show("hist");
 $("tab-fac").onclick = () => { if(FEDIT) fNueva(); show("fac"); };
-$("tab-cxc").onclick = async () => { show("cxc"); try{ await Promise.all([cargarFac(), recargarHist()]); pintarCxc(); }catch(e){ console.error(e); } };
+$("tab-cxc").onclick = async () => { CXANIM = true; show("cxc"); CXANIM = false; try{ await Promise.all([cargarFac(), recargarHist()]); CXANIM = true; pintarCxc(); animarCxc(); }catch(e){ console.error(e); CXANIM = false; pintarCxc(); } finally{ CXANIM = false; } };
 
 /* ==================== formulario ==================== */
 let EDIT = null;      // registro que se está editando (o null)
@@ -1003,7 +1018,7 @@ function fechas(){
 function nueva(){
   EDIT = null;
   $("form-title").firstChild.textContent = "Nueva cotización "; $("form-badge").textContent = "";
-  ["f-cliente","f-ruc"].forEach(id => $(id).value=""); $("f-dur").value = "3 - 5 horas";
+  ["f-cliente","f-ruc","f-email"].forEach(id => $(id).value=""); $("f-dur").value = "3 - 5 horas";
   $("inc-mat").checked = true; $("inc-mo").checked = true;
   $("rows-mat").innerHTML=""; $("rows-mo").innerHTML=""; addRow("mat"); addRow("mo");
   $("f-fecha-opt").classList.add("hidden"); $("f-hoy").checked=false;
@@ -1011,7 +1026,7 @@ function nueva(){
 }
 function cargar(c, modo){   // modo: "editar" | "duplicar"
   EDIT = modo==="editar" ? c : null;
-  $("f-cliente").value = c.cliente; $("f-ruc").value = c.ruc||""; $("f-dur").value = c.duracion||"3 - 5 horas";
+  $("f-cliente").value = c.cliente; $("f-ruc").value = c.ruc||""; $("f-email").value = c.email||""; $("f-dur").value = c.duracion||"3 - 5 horas";
   $("inc-mat").checked = c.incMat; $("inc-mo").checked = c.incMO;
   $("rows-mat").innerHTML=""; $("rows-mo").innerHTML="";
   (c.materiales.length ? c.materiales : [{}]).forEach(it => addRow("mat", it));
@@ -1029,6 +1044,7 @@ function armar(){   // valida y arma el registro
   const mat = leerItems("mat"), mo = leerItems("mo"), errs = [];
   if(n==null) errs.push("indicar una sola vez el último número que usaste en Excel (recuadro amarillo arriba)");
   if(!cliente) errs.push("el cliente"); else if(!L) errs.push("que el nombre del cliente empiece con una letra");
+  if($("f-email").value.trim() && !EMAIL_OK($("f-email").value.trim())) errs.push("un email válido (o dejarlo vacío)");
   if(!incMat && !incMO) errs.push("al menos una hoja (materiales o mano de obra)");
   [[incMat,mat,"materiales"],[incMO,mo,"mano de obra"]].forEach(([inc,arr,nom]) => {
     if(!inc) return;
@@ -1041,7 +1057,7 @@ function armar(){   // valida y arma el registro
   const fecha = fechas(), tot = totales(mat, mo, incMat, incMO);
   const numero = numeroDe(L, n);
   const codigo = EDIT ? EDIT.codigo : (numero.replace(/-/g,"") + "-" + [...crypto.getRandomValues(new Uint8Array(8))].map(b=>ALF[b%ALF.length]).join("").replace(/^(.{4})/,"$1-"));
-  return { numero, letra:L.toUpperCase(), n, codigo, cliente, ruc:$("f-ruc").value.trim(), fecha, validoHasta:masDias(fecha,30),
+  return { numero, letra:L.toUpperCase(), n, codigo, cliente, ruc:$("f-ruc").value.trim(), email:$("f-email").value.trim(), fecha, validoHasta:masDias(fecha,30),
            incMat, incMO, materiales: incMat?mat:[], manoObra: incMO?mo:[], duracion:$("f-dur").value.trim(),
            tot:{matSub:tot.matSub, matItbms:tot.matItbms, matTotal:tot.matTotal, moSub:tot.moSub}, total: tot.general,
            creado: EDIT ? EDIT.creado : new Date().toISOString(), actualizado: new Date().toISOString() };
@@ -1134,6 +1150,25 @@ async function compartirPDF(bytes, nombre, titulo, st, texto){
   bajarBytes(bytes, nombre);
   msg("warn", "Este navegador no abre el menú de compartir: se descargó el PDF para que lo adjuntes en WhatsApp (clip 📎 → Documento)." + (texto ? " El mensaje quedó copiado para que lo pegues." : ""));
 }
+
+/* ==================== bloque activo (marco naranja) ==================== */
+let CARD_FOCO = null, CARD_RAF = 0;
+function marcarActiva(card){ document.querySelectorAll(".card.activa").forEach(c => { if(c!==card) c.classList.remove("activa"); }); if(card) card.classList.add("activa"); }
+function cardCentral(){
+  const hdr = document.querySelector("header"), nav = $("nav");
+  const top = hdr ? hdr.getBoundingClientRect().bottom : 0;
+  const bot = nav && getComputedStyle(nav).position==="fixed" && !nav.classList.contains("hidden") ? nav.getBoundingClientRect().top : window.innerHeight;
+  const yc = top + (bot - top) * 0.42;
+  const cards = [...document.querySelectorAll("main .card")].filter(c => c.offsetParent);
+  let mejor = null, dist = Infinity;
+  cards.forEach(c => { const r = c.getBoundingClientRect(); const d = yc < r.top ? r.top - yc : yc > r.bottom ? yc - r.bottom : 0; if(d < dist){ dist = d; mejor = c; } });
+  return mejor;
+}
+function actualizarActiva(){ CARD_RAF = 0; if(CARD_FOCO && CARD_FOCO.contains(document.activeElement)) return marcarActiva(CARD_FOCO); CARD_FOCO = null; marcarActiva(cardCentral()); }
+window.addEventListener("scroll", () => { if(!CARD_RAF) CARD_RAF = requestAnimationFrame(actualizarActiva); }, {passive:true});
+window.addEventListener("resize", () => { if(!CARD_RAF) CARD_RAF = requestAnimationFrame(actualizarActiva); });
+document.addEventListener("focusin", e => { const c = e.target.closest && e.target.closest("main .card"); if(c){ CARD_FOCO = c; marcarActiva(c); } });
+document.addEventListener("pointerdown", e => { const c = e.target.closest && e.target.closest("main .card"); if(c){ CARD_FOCO = c; marcarActiva(c); } }, {passive:true});
 
 /* ==================== menú «⋯» de acciones ==================== */
 function menuHTML(items){
@@ -1228,7 +1263,7 @@ $("h-export").onclick = () => { if(HVIEW==="fac") return exportarFac();
   if(!cs.length){ $("h-status").className="status warn"; $("h-status").textContent="No hay cotizaciones para exportar."; return; }
   const resumen = cs.map(c => ({
     "N° cotización": c.numero, "Fecha de emisión": c.fecha.split("-").reverse().join("/"), "Válida hasta": c.validoHasta.split("-").reverse().join("/"),
-    "Cliente": c.cliente, "CIP/RUC": c.ruc||"", "Materiales sub-total": r2(c.tot.matSub), "ITBMS (7%)": r2(c.tot.matItbms),
+    "Cliente": c.cliente, "CIP/RUC": c.ruc||"", "Email": c.email||"", "Materiales sub-total": r2(c.tot.matSub), "ITBMS (7%)": r2(c.tot.matItbms),
     "Total materiales": r2(c.tot.matTotal), "Mano de obra": r2(c.tot.moSub), "Total cotización": c.total,
     "Estado": estadoCot(c).t, "Anulada el": c.anulado ? PDFFAC.dmy(c.anulado.fecha) : "", "Motivo de anulación": c.anulado?.motivo || "", "Duración estimada": c.incMO ? c.duracion : "", "Código de validación": c.codigo, "Enlace del QR": urlDe(c) }));
   const det = [];
@@ -1236,7 +1271,7 @@ $("h-export").onclick = () => { if(HVIEW==="fac") return exportarFac();
     det.push({"N° cotización": c.numero, "Cliente": c.cliente, "Hoja": hoja, "#": i+1, "Descripción": it.desc, "Cant.": it.cant, "Precio unit.": it.precio, "Total": r2(it.cant*it.precio)}))));
   const wb = XLSX.utils.book_new();
   const s1 = XLSX.utils.json_to_sheet(resumen), s2 = XLSX.utils.json_to_sheet(det);
-  s1["!cols"] = [12,14,14,30,20,14,11,14,13,14,10,12,26,18,22,52].map(w=>({wch:w}));
+  s1["!cols"] = [12,14,14,30,20,28,14,11,14,13,14,10,12,26,18,22,52].map(w=>({wch:w}));
   s2["!cols"] = [12,30,13,4,60,8,12,12].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb, s1, "Cotizaciones"); XLSX.utils.book_append_sheet(wb, s2, "Detalle");
   XLSX.writeFile(wb, `Historial_Cotizaciones_${hoyISO()}.xlsx`);
@@ -1332,7 +1367,7 @@ $("fx-btn-ultimo").onclick = async () => {
 };
 function fNueva(){
   FEDIT = null; $("fx-title").firstChild.textContent = "Nuevo recibo / factura "; $("fx-badge").textContent = "";
-  ["fx-cliente","fx-ruc","fx-dir","fx-tel","fx-pedido"].forEach(id => { $(id).value = ""; delete $(id).dataset.auto; }); $("fx-dias").value = 4;
+  ["fx-cliente","fx-ruc","fx-email","fx-dir","fx-tel","fx-pedido"].forEach(id => { $(id).value = ""; delete $(id).dataset.auto; }); $("fx-dias").value = 4;
   $("fx-ped-igual").checked = true; $("fx-ped-box").classList.add("hidden"); $("fx-ped-mo").checked = true; $("fx-ped-mat").checked = false; FPED = null; $("fx-ped-info").textContent = ""; $("fx-ped-opts").classList.add("hidden"); $("fx-ped-old").classList.add("hidden"); $("fx-old-code").value = "";
   document.querySelector('input[name="fx-tipo"][value="Recibo"]').checked = true;
   document.querySelectorAll('input[name="fx-tipo"]').forEach(r => r.disabled = false);
@@ -1343,7 +1378,7 @@ function fCargar(d, modo){
   FEDIT = modo==="editar" ? d : null;
   document.querySelector(`input[name="fx-tipo"][value="${d.tipo}"]`).checked = true;
   document.querySelectorAll('input[name="fx-tipo"]').forEach(r => r.disabled = modo==="editar");
-  $("fx-cliente").value = d.cliente; $("fx-ruc").value = d.ruc||""; $("fx-dir").value = d.direccion||""; $("fx-tel").value = d.telefono||"";
+  $("fx-cliente").value = d.cliente; $("fx-ruc").value = d.ruc||""; $("fx-email").value = d.email||""; $("fx-dir").value = d.direccion||""; $("fx-tel").value = d.telefono||"";
   const enl = !!d.pedido && d.pedido!==d.numero;
   $("fx-ped-igual").checked = !enl; $("fx-ped-box").classList.toggle("hidden", !enl); $("fx-pedido").value = enl ? d.pedido : "";
   $("fx-ped-mo").checked = d.pedOpts ? !!d.pedOpts.mo : true; $("fx-ped-mat").checked = d.pedOpts ? !!d.pedOpts.mat : false;
@@ -1362,6 +1397,7 @@ function fArmar(){
   const igual = $("fx-ped-igual").checked, pedTxt = $("fx-pedido").value.trim();
   if(!igual && !pedTxt) errs.push("el N.º de la cotización en «Pedido N.º» (o marca «Igual al N.º del documento»)");
   if(!cliente) errs.push("el cliente");
+  if($("fx-email").value.trim() && !EMAIL_OK($("fx-email").value.trim())) errs.push("un email válido (o dejarlo vacío)");
   if(!items.length) errs.push("al menos una fila en el detalle");
   items.forEach((it,i) => { if(it.total==null) errs.push(`el total (o el precio) de la fila ${i+1}`); if(!it.desc && !FCAMPOS.some(([k])=>it[k])) errs.push(`la descripción de la fila ${i+1}`); });
   const tipo = FEDIT ? FEDIT.tipo : fTipo();
@@ -1374,7 +1410,7 @@ function fArmar(){
   const total = r2(items.reduce((a,it) => a + it.total, 0));
   const pedido = igual ? numero : (normCot(pedTxt) || pedTxt);
   return { tipo, n, numero, pedido, cotRef: !igual && FPED ? FPED.numero : null, pedOpts: !igual && FPED ? {mo:$("fx-ped-mo").checked, mat:$("fx-ped-mat").checked} : null, codigo, fecha, vence, dias, cliente,
-           ruc:$("fx-ruc").value.trim(), direccion:$("fx-dir").value.trim(), telefono:$("fx-tel").value.trim(),
+           ruc:$("fx-ruc").value.trim(), email:$("fx-email").value.trim(), direccion:$("fx-dir").value.trim(), telefono:$("fx-tel").value.trim(),
            items, subtotal: total, total, conPago:$("fx-pago").checked, conPie:$("fx-pie").checked, conXml:$("fx-xml").checked,
            cobro: FEDIT?.cobro || {estado:"Pendiente"}, creado: FEDIT ? FEDIT.creado : new Date().toISOString(), actualizado: new Date().toISOString() };
 }
@@ -1510,14 +1546,14 @@ function exportarFac(){
   const ds = [...(FHIST?.docs||[])].sort((a,b) => a.n-b.n);
   if(!ds.length){ $("h-status").className="status warn"; $("h-status").textContent="No hay recibos ni facturas para exportar."; return; }
   const res = ds.map(d => ({"N.º": d.numero, "Tipo": d.tipo, "Pedido N.º": d.pedido, "Fecha": PDFFAC.dmy(d.fecha), "Vencimiento": PDFFAC.dmy(d.vence),
-    "Cliente": d.cliente, "CIP/RUC": d.ruc||"", "Descripción": d.items.map(i=>i.desc).filter(Boolean).join(" | "), "Total": d.total,
+    "Cliente": d.cliente, "CIP/RUC": d.ruc||"", "Email": d.email||"", "Descripción": d.items.map(i=>i.desc).filter(Boolean).join(" | "), "Total": d.total,
     "Estado de cobro": d.anulado ? (d.tipo==="Factura"?"Anulada":"Anulado") : (!enCxc(d) && cobradoDe(d)===0) ? "No está en cuentas por cobrar" : estadoCxc(d), "Cobrado": cobradoDe(d), "Saldo": d.anulado ? 0 : saldoDe(d), "Fecha de cobro": d.cobro?.fecha ? PDFFAC.dmy(d.cobro.fecha) : "", "Motivo de anulación": d.anulado?.motivo || "",
     "Código de validación": d.codigo, "Enlace del QR": fUrl(d)}));
   const det = []; ds.forEach(d => d.items.forEach((it,i) => det.push({"N.º": d.numero, "Tipo": d.tipo, "Cliente": d.cliente, "#": i+1, "Descripción": it.desc||"",
     "Empresa": it.empresa||"", "Lugar donde recoge": it.recoge||"", "Lugar donde entrega": it.entrega||"", "KM": it.km||"", "Vehículo": it.vehiculo||"",
     "Observaciones": it.obs||"", "Fecha": it.fecha ? PDFFAC.dmy(it.fecha) : "", "Cantidad": it.cant??"", "Precio unitario": it.precio??"", "Total": it.total})));
   const wb = XLSX.utils.book_new(), s1 = XLSX.utils.json_to_sheet(res), s2 = XLSX.utils.json_to_sheet(det);
-  s1["!cols"] = [7,9,10,11,12,28,22,50,10,13,12,26,22,52].map(w=>({wch:w})); s2["!cols"] = [7,9,26,4,44,16,22,22,6,10,22,11,9,12,10].map(w=>({wch:w}));
+  s1["!cols"] = [7,9,10,11,12,28,22,28,50,10,13,12,26,22,52].map(w=>({wch:w})); s2["!cols"] = [7,9,26,4,44,16,22,22,6,10,22,11,9,12,10].map(w=>({wch:w}));
   XLSX.utils.book_append_sheet(wb, s1, "Recibos y facturas"); XLSX.utils.book_append_sheet(wb, s2, "Detalle");
   XLSX.writeFile(wb, `Historial_Recibos_Facturas_${hoyISO()}.xlsx`);
   $("h-status").className="status ok"; $("h-status").textContent = `✓ Exportados ${ds.length} documentos.`;
@@ -1578,7 +1614,7 @@ function fEnlazar(c, regen=true){
     ponerAuto("mo", $("fx-ped-mo").checked ? filasMO(c) : []);
     ponerAuto("mat", $("fx-ped-mat").checked ? filaMat(c) : []);
     if(!$("fx-rows").children.length) fAdd();
-    [["fx-cliente", c.cliente], ["fx-ruc", c.ruc||""]].forEach(([id, val]) => {
+    [["fx-cliente", c.cliente], ["fx-ruc", c.ruc||""], ["fx-email", c.email||""]].forEach(([id, val]) => {
       if(!$(id).value.trim() || $(id).dataset.auto){ $(id).value = val; $(id).dataset.auto = "1"; }
     });
   }
@@ -1594,7 +1630,7 @@ $("fx-pedido").addEventListener("input", () => { clearTimeout(FPED_T); FPED_T = 
 $("fx-pedido").addEventListener("blur", () => { const n = normCot($("fx-pedido").value); if(n) $("fx-pedido").value = n; });
 $("fx-ped-mo").onchange = () => { if(FPED){ ponerAuto("mo", $("fx-ped-mo").checked ? filasMO(FPED) : []); if(!$("fx-rows").children.length) fAdd(); fCalc(); } };
 $("fx-ped-mat").onchange = () => { if(FPED){ ponerAuto("mat", $("fx-ped-mat").checked ? filaMat(FPED) : []); if(!$("fx-rows").children.length) fAdd(); fCalc(); } };
-["fx-cliente","fx-ruc"].forEach(id => $(id).addEventListener("input", () => delete $(id).dataset.auto));
+["fx-cliente","fx-ruc","fx-email"].forEach(id => $(id).addEventListener("input", () => delete $(id).dataset.auto));
 
 $("fx-old-xl").onclick = () => { $("fx-old-file").value = ""; $("fx-old-file").click(); };
 $("fx-old-file").onchange = async e => {
@@ -1920,6 +1956,20 @@ const menuCx = d => menuHTML([
   cobradoDe(d) > 0 ? `<button class="mi" data-x="deshacer" data-c="${esc(d.codigo)}">↩︎ Deshacer último cobro</button>` : "",
   "sep", `<button class="mi red" data-x="quitar" data-c="${esc(d.codigo)}">✕ Anular cuenta</button>`]);
 
+let CXANIM = false;   // animar indicadores y barra la próxima vez que se pinte
+function animarCxc(){
+  const red = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const segs = [...document.querySelectorAll("#cx-bar .seg-b[data-v]")];
+  requestAnimationFrame(() => requestAnimationFrame(() => segs.forEach(sg => sg.style.flexGrow = sg.dataset.v)));
+  if(red) return;
+  document.querySelectorAll("#cx-kpis .kpi b").forEach(el => {
+    const fin = Number(el.textContent.replace(/[^0-9.\-]/g,"")); if(!isFinite(fin) || fin===0) return;
+    const t0 = performance.now(), dur = 900, fmt = v => money(v);
+    const paso = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = fmt(k < 1 ? Math.round(fin * e * 100) / 100 : fin); if(k < 1) requestAnimationFrame(paso); };
+    el.textContent = fmt(0); requestAnimationFrame(paso);
+  });
+}
 function pintarCxc(){
   if(!FHIST) return;
   $("cx-corte").textContent = "Corte: " + PDFFAC.dmy(hoyISO());
@@ -1945,7 +1995,7 @@ function pintarCxc(){
     kp("Saldo por cobrar", money(saldoT), `${pct(saldoT)} del facturado`, "k-navy") +
     kp("Facturado", money(fact), `${pct(cobT)} cobrado`, "k-lila");
   const segs = [["Cobrado", cobT, "s-ok"], ["Vencido", venT, "s-bad"], ["Por vencer", porT, "s-warn"]];
-  $("cx-bar").innerHTML = fact ? segs.filter(s => s[1] > 0).map(([t,v,c]) => `<div class="seg-b ${c}" style="flex:${v}" title="${t}: ${money(v)} (${pct(v)})"></div>`).join("") : '<div class="seg-b s-empty" style="flex:1"></div>';
+  $("cx-bar").innerHTML = fact ? segs.filter(s => s[1] > 0).map(([t,v,c]) => `<div class="seg-b ${c}" data-v="${v}" style="flex:${CXANIM ? 0 : v} 1 0" title="${t}: ${money(v)} (${pct(v)})"></div>`).join("") : '<div class="seg-b s-empty" style="flex:1"></div>';
   $("cx-pend").innerHTML = (ven.length + por.length)
     ? `<b>${ven.length + por.length}</b> pendiente(s) de cobro de <b>${L.length}</b> en cuentas por cobrar${L.some(d => d.origen==="control") ? ' · <span class="dot-prev" style="margin:0 4px 0 0"></span>= recibo del control anterior' : ""}`
     : (L.length ? `Sin pendientes · ${L.length} cuenta(s) cobradas` : "Aún no has enviado documentos a cuentas por cobrar (botón «Por cobrar» en el Historial).");
