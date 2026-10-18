@@ -53,8 +53,8 @@
     transition:border-color .25s ease,box-shadow .25s ease,transform .25s ease}
   .card.activa{border-color:rgba(237,162,0,.85);box-shadow:0 0 0 1px rgba(237,162,0,.30),0 14px 34px rgba(237,162,0,.16),0 2px 6px rgba(15,38,64,.05)}
   @media (hover:hover){ .card.activa{transform:translateY(-1px)} }
-  .seg-b{transition:flex-grow 1s cubic-bezier(.2,.8,.2,1)}
-  @media (prefers-reduced-motion:reduce){ .card,.seg-b{transition:none} }
+  .cx-fill{display:flex;gap:2px;height:100%;width:100%;overflow:hidden;border-radius:7px}
+  @media (prefers-reduced-motion:reduce){ .card,.cx-fill{transition:none!important} }
   h2{font-size:16px;font-weight:800;color:var(--navy);margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .hint{color:var(--muted);font-size:13px;line-height:1.5}
   label{font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
@@ -1983,12 +1983,12 @@ const menuCx = d => menuHTML([
   "sep", `<button class="mi red" data-x="quitar" data-c="${esc(d.codigo)}">✕ Anular cuenta</button>`]);
 
 let CXANIM = false;   // animar indicadores y barra la próxima vez que se pinte
-const CX_DUR = 1700, CX_PASO = 180, CX_BARRA = 1800;   // ms: duración de cada indicador, desfase entre ellos y llenado de la barra
+const CX_DUR = 1700, CX_PASO = 180, CX_BARRA_INICIO = 700, CX_BARRA_FIN_EXTRA = 1500;   // ms: duración de cada indicador, desfase entre ellos y llenado de la barra
 function animarCxc(){
   const red = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const segs = [...document.querySelectorAll("#cx-bar .seg-b[data-v]")];
+  const fill = document.querySelector("#cx-bar .cx-fill");
   const kpis = [...document.querySelectorAll("#cx-kpis .kpi")];
-  if(red){ segs.forEach(sg => { sg.style.transition = "none"; sg.style.flexGrow = sg.dataset.v; }); return; }
+  if(red){ if(fill){ fill.style.transition = "none"; fill.style.width = "100%"; } return; }
   // 1) los indicadores aparecen y cuentan uno tras otro
   kpis.forEach((k, i) => {
     const el = k.querySelector("b"), fin = Number(el.textContent.replace(/[^0-9.\-]/g,""));
@@ -2004,10 +2004,12 @@ function animarCxc(){
     }, inicio);
     if(isFinite(fin) && fin!==0) el.textContent = money(0);
   });
-  // 2) la barra se llena al final, cuando terminan los indicadores
-  const espera = (kpis.length - 1) * CX_PASO + CX_DUR * 0.85;
-  segs.forEach(sg => { sg.style.transition = `flex-grow ${CX_BARRA}ms cubic-bezier(.25,.8,.25,1)`; });
-  setTimeout(() => segs.forEach(sg => sg.style.flexGrow = sg.dataset.v), espera);
+  // 2) la barra se llena despacio, de izquierda a derecha, y termina ~1.5 s después que los indicadores
+  if(fill){
+    const finValores = (kpis.length - 1) * CX_PASO + CX_DUR, dur = finValores + CX_BARRA_FIN_EXTRA - CX_BARRA_INICIO;
+    fill.style.width = "0%";
+    setTimeout(() => { fill.style.transition = `width ${dur}ms cubic-bezier(.45,.05,.4,1)`; fill.style.width = "100%"; }, CX_BARRA_INICIO);
+  }
 }
 function pintarCxc(){
   if(!FHIST) return;
@@ -2034,7 +2036,7 @@ function pintarCxc(){
     kp("Saldo por cobrar", money(saldoT), `${pct(saldoT)} del facturado`, "k-navy") +
     kp("Facturado", money(fact), `${pct(cobT)} cobrado`, "k-lila");
   const segs = [["Cobrado", cobT, "s-ok"], ["Vencido", venT, "s-bad"], ["Por vencer", porT, "s-warn"]];
-  $("cx-bar").innerHTML = fact ? segs.filter(s => s[1] > 0).map(([t,v,c]) => `<div class="seg-b ${c}" data-v="${v}" style="flex:${CXANIM ? 0 : v} 1 0" title="${t}: ${money(v)} (${pct(v)})"></div>`).join("") : '<div class="seg-b s-empty" style="flex:1"></div>';
+  $("cx-bar").innerHTML = fact ? `<div class="cx-fill" style="width:${CXANIM ? 0 : 100}%">` + segs.filter(s => s[1] > 0).map(([t,v,c]) => `<div class="seg-b ${c}" style="flex:${v} 1 0" title="${t}: ${money(v)} (${pct(v)})"></div>`).join("") + `</div>` : '<div class="seg-b s-empty" style="flex:1"></div>';
   $("cx-pend").innerHTML = (ven.length + por.length)
     ? `<b>${ven.length + por.length}</b> pendiente(s) de cobro de <b>${L.length}</b> en cuentas por cobrar${L.some(d => d.origen==="control") ? ' · <span class="dot-prev" style="margin:0 4px 0 0"></span>= recibo del control anterior' : ""}`
     : (L.length ? `Sin pendientes · ${L.length} cuenta(s) cobradas` : "Aún no has enviado documentos a cuentas por cobrar (botón «Por cobrar» en el Historial).");
