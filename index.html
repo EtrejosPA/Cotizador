@@ -1190,7 +1190,20 @@ function cardCentral(){
   cards.forEach(c => { const r = c.getBoundingClientRect(); const d = yc < r.top ? r.top - yc : yc > r.bottom ? yc - r.bottom : 0; if(d < dist){ dist = d; mejor = c; } });
   return mejor;
 }
-function actualizarActiva(){ CARD_RAF = 0; if(CARD_FOCO && CARD_FOCO.contains(document.activeElement)) return marcarActiva(CARD_FOCO); CARD_FOCO = null; marcarActiva(cardCentral()); }
+let RATON = null;   // posición del cursor (solo en equipos con mouse)
+const CON_HOVER = window.matchMedia ? matchMedia("(hover: hover) and (pointer: fine)") : {matches:false};
+function actualizarActiva(){
+  CARD_RAF = 0;
+  if(RATON && CON_HOVER.matches){   // en la PC manda el bloque que está bajo el cursor
+    const bajo = document.elementFromPoint(RATON.x, RATON.y);
+    const c = bajo && bajo.closest && bajo.closest("main .card");
+    if(c && !bajo.closest(".menu")) return marcarActiva(c);
+  }
+  if(CARD_FOCO && CARD_FOCO.contains(document.activeElement)) return marcarActiva(CARD_FOCO);
+  CARD_FOCO = null; marcarActiva(cardCentral());
+}
+document.addEventListener("mousemove", e => { RATON = {x:e.clientX, y:e.clientY}; if(!CARD_RAF) CARD_RAF = requestAnimationFrame(actualizarActiva); }, {passive:true});
+document.documentElement.addEventListener("mouseleave", () => { RATON = null; if(!CARD_RAF) CARD_RAF = requestAnimationFrame(actualizarActiva); });
 window.addEventListener("scroll", () => { if(!CARD_RAF) CARD_RAF = requestAnimationFrame(actualizarActiva); }, {passive:true});
 window.addEventListener("resize", () => { if(!CARD_RAF) CARD_RAF = requestAnimationFrame(actualizarActiva); });
 document.addEventListener("focusin", e => { const c = e.target.closest && e.target.closest("main .card"); if(c){ CARD_FOCO = c; marcarActiva(c); } });
