@@ -1532,25 +1532,30 @@ let MENU_BTN = null;   // botón ⋯ del menú abierto
 function cerrarMenus(){
   document.querySelectorAll(".menu:not(.hidden)").forEach(m => { m.classList.add("hidden"); m.style.maxHeight = "";
     const o = m._casa; if(o && o.isConnected){ o.after(m); } else if(o) m.remove(); });   // vuelve a su lugar en la tabla
-  MENU_BTN = null;
+  MENU_BTN = null; const sp = $("menu-espacio"); if(sp) sp.remove();
 }
 function posMenu(btn, m){
   const r = btn.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
   let left = Math.min(window.innerWidth - w - 8, r.right - w); left = Math.max(8, left);
   const nav = $("nav"), navH = nav && getComputedStyle(nav).position==="fixed" && !nav.classList.contains("hidden") ? nav.offsetHeight : 0;
   const limite = window.innerHeight - navH - 8;
-  const abajo = limite - r.bottom - 4, arriba = r.top - 12;
-  let top;
-  if(h <= abajo) top = r.bottom + 4;                                   // cabe debajo
-  else if(h <= arriba) top = r.top - h - 4;                             // cabe arriba
-  else if(abajo >= arriba){ top = r.bottom + 4; m.style.maxHeight = abajo + "px"; }   // no cabe: se desplaza por dentro
-  else { m.style.maxHeight = arriba + "px"; top = r.top - Math.min(h, arriba) - 4; }
-  m.style.left = left + "px"; m.style.top = top + "px";
+  m.style.left = left + "px"; m.style.top = (r.bottom + 4) + "px";      // siempre hacia abajo del botón
+  return r.bottom + 4 + h - limite;                                     // cuánto se sale por abajo (>0 = no cabe)
+}
+function abrirMenuAbajo(btn, m){
+  const falta = posMenu(btn, m);
+  if(falta > 0){   // baja la página lo necesario para que se vea completo (con espacio extra si la página es corta)
+    const sobra = document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
+    if(sobra < falta + 8){ let sp = $("menu-espacio"); if(!sp){ sp = document.createElement("div"); sp.id = "menu-espacio"; sp.setAttribute("aria-hidden","true"); document.body.appendChild(sp); }
+      let hsp = falta + 8 - sobra; sp.style.height = hsp + "px";
+      for(let i=0; i<4; i++){ const f = falta + 8 - (document.documentElement.scrollHeight - window.innerHeight - window.scrollY); if(f <= 0) break; hsp += f; sp.style.height = hsp + "px"; } }
+    window.scrollBy({top: falta + 8, behavior: "smooth"});
+  }
 }
 document.addEventListener("click", e => {
   const mb = e.target.closest(".b-more");
   if(mb){ const m = mb._menu || (mb._menu = mb.nextElementSibling), abierto = !m.classList.contains("hidden"); cerrarMenus();
-    if(!abierto){ m._casa = mb; document.body.appendChild(m); m.classList.remove("hidden"); posMenu(mb, m); MENU_BTN = mb; }   // en <body>: así no lo mueven las tarjetas flotantes
+    if(!abierto){ m._casa = mb; document.body.appendChild(m); m.classList.remove("hidden"); MENU_BTN = mb; abrirMenuAbajo(mb, m); }   // en <body>: así no lo mueven las tarjetas flotantes
     e.stopPropagation(); e.preventDefault(); return; }
   if(e.target.closest(".menu .mi")){ setTimeout(cerrarMenus, 0); return; }
   if(!e.target.closest(".menu")) cerrarMenus();
@@ -1558,7 +1563,7 @@ document.addEventListener("click", e => {
 // al desplazar la página el menú sigue a su botón; solo se cierra si el botón sale de la pantalla
 function seguirMenu(){ const m = document.querySelector(".menu:not(.hidden)"); if(!m || !MENU_BTN) return;
   const r = MENU_BTN.getBoundingClientRect(); if(!MENU_BTN.isConnected || r.bottom < 0 || r.top > window.innerHeight) return cerrarMenus();
-  m.style.maxHeight = ""; posMenu(MENU_BTN, m); }
+  posMenu(MENU_BTN, m); }
 window.addEventListener("scroll", seguirMenu, {passive:true}); window.addEventListener("resize", seguirMenu);
 document.addEventListener("keydown", e => { if(e.key==="Escape") cerrarMenus(); });
 
