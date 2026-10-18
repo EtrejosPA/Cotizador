@@ -43,13 +43,22 @@
   header{position:-webkit-sticky;position:sticky;top:0;z-index:30;box-shadow:0 2px 10px rgba(15,38,64,.06);background:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:14px;border-bottom:5px solid var(--orange);flex-wrap:wrap}
   header img{height:58px}
   header .t b{display:block;font-size:18px;color:var(--navy)}
-  #tab-ajustes{margin-left:8px;font-size:18px;padding:7px 11px;line-height:1}
-  #tab-ajustes.on{background:var(--navy);color:#fff}
   #avisos:empty{display:none}
+  #modal{display:none}#modal.abierto{display:block}
+  .modal-fondo{position:fixed;inset:0;z-index:80;background:rgba(11,26,51,.45);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+  .modal-caja{position:fixed;z-index:81;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,calc(100vw - 28px));max-height:calc(100vh - 40px);overflow:auto;background:#fff;border-radius:18px;padding:22px;box-shadow:0 24px 60px rgba(11,26,51,.35);border:1px solid rgba(237,162,0,.6)}
+  .fx-op{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+  .fx-op-b{display:flex;flex-direction:column;align-items:center;gap:4px;padding:18px 12px;border-radius:14px;background:var(--panel);border:1.5px solid #CBD3DF;color:var(--navy);white-space:normal;text-align:center}
+  .fx-op-b span{font-size:28px}.fx-op-b b{font-size:16px}.fx-op-b small{font-size:12px;color:var(--muted);font-weight:500}
+  .fx-op-b:hover,.fx-op-b:focus{border-color:var(--orange);background:#FFF8E8;outline:none}
+  .sug{min-width:min(360px,86vw);position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:45;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(15,38,64,.18);padding:5px;max-height:300px;overflow:auto}
+  .sug-i{padding:9px 11px;border-radius:8px;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+  .sug-i b{color:var(--navy);font-size:14.5px}.sug-i small{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sug-i:hover,.sug-i.on{background:var(--panel)}
   .aviso{display:flex;gap:12px;align-items:flex-start;border-radius:14px;padding:14px 16px;font-size:14px;line-height:1.5;box-shadow:0 8px 22px rgba(15,38,64,.08)}
   .aviso b{display:block}.aviso .x{margin-left:auto;background:none;border:0;font-size:20px;line-height:1;color:inherit;opacity:.6;padding:0 4px}
   .aviso.warn{background:var(--amber-bg);color:#5b3d07;border:1px solid #F3DDA9}.aviso.bad{background:var(--red-bg);color:#7f1d1d;border:1px solid #F5C2C2}.aviso.info{background:var(--blue-bg);color:#183a7a;border:1px solid #BCD3F5}
-  @media (max-width:720px){ header{position:sticky} #tab-ajustes{position:absolute;right:14px;top:calc(18px + env(safe-area-inset-top))} }
+  @media (max-width:720px){ html{scroll-padding-bottom:calc(96px + env(safe-area-inset-bottom))} }
   header .t span{font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase}
   nav{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
   body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
@@ -58,6 +67,7 @@
   .card{background:rgba(255,255,255,.90);border-radius:16px;padding:20px;border:1px solid rgba(26,53,84,.07);
     box-shadow:0 14px 34px rgba(15,38,64,.10),0 2px 6px rgba(15,38,64,.05);
     transition:border-color .25s ease,box-shadow .25s ease,transform .25s ease}
+  .card:focus-within{position:relative;z-index:3}
   .card.activa{border-color:rgba(237,162,0,.85);box-shadow:0 0 0 1px rgba(237,162,0,.30),0 14px 34px rgba(237,162,0,.16),0 2px 6px rgba(15,38,64,.05)}
   @media (hover:hover){ .card.activa{transform:translateY(-1px)} }
   .cx-fill{display:flex;gap:2px;height:100%;width:100%;overflow:hidden;border-radius:7px}
@@ -224,7 +234,6 @@
     <button class="b-ghost" id="tab-cxc"><svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/></svg><span class="nl-full">Cuentas por cobrar</span><span class="nl-short">Por cobrar</span></button>
     <button class="b-ghost" id="tab-hist"><svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><span class="nl-full">Historial</span><span class="nl-short">Historial</span></button>
   </nav>
-  <button class="b-ghost hidden" id="tab-ajustes" title="Ajustes, respaldo y seguridad" aria-label="Ajustes">⚙️</button>
 </header>
 
 <main>
@@ -451,6 +460,10 @@
 
   <!-- ======== AJUSTES / PROTECCIÓN ======== -->
   <section id="sec-ajustes" class="hidden" style="display:flex;flex-direction:column;gap:20px">
+    <div class="card" style="padding:14px 20px">
+      <div class="seg"><button class="segbtn" id="aj-hv-cot">Cotizaciones</button><button class="segbtn" id="aj-hv-fac">Recibos y facturas</button><button class="segbtn on">⚙️ Ajustes</button></div>
+      <h2 style="margin:12px 0 0">Ajustes · respaldo y seguridad</h2>
+    </div>
     <div class="card">
       <h2>🔑 Clave de GitHub</h2>
       <p class="hint">Tu clave de GitHub vence en la fecha que elegiste al crearla. Si vence, el Cotizador deja de guardar. Anota aquí esa fecha y te avisaré <b>15 días antes</b>.</p>
@@ -486,7 +499,7 @@
 
   <!-- ======== HISTORIAL ======== -->
   <section class="card hidden" id="sec-hist">
-    <div class="seg" style="margin-bottom:14px"><button class="segbtn on" id="hv-cot">Cotizaciones</button><button class="segbtn" id="hv-fac">Recibos y facturas</button></div>
+    <div class="seg" style="margin-bottom:14px"><button class="segbtn on" id="hv-cot">Cotizaciones</button><button class="segbtn" id="hv-fac">Recibos y facturas</button><button class="segbtn" id="hv-aj">⚙️ Ajustes</button></div>
     <h2><span id="h-title">Historial de cotizaciones</span> <span class="pill p-blue" id="h-count"></span></h2>
     <div class="htools">
       <input type="search" id="h-q" placeholder="Buscar por N°, cliente o RUC…">
@@ -999,14 +1012,14 @@ async function recargarHist(){   // trae la versión más reciente antes de modi
 }
 async function entrar(){
   try{ await cargarFac(); }catch(e){ console.error(e); FHIST = {v:1, docs:[]}; }
-  $("sec-acceso").classList.add("hidden"); $("nav").classList.remove("hidden"); $("tab-ajustes").classList.remove("hidden");
+  $("sec-acceso").classList.add("hidden"); $("nav").classList.remove("hidden");
   nueva(); fNueva(); show("nueva"); pintarAvisos();
 }
 
 /* ==================== navegación ==================== */
 function show(v){
-  $("sec-form").classList.toggle("hidden", v!=="nueva"); $("sec-hist").classList.toggle("hidden", v!=="hist"); $("sec-fac").classList.toggle("hidden", v!=="fac"); $("sec-cxc").classList.toggle("hidden", v!=="cxc"); $("sec-ajustes").classList.toggle("hidden", v!=="ajustes"); $("tab-ajustes").classList.toggle("on", v==="ajustes");
-  $("tab-nueva").classList.toggle("on", v==="nueva"); $("tab-hist").classList.toggle("on", v==="hist"); $("tab-fac").classList.toggle("on", v==="fac"); $("tab-cxc").classList.toggle("on", v==="cxc");
+  $("sec-form").classList.toggle("hidden", v!=="nueva"); $("sec-hist").classList.toggle("hidden", v!=="hist"); $("sec-fac").classList.toggle("hidden", v!=="fac"); $("sec-cxc").classList.toggle("hidden", v!=="cxc"); $("sec-ajustes").classList.toggle("hidden", v!=="ajustes");
+  $("tab-nueva").classList.toggle("on", v==="nueva"); $("tab-hist").classList.toggle("on", v==="hist" || v==="ajustes"); $("tab-fac").classList.toggle("on", v==="fac"); $("tab-cxc").classList.toggle("on", v==="cxc");
   if(v==="cxc"){ $("cx-box").innerHTML = ""; $("cx-status").textContent = ""; pintarCxc(); }
   if(v==="hist") setHView(HVIEW);
   window.scrollTo({top:0, behavior:"smooth"}); CARD_FOCO = null; setTimeout(actualizarActiva, 350);
@@ -1258,7 +1271,6 @@ function estadoVence(){
   st.className = "status " + (d < 0 ? "bad" : d <= 15 ? "warn" : "ok");
   st.textContent = d < 0 ? `Venció hace ${-d} día(s).` : d === 0 ? "Vence hoy." : `✓ Vence el ${PDFFAC.dmy(v)} (faltan ${d} días).`;
 }
-$("tab-ajustes").onclick = abrirAjustes;
 $("aj-vence-ok").onclick = async () => {
   const v = $("aj-vence").value, st = $("aj-vence-st");
   if(!v){ st.className = "status bad"; st.textContent = "Elige la fecha de vencimiento."; return; }
@@ -1347,6 +1359,82 @@ $("aj-hoja").onclick = () => {
   </body></html>`);
   w.document.close();
 };
+
+/* ==================== ventana (modal) ==================== */
+function modal(html){
+  let m = $("modal"); if(!m){ m = document.createElement("div"); m.id = "modal"; document.body.appendChild(m); }
+  m.innerHTML = `<div class="modal-fondo"></div><div class="modal-caja" role="dialog" aria-modal="true">${html}</div>`;
+  m.classList.add("abierto"); document.body.style.overflow = "hidden";
+  const cerrar = () => { m.classList.remove("abierto"); m.innerHTML = ""; document.body.style.overflow = ""; document.removeEventListener("keydown", esc_); };
+  const esc_ = e => { if(e.key==="Escape") cerrar(); };
+  document.addEventListener("keydown", esc_);
+  m.querySelector(".modal-fondo").onclick = cerrar;
+  m.querySelectorAll("[data-cerrar]").forEach(b => b.onclick = cerrar);
+  return {caja: m.querySelector(".modal-caja"), cerrar};
+}
+/* ==================== FACTURAR ESTA COTIZACIÓN ==================== */
+function pedirFacturar(c){
+  const ya = (FHIST?.docs||[]).filter(d => !d.anulado && cotDeDoc(d)===c.numero);
+  const {caja, cerrar} = modal(`
+    <h2 style="margin-bottom:6px">🧾 Facturar la cotización ${esc(c.numero)}</h2>
+    <p class="hint">${esc(c.cliente)} · total cotizado <b>${money(c.total)}</b>${c.incMO ? ` · mano de obra ${money(r2(c.tot.moSub))}` : ""}${c.incMat ? ` · materiales ${money(r2(c.tot.matTotal))}` : ""}</p>
+    ${ya.length ? `<div class="box warnb" style="margin-top:10px">Ya tiene ${ya.length} documento(s): ${ya.map(d => esc(d.tipo + " " + d.numero) + " (" + money(d.total) + ")").join(", ")}. Puedes emitir otro (por ejemplo, un segundo abono).</div>` : ""}
+    <p style="margin-top:14px;font-weight:700;color:var(--navy)">¿Qué quieres emitir?</p>
+    <div class="fx-op">
+      <button class="fx-op-b" data-t="Recibo"><span>🧾</span><b>Recibo</b><small>Con método de pago y pie de página</small></button>
+      <button class="fx-op-b" data-t="Factura"><span>📄</span><b>Factura</b><small>Formato de factura</small></button>
+    </div>
+    <p class="hint" style="margin-top:10px">Se abrirá Facturación con el cliente y los trabajos de la cotización ya cargados. Revisa, ajusta si quieres (por ejemplo, un abono) y pulsa «Emitir».</p>
+    <div class="actions" style="margin-top:12px"><button class="b-ghost" data-cerrar>Cancelar</button></div>`);
+  caja.querySelectorAll(".fx-op-b").forEach(b => b.onclick = () => { cerrar(); facturarCot(c, b.dataset.t); });
+}
+function facturarCot(c, tipo){
+  fNueva(); show("fac");
+  const r = document.querySelector(`input[name="fx-tipo"][value="${tipo}"]`); r.checked = true; r.dispatchEvent(new Event("change", {bubbles:true}));
+  $("fx-ped-igual").checked = false; $("fx-ped-box").classList.remove("hidden");
+  $("fx-pedido").value = c.numero;
+  fEnlazar(c);
+  $("fx-status").className = "status ok"; $("fx-status").textContent = `✓ ${tipo} ${tipo==="Factura" ? "preparada" : "preparado"} desde la cotización ${c.numero}. Revisa y pulsa «Emitir y publicar».`;
+  setTimeout(() => { const el = $("fx-rows"); if(el) el.scrollIntoView({behavior:"smooth", block:"center"}); }, 350);
+}
+
+/* ==================== DIRECTORIO DE CLIENTES (autocompletar) ==================== */
+const sinTilde = t => String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+function autoCliente(idNombre, campos){
+  const inp = $(idNombre); if(!inp) return;
+  const caja = inp.parentElement; caja.style.position = "relative";
+  const lista = document.createElement("div"); lista.className = "sug hidden"; lista.setAttribute("role","listbox"); caja.appendChild(lista);
+  inp.setAttribute("autocomplete","off");
+  let items = [], sel = -1;
+  const cerrar = () => { lista.classList.add("hidden"); sel = -1; };
+  const elegir = c => {
+    inp.value = c.cliente; delete inp.dataset.auto;
+    Object.entries(campos).forEach(([k, id]) => { const el = $(id); if(el && c[k]){ el.value = c[k]; delete el.dataset.auto; } });
+    cerrar(); inp.dispatchEvent(new Event("input", {bubbles:true})); inp.dispatchEvent(new Event("change", {bubbles:true}));
+    const sig = $(Object.values(campos)[0]); if(sig) sig.focus();
+  };
+  const pintar = () => {
+    const q = sinTilde(inp.value).trim();
+    if(q.length < 1){ cerrar(); return; }
+    items = clientesTodos().filter(c => sinTilde(c.cliente).includes(q) && sinTilde(c.cliente) !== q).sort((a,b) => (sinTilde(b.cliente).startsWith(q) - sinTilde(a.cliente).startsWith(q)) || (b.ultimo||"").localeCompare(a.ultimo||"")).slice(0, 6);
+    if(!items.length){ cerrar(); return; }
+    lista.innerHTML = items.map((c,i) => `<div class="sug-i${i===sel?" on":""}" role="option" data-i="${i}"><b>${esc(c.cliente)}</b><small>${esc([c.ruc, c.email, c.telefono].filter(Boolean).join(" · ") || "Sin más datos")} · ${c.docs} doc.</small></div>`).join("");
+    lista.classList.remove("hidden");
+    lista.querySelectorAll(".sug-i").forEach(el => el.addEventListener("mousedown", e => { e.preventDefault(); elegir(items[+el.dataset.i]); }));
+  };
+  inp.addEventListener("input", e => { if(e.isTrusted) { sel = -1; pintar(); } });
+  inp.addEventListener("focus", () => { if(inp.value.trim()) pintar(); });
+  inp.addEventListener("blur", () => setTimeout(cerrar, 150));
+  inp.addEventListener("keydown", e => {
+    if(lista.classList.contains("hidden")) return;
+    if(e.key==="ArrowDown"){ sel = Math.min(items.length-1, sel+1); pintar(); e.preventDefault(); }
+    else if(e.key==="ArrowUp"){ sel = Math.max(0, sel-1); pintar(); e.preventDefault(); }
+    else if(e.key==="Enter" && sel >= 0){ elegir(items[sel]); e.preventDefault(); }
+    else if(e.key==="Escape") cerrar();
+  });
+}
+autoCliente("f-cliente", {ruc:"f-ruc", email:"f-email"});
+autoCliente("fx-cliente", {ruc:"fx-ruc", email:"fx-email", direccion:"fx-dir", telefono:"fx-tel"});
 
 /* ==================== bloque activo (marco naranja) ==================== */
 let CARD_FOCO = null, CARD_RAF = 0;
@@ -1438,6 +1526,7 @@ function pintarHist(){
     <td class="acts-td"><div class="acts">
       <button class="b-navy b-sm" data-a="pdf" data-c="${esc(c.codigo)}" title="Descargar PDF">Descargar</button>
       ${menuHTML([
+        c.anulado || c.resumen ? "" : `<button class="mi" data-a="facturar" data-c="${esc(c.codigo)}">🧾 Facturar esta cotización</button>`,
         `<button class="mi" data-a="share" data-c="${esc(c.codigo)}">📤 Compartir PDF</button>`,
         c.resumen || c.anulado ? "" : `<button class="mi" data-a="edit" data-c="${esc(c.codigo)}">✏️ Corregir</button>`,
         c.publicado===false ? "" : `<a class="mi" href="${urlDe(c)}" target="_blank" rel="noopener">🌐 Ver en el portal</a>`,
@@ -1465,6 +1554,7 @@ function pintarHist(){
     if(b.dataset.a==="edit") cargar(c, "editar");
     if(b.dataset.a==="anular" || b.dataset.a==="react") return pedirAnular("cot", c, b.dataset.a==="anular");
     if(b.dataset.a==="cxc") return pedirCxc("cot", c);
+    if(b.dataset.a==="facturar") return pedirFacturar(c);
     if(b.dataset.a==="dup") cargar(c, "duplicar");
   });
 }
@@ -2489,6 +2579,9 @@ $("cx-export").onclick = () => {
 };
 
 $("hv-cot").onclick = () => setHView("cot");
+$("hv-aj").onclick = () => abrirAjustes();
+$("aj-hv-cot").onclick = () => { show("hist"); setHView("cot"); };
+$("aj-hv-fac").onclick = () => { show("hist"); setHView("fac"); };
 $("hv-fac").onclick = () => setHView("fac");
 
 /* ==================== inicio ==================== */
