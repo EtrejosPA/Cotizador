@@ -48,6 +48,24 @@
   .modal-fondo{position:fixed;inset:0;z-index:80;background:rgba(11,26,51,.45);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
   .modal-caja{position:fixed;z-index:81;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,calc(100vw - 28px));max-height:calc(100vh - 40px);overflow:auto;background:#fff;border-radius:18px;padding:22px;box-shadow:0 24px 60px rgba(11,26,51,.35);border:1px solid rgba(237,162,0,.6)}
   .fx-op{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+  .modal-caja.ancha{width:min(860px,calc(100vw - 20px))}
+  .imp-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(190px,40vw),1fr));gap:8px 12px}
+  .imp-f{display:flex;flex-direction:column;gap:3px;margin:0}.imp-f span{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .imp-h{margin:14px 0 6px;font-size:14px;color:var(--navy)}
+  .imp-t{overflow-x:auto}.imp-t table{width:100%;border-collapse:collapse;font-size:13px}.imp-t th{text-align:left;font-size:11px;color:var(--muted);padding:4px}
+  .imp-t td{padding:3px 4px;vertical-align:top}.imp-t td.n{color:var(--muted);padding-top:10px}.imp-t textarea{min-width:200px;width:100%;font-size:16px;resize:vertical;overflow:hidden;line-height:1.35}
+  .imp-t .ip-cant{width:70px}.imp-t .ip-precio,.imp-t .ip-total{width:96px}.imp-t td.r{text-align:right;padding-top:10px;white-space:nowrap}
+  @media (max-width:720px){ .imp-t thead{display:none} .imp-t tr{display:grid;grid-template-columns:20px 1fr 1fr 1fr 40px;gap:6px;border-bottom:1px solid #E5E9F0;padding:8px 0;align-items:center}
+    .imp-t td{padding:0;border:0}.imp-t td.n{grid-row:span 2;align-self:start;padding-top:8px}.imp-t td:nth-child(2){grid-column:2/-1}.imp-t textarea{min-width:0}
+    .imp-t .ip-cant,.imp-t .ip-precio,.imp-t .ip-total{width:100%}.imp-t td.r{padding-top:0} }
+  .rp-graf{margin-top:16px}.rp-leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:8px}.rp-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .rp-bars{display:grid;grid-template-columns:repeat(12,1fr);gap:6px;height:190px;align-items:end;border-bottom:1px solid var(--line);padding-bottom:0}
+  .rp-mes{display:flex;flex-direction:column;align-items:stretch;height:100%;min-width:0}.rp-mes small{font-size:10.5px;color:var(--muted);text-align:center;padding-top:5px;white-space:nowrap;overflow:hidden}
+  .rp-col{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:2px}.rp-col i{flex:1;max-width:14px;border-radius:3px 3px 0 0;min-height:0}
+  .rb-cot{background:#9DB3CC}.rb-fac{background:var(--navy)}.rb-cob{background:var(--orange)}
+  .rp-mini{height:4px;background:var(--panel);border-radius:3px;margin-top:4px;overflow:hidden}.rp-mini i{display:block;height:100%;background:var(--orange);border-radius:3px}
+  @media (max-width:720px){ .rp-bars{gap:2px;height:160px}.rp-col{gap:1px}.rp-mes small{font-size:9px} }
+  #offline{display:none}#offline.on{display:block;position:fixed;z-index:70;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));width:min(680px,calc(100vw - 24px));background:#3F2D00;color:#FFF3D6;border:1px solid var(--orange);border-radius:12px;padding:10px 14px;font-size:13.5px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
   .fx-op-b{display:flex;flex-direction:column;align-items:center;gap:4px;padding:18px 12px;border-radius:14px;background:var(--panel);border:1.5px solid #CBD3DF;color:var(--navy);white-space:normal;text-align:center}
   .fx-op-b span{font-size:28px}.fx-op-b b{font-size:16px}.fx-op-b small{font-size:12px;color:var(--muted);font-weight:500}
   .fx-op-b:hover,.fx-op-b:focus{border-color:var(--orange);background:#FFF8E8;outline:none}
@@ -420,8 +438,30 @@
   </section>
 
   <!-- ======== CUENTAS POR COBRAR ======== -->
+  <section id="sec-rep" class="hidden" style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="seg" style="margin-bottom:14px"><button class="segbtn" id="rp-v-cxc">Cuentas por cobrar</button><button class="segbtn on">📊 Reportes</button></div>
+      <h2>Reportes</h2>
+      <div class="htools" style="margin-bottom:14px">
+        <select id="rp-anio" style="flex:1;min-width:180px;max-width:280px"><option value="12m">Últimos 12 meses</option></select>
+        <button class="b-navy" id="rp-export">Exportar a Excel</button>
+      </div>
+      <div class="kpis" id="rp-kpis"></div>
+      <div class="rp-graf" id="rp-graf"></div>
+    </div>
+    <div class="card"><h2>Por mes</h2>
+      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>Mes</th><th class="r">Cotizaciones</th><th class="r">Cotizado</th><th class="r">Recibos / facturas</th><th class="r">Facturado</th><th class="r">Cobrado</th><th class="r">Conversión</th></tr></thead><tbody id="rp-meses"></tbody></table></div>
+      <p class="hint" style="margin-top:8px">Conversión = cotizaciones del mes que ya tienen recibo o factura enlazado (con «Pedido N.º») o que enviaste a cuentas por cobrar. Lo cobrado se cuenta en el mes en que entró el pago.</p></div>
+    <div class="card"><h2>Mejores clientes</h2>
+      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>#</th><th>Cliente</th><th class="r">Cotizado</th><th class="r">Docs.</th><th class="r">Facturado</th><th class="r">Cobrado</th></tr></thead><tbody id="rp-cli"></tbody></table></div></div>
+    <div class="card"><h2>Cotizaciones sin facturar <span class="pill p-warn" id="rp-n-sinf"></span></h2>
+      <p class="hint" style="margin-bottom:8px">Oportunidades: cotizaciones del período que aún no tienen recibo ni factura.</p>
+      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Estado</th><th class="r">Total</th></tr></thead><tbody id="rp-sinf"></tbody></table></div></div>
+  </section>
+
   <section id="sec-cxc" class="hidden" style="display:flex;flex-direction:column;gap:16px">
     <div class="card">
+      <div class="seg" style="margin-bottom:14px"><button class="segbtn on">Cuentas por cobrar</button><button class="segbtn" id="cx-v-rep">📊 Reportes</button></div>
       <h2>Cuentas por cobrar <span class="pill p-blue" id="cx-corte"></span></h2>
       <div class="htools" style="margin-bottom:14px">
         <select id="cx-cliente" style="flex:1;min-width:200px"><option value="">Todos los clientes</option></select>
@@ -504,9 +544,11 @@
     <div class="htools">
       <input type="search" id="h-q" placeholder="Buscar por N°, cliente o RUC…">
       <button class="b-ghost" id="h-sort">Orden: más reciente primero ↓</button>
+      <button class="b-ghost" id="h-pdf" title="Agrega al sistema una cotización, recibo o factura hecha en Excel y exportada a PDF">📥 Incorporar PDF</button>
       <button class="b-ghost" id="h-import">Importar desde Excel</button>
       <button class="b-navy" id="h-export">Exportar a Excel</button>
       <input type="file" id="h-file" accept=".xlsx,.xlsm,.xls" class="hidden">
+      <input type="file" id="h-pdf-file" accept="application/pdf,.pdf" class="hidden">
     </div>
     <div id="h-imp"></div>
     <div style="overflow-x:auto" id="hist-cot"><table class="h"><thead><tr>
@@ -1017,9 +1059,19 @@ async function entrar(){
 }
 
 /* ==================== navegación ==================== */
+/* ==================== sin conexión ==================== */
+if("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "127.0.0.1")){
+  try{ navigator.serviceWorker.register("sw.js").catch(e => console.warn("sw", e)); }catch(e){}
+}
+function pintarConexion(){
+  let b = $("offline"); if(!b){ b = document.createElement("div"); b.id = "offline"; document.body.appendChild(b); }
+  b.innerHTML = navigator.onLine ? "" : `<b>📴 Sin conexión.</b> Estás viendo la última copia guardada: puedes consultar el historial, cuentas por cobrar y reportes. Para emitir, cobrar o guardar necesitas internet.`;
+  b.classList.toggle("on", !navigator.onLine);
+}
+addEventListener("online", () => { pintarConexion(); }); addEventListener("offline", pintarConexion); pintarConexion();
 function show(v){
-  $("sec-form").classList.toggle("hidden", v!=="nueva"); $("sec-hist").classList.toggle("hidden", v!=="hist"); $("sec-fac").classList.toggle("hidden", v!=="fac"); $("sec-cxc").classList.toggle("hidden", v!=="cxc"); $("sec-ajustes").classList.toggle("hidden", v!=="ajustes");
-  $("tab-nueva").classList.toggle("on", v==="nueva"); $("tab-hist").classList.toggle("on", v==="hist" || v==="ajustes"); $("tab-fac").classList.toggle("on", v==="fac"); $("tab-cxc").classList.toggle("on", v==="cxc");
+  $("sec-form").classList.toggle("hidden", v!=="nueva"); $("sec-hist").classList.toggle("hidden", v!=="hist"); $("sec-fac").classList.toggle("hidden", v!=="fac"); $("sec-cxc").classList.toggle("hidden", v!=="cxc"); $("sec-ajustes").classList.toggle("hidden", v!=="ajustes"); $("sec-rep").classList.toggle("hidden", v!=="rep");
+  $("tab-nueva").classList.toggle("on", v==="nueva"); $("tab-hist").classList.toggle("on", v==="hist" || v==="ajustes"); $("tab-fac").classList.toggle("on", v==="fac"); $("tab-cxc").classList.toggle("on", v==="cxc" || v==="rep");
   if(v==="cxc"){ $("cx-box").innerHTML = ""; $("cx-status").textContent = ""; pintarCxc(); }
   if(v==="hist") setHView(HVIEW);
   window.scrollTo({top:0, behavior:"smooth"}); CARD_FOCO = null; setTimeout(actualizarActiva, 350);
@@ -1528,7 +1580,7 @@ function pintarHist(){
       ${menuHTML([
         c.anulado || c.resumen ? "" : `<button class="mi" data-a="facturar" data-c="${esc(c.codigo)}">🧾 Facturar esta cotización</button>`,
         `<button class="mi" data-a="share" data-c="${esc(c.codigo)}">📤 Compartir PDF</button>`,
-        c.resumen || c.anulado ? "" : `<button class="mi" data-a="edit" data-c="${esc(c.codigo)}">✏️ Corregir</button>`,
+        c.resumen || c.anulado || c.pdfOriginal ? "" : `<button class="mi" data-a="edit" data-c="${esc(c.codigo)}">✏️ Corregir</button>`,
         c.publicado===false ? "" : `<a class="mi" href="${urlDe(c)}" target="_blank" rel="noopener">🌐 Ver en el portal</a>`,
         !c.anulado && !c.cxc && !c.resumen ? `<button class="mi" data-a="cxc" data-c="${esc(c.codigo)}">💲 Enviar a cuentas por cobrar</button>` : "",
         "sep",
@@ -1824,7 +1876,7 @@ function pintarFac(){
       ${menuHTML([
         `<button class="mi" data-f="share" data-c="${esc(d.codigo)}">📤 Compartir PDF</button>`,
         d.conXml ? `<button class="mi" data-f="xml" data-c="${esc(d.codigo)}">🧾 Descargar XML</button>` : "",
-        d.anulado ? "" : `<button class="mi" data-f="edit" data-c="${esc(d.codigo)}">✏️ Corregir</button>`,
+        d.anulado || d.pdfOriginal ? "" : `<button class="mi" data-f="edit" data-c="${esc(d.codigo)}">✏️ Corregir</button>`,
         `<a class="mi" href="${fUrl(d)}" target="_blank" rel="noopener">🌐 Ver en el portal</a>`,
         !d.anulado && !enCxc(d) ? `<button class="mi" data-f="cxc" data-c="${esc(d.codigo)}">💲 Enviar a cuentas por cobrar</button>` : "",
         "sep",
@@ -1832,6 +1884,13 @@ function pintarFac(){
     </div></td></tr>`).join("");
   tb.querySelectorAll("button[data-f]").forEach(b => b.onclick = () => {
     const d = FHIST.docs.find(x => x.codigo===b.dataset.c); if(!d) return;
+    if(["ver","pdf","share"].includes(b.dataset.f) && d.origen==="excel" && d.publicado){   // PDF original incorporado / publicado desde Excel
+      const st = $("h-status"), w = b.dataset.f==="ver" ? ventanaPrevia() : null; st.className="status"; st.textContent="Preparando el PDF original…";
+      return pdfPortal(d.codigo).then(bytes => { st.textContent="";
+        if(b.dataset.f==="ver") abrirBytes(bytes, w); else if(b.dataset.f==="pdf") bajarBytes(bytes, fNombre(d));
+        else compartirPDF(bytes, fNombre(d), `${d.tipo} ${d.numero} · Grupo LEAN`, st, mensajeWA(d.tipo, d, fUrl(d))); })
+        .catch(e => { if(w) w.close(); st.className="status bad"; st.textContent = "No se pudo obtener el PDF del portal: " + e.message; });
+    }
     if(b.dataset.f==="ver") abrirPDF(fPdf(d));
     if(b.dataset.f==="pdf") bajarPDF(fPdf(d), fNombre(d));
     if(b.dataset.f==="xml") bajarXML(d);
@@ -2194,6 +2253,8 @@ function previewImp(lst, vista){
     }catch(e){ console.error(e); st.className="status bad"; st.textContent = "No se pudo importar: " + e.message; $("imp-ok").disabled = false; }
   };
 }
+$("h-pdf").onclick = () => { $("h-pdf-file").value = ""; $("h-pdf-file").click(); };
+$("h-pdf-file").onchange = e => { const f = e.target.files[0]; if(f) incorporarPDF(f); };
 $("h-import").onclick = () => { $("h-file").value = ""; $("h-file").click(); };
 $("h-file").onchange = async e => {
   const f = e.target.files[0]; if(!f) return;
@@ -2447,7 +2508,8 @@ async function verCx(d){
   try{
     if(d._k==="cot"){ const c = HIST.cotizaciones.find(x => x.codigo===d.codigo); if(!c) return;
       if(c.origen==="excel" && c.publicado){ const w = ventanaPrevia(); abrirBytes(await pdfPortal(c.codigo), w); } else abrirPDF(pdfDe(c)); }
-    else { const x = FHIST.docs.find(y => y.codigo===d.codigo); if(x) abrirPDF(fPdf(x)); }
+    else { const x = FHIST.docs.find(y => y.codigo===d.codigo); if(!x) return;
+      if(x.origen==="excel" && x.publicado){ const w = ventanaPrevia(); abrirBytes(await pdfPortal(x.codigo), w); } else abrirPDF(fPdf(x)); }
   }catch(e){ $("cx-status").className = "status bad"; $("cx-status").textContent = "No se pudo abrir el documento: " + e.message; }
 }
 function pedirQuitarCx(d){
@@ -2587,6 +2649,374 @@ $("hv-fac").onclick = () => setHView("fac");
 /* ==================== inicio ==================== */
 $("token").addEventListener("keydown", e => { if(e.key==="Enter") $("btn-token").click(); });
 checkToken().then(ok => { if(ok) prepPass(); });
+/* ==================== REPORTES ==================== */
+const MES_C = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const mesDe = iso => String(iso||"").slice(0,7);
+const nomMes = k => MES_C[Number(k.slice(5,7))-1] + " " + k.slice(2,4);
+function repMeses(sel){
+  if(sel && /^\d{4}$/.test(sel)) return Array.from({length:12}, (_,i) => `${sel}-${String(i+1).padStart(2,"0")}`);
+  const h = hoyISO(); let y = Number(h.slice(0,4)), m = Number(h.slice(5,7)); const out = [];
+  for(let i=0;i<12;i++){ out.unshift(`${y}-${String(m).padStart(2,"0")}`); if(--m===0){ m=12; y--; } }
+  return out;
+}
+function repDatos(){
+  const cots = (HIST?.cotizaciones||[]).filter(c => !c.anulado);
+  const docs = [...(FHIST?.docs||[]), ...(FHIST?.previos||[])].filter(d => !d.anulado);
+  const cotCx = cots.filter(c => c.cxc).map(vistaCot);           // cotizaciones cobradas sin recibo
+  const fact = [...docs, ...cotCx];
+  const cobros = []; fact.forEach(d => {
+    const ab = d.cobro?.abonos;
+    if(ab && ab.length) ab.forEach(a => cobros.push({fecha:a.fecha || d.fecha, monto:Number(a.monto||0), cliente:d.cliente}));
+    else if(d.cobro?.estado==="Cobrado") cobros.push({fecha:d.cobro.fecha || d.fecha, monto:Number(d.total||0), cliente:d.cliente});
+  });
+  const conv = new Set(docs.map(cotDeDoc).filter(Boolean)); cotCx.forEach(c => conv.add(c.numero));
+  return {cots, docs, fact, cobros, conv};
+}
+function pintarRep(){
+  if(!HIST || !FHIST) return;
+  const D = repDatos(), sel = $("rp-anio"), cur = sel.value || "12m";
+  const anios = [...new Set([...D.cots.map(c => c.fecha), ...D.fact.map(d => d.fecha), ...D.cobros.map(c => c.fecha)].filter(Boolean).map(f => f.slice(0,4)))].sort().reverse();
+  sel.innerHTML = `<option value="12m">Últimos 12 meses</option>` + anios.map(a => `<option value="${a}"${a===cur?" selected":""}>${a}</option>`).join("");
+  if(cur!=="12m" && !anios.includes(cur)) sel.value = "12m";
+  const meses = repMeses(sel.value), enRango = f => meses.includes(mesDe(f));
+  const M = Object.fromEntries(meses.map(k => [k, {cot:0, nCot:0, fac:0, nFac:0, cob:0, conv:0}]));
+  D.cots.filter(c => enRango(c.fecha)).forEach(c => { const m = M[mesDe(c.fecha)]; m.cot += Number(c.total||0); m.nCot++; if(D.conv.has(c.numero)) m.conv++; });
+  D.fact.filter(d => enRango(d.fecha)).forEach(d => { const m = M[mesDe(d.fecha)]; m.fac += Number(d.total||0); m.nFac++; });
+  D.cobros.filter(c => enRango(c.fecha)).forEach(c => { M[mesDe(c.fecha)].cob += c.monto; });
+  const sum = k => r2(meses.reduce((a, m) => a + M[m][k], 0));
+  const tCot = sum("cot"), tFac = sum("fac"), tCob = sum("cob"), nCot = sum("nCot"), nConv = sum("conv"), nFac = sum("nFac");
+  const pend = r2(D.fact.filter(d => enCxc(d) || d._k==="cot").reduce((a, d) => a + saldoDe(d), 0));
+  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+  $("rp-kpis").innerHTML = [
+    ["Cotizado", money(tCot), `${nCot} cotizaci${nCot===1?"ón":"ones"}`],
+    ["Facturado", money(tFac), `${nFac} recibo(s) / factura(s)`],
+    ["Cobrado", money(tCob), tFac ? `${pct(tCob, tFac)}% de lo facturado` : "&nbsp;"],
+    ["Por cobrar hoy", money(pend), "saldo pendiente total"],
+    ["Conversión", pct(nConv, nCot) + "%", `${nConv} de ${nCot} cotizaciones facturadas`],
+    ["Ticket promedio", money(nFac ? r2(tFac / nFac) : 0), "por recibo / factura"]
+  ].map(([t, v, s]) => `<div class="kpi"><span>${t}</span><b>${v}</b><small>${s}</small></div>`).join("");
+  // gráfico de barras por mes
+  const max = Math.max(1, ...meses.flatMap(m => [M[m].cot, M[m].fac, M[m].cob]));
+  $("rp-graf").innerHTML = `<div class="rp-leg"><span><i class="rb-cot"></i>Cotizado</span><span><i class="rb-fac"></i>Facturado</span><span><i class="rb-cob"></i>Cobrado</span></div>
+    <div class="rp-bars">${meses.map(m => `<div class="rp-mes" title="${nomMes(m)}&#10;Cotizado ${money(M[m].cot)}&#10;Facturado ${money(M[m].fac)}&#10;Cobrado ${money(M[m].cob)}">
+      <div class="rp-col">${[["cot",M[m].cot],["fac",M[m].fac],["cob",M[m].cob]].map(([k,v]) => `<i class="rb-${k}" style="height:${(v/max*100).toFixed(1)}%"></i>`).join("")}</div>
+      <small>${nomMes(m)}</small></div>`).join("")}</div>`;
+  // tabla por mes
+  $("rp-meses").innerHTML = meses.slice().reverse().filter(m => M[m].nCot || M[m].nFac || M[m].cob).map(m => `<tr><td>${nomMes(m)}</td>
+    <td class="r">${M[m].nCot}</td><td class="r">${money(M[m].cot)}</td><td class="r">${M[m].nFac}</td><td class="r">${money(M[m].fac)}</td><td class="r">${money(M[m].cob)}</td>
+    <td class="r">${M[m].nCot ? pct(M[m].conv, M[m].nCot) + "%" : "—"}</td></tr>`).join("")
+    + `<tr class="cx-sub"><td>Total</td><td class="r">${nCot}</td><td class="r">${money(tCot)}</td><td class="r">${nFac}</td><td class="r">${money(tFac)}</td><td class="r">${money(tCob)}</td><td class="r">${nCot ? pct(nConv, nCot) + "%" : "—"}</td></tr>`;
+  // mejores clientes (en el rango)
+  const C = {}, cli = n => C[String(n||"").trim().toUpperCase()] ||= {nombre:String(n||"").trim(), cot:0, fac:0, cob:0, n:0};
+  D.cots.filter(c => enRango(c.fecha)).forEach(c => cli(c.cliente).cot += Number(c.total||0));
+  D.fact.filter(d => enRango(d.fecha)).forEach(d => { const x = cli(d.cliente); x.fac += Number(d.total||0); x.n++; });
+  D.cobros.filter(c => enRango(c.fecha)).forEach(c => cli(c.cliente).cob += c.monto);
+  const top = Object.values(C).filter(x => x.nombre && (x.fac || x.cot)).sort((a,b) => b.fac - a.fac || b.cot - a.cot).slice(0, 10);
+  const maxF = Math.max(1, ...top.map(x => x.fac));
+  $("rp-cli").innerHTML = top.length ? top.map((x, i) => `<tr><td>${i+1}</td><td>${esc(x.nombre)}<div class="rp-mini"><i style="width:${(x.fac/maxF*100).toFixed(1)}%"></i></div></td>
+    <td class="r">${money(x.cot)}</td><td class="r">${x.n}</td><td class="r"><b>${money(x.fac)}</b></td><td class="r">${money(x.cob)}</td></tr>`).join("")
+    : `<tr><td colspan="6" class="empty">Sin movimientos en este período.</td></tr>`;
+  // cotizaciones sin facturar (oportunidades)
+  const sinF = D.cots.filter(c => enRango(c.fecha) && !D.conv.has(c.numero) && !c.resumen).sort((a,b) => b.fecha.localeCompare(a.fecha));
+  $("rp-n-sinf").textContent = sinF.length;
+  $("rp-sinf").innerHTML = sinF.length ? sinF.slice(0, 15).map(c => `<tr><td>${esc(c.numero)}</td><td>${esc(PDFFAC.dmy(c.fecha))}</td><td>${esc(c.cliente)}</td>
+    <td>${(e => `<span class="pill ${e.cls}">${e.t}</span>`)(estadoCot(c))}</td><td class="r">${money(c.total)}</td></tr>`).join("")
+    + (sinF.length > 15 ? `<tr><td colspan="5" class="hint">… y ${sinF.length - 15} más</td></tr>` : "")
+    : `<tr><td colspan="5" class="empty">Todas las cotizaciones del período tienen recibo o factura.</td></tr>`;
+  REPCACHE = {meses, M, top, sinF};
+}
+let REPCACHE = null;
+function exportarRep(){
+  if(!REPCACHE) return; const {meses, M, top, sinF} = REPCACHE, wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(meses.map(m => ({"Mes": nomMes(m), "Cotizaciones": M[m].nCot, "Cotizado": r2(M[m].cot), "Recibos/facturas": M[m].nFac,
+    "Facturado": r2(M[m].fac), "Cobrado": r2(M[m].cob), "Cotizaciones facturadas": M[m].conv, "Conversión %": M[m].nCot ? Math.round(M[m].conv/M[m].nCot*100) : ""}))), "Por mes");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(top.map((x,i) => ({"#": i+1, "Cliente": x.nombre, "Cotizado": r2(x.cot), "Documentos": x.n, "Facturado": r2(x.fac), "Cobrado": r2(x.cob)}))), "Mejores clientes");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sinF.map(c => ({"N.º": c.numero, "Fecha": PDFFAC.dmy(c.fecha), "Cliente": c.cliente, "Estado": estadoCot(c).t, "Total": c.total}))), "Sin facturar");
+  XLSX.writeFile(wb, `Reporte_${$("rp-anio").value==="12m" ? "12_meses" : $("rp-anio").value}_${hoyISO()}.xlsx`);
+}
+$("rp-anio").onchange = () => { pintarRep(); animarRep(); };
+$("rp-export").onclick = exportarRep;
+function animarRep(){
+  if(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const bars = [...document.querySelectorAll("#rp-graf .rp-col i")]; bars.forEach(b => { b.dataset.h = b.style.height; b.style.transition = "none"; b.style.height = "0"; });
+  requestAnimationFrame(() => requestAnimationFrame(() => bars.forEach((b, i) => { b.style.transition = `height 1.1s cubic-bezier(.2,.7,.2,1) ${Math.floor(i/3)*60}ms`; b.style.height = b.dataset.h; })));
+}
+async function abrirRep(){
+  show("rep"); pintarRep(); animarRep();
+  try{ await Promise.all([cargarFac(), recargarHist()]); pintarRep(); }catch(e){ console.error(e); }
+}
+$("cx-v-rep").onclick = abrirRep; $("rp-v-cxc").onclick = () => $("tab-cxc").click();
+
+/* ==================== INCORPORAR PDF (cotizaciones / recibos / facturas hechos fuera del Cotizador) ==================== */
+const PDFLIB = { pdf:"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+                 worker:"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js",
+                 qr:"https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" };
+const cargarScript = src => new Promise((ok, no) => { if(document.querySelector(`script[src="${src}"]`)) return ok(); const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => no(new Error("no se pudo cargar " + src)); document.head.appendChild(s); });
+async function libsPDF(){
+  if(!window.pdfjsLib) await cargarScript(PDFLIB.pdf);
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFLIB.worker;
+  if(!window.jsQR) await cargarScript(PDFLIB.qr);
+}
+const MESES_ES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const pFechaLarga = s => { const m = s && s.match(/(\d{1,2})\s+de\s+([a-záéíóú]+)\s+de\s+(\d{4})/i); if(!m) return null; const mi = MESES_ES.indexOf(m[2].toLowerCase()); return mi<0 ? null : `${m[3]}-${String(mi+1).padStart(2,"0")}-${m[1].padStart(2,"0")}`; };
+const pFechaCorta = s => { const m = s && s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m ? `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}` : null; };
+const pDespues = (txt, re) => { const m = txt.match(re); return m ? m[1].trim() : null; };
+const pDinero = s => { const m = String(s||"").replace(/\s/g,"").match(/\$?(-?[\d,]*\.?\d+)/); return m ? Number(m[1].replace(/,/g,"")) : null; };
+const esDinero = s => /^\$?\s*-?[\d,]+\.\d{2}$/.test(String(s).trim());
+
+function pLineas(items, alto){   // agrupa el texto de pdf.js por renglones
+  const it = items.filter(t => t.str && t.str.trim()).map(t => ({s:t.str.normalize("NFC"), x:t.transform[4], y:alto - t.transform[5], w:t.width||0}));
+  it.sort((a,b) => a.y - b.y || a.x - b.x);
+  const out = [];
+  for(const t of it){ let L = out.find(l => Math.abs(l.y - t.y) < 3.2); if(!L){ L = {y:t.y, items:[]}; out.push(L); } L.items.push(t); }
+  out.sort((a,b) => a.y - b.y);
+  for(const L of out){ L.items.sort((a,b) => a.x - b.x);
+    // une los pedazos pegados («$» + «5.00», palabras partidas)
+    const m = []; for(const t of L.items){ const p = m[m.length-1]; if(p && t.x - (p.x + p.w) < 2.2){ p.s += t.s; p.w = t.x + t.w - p.x; } else if(p && t.x - (p.x + p.w) < 4.5 && !/^\$$/.test(p.s.trim())){ p.s += " " + t.s; p.w = t.x + t.w - p.x; } else if(p && /^\$$/.test(p.s.trim()) && t.x - (p.x+p.w) < 12){ p.s += " " + t.s; p.w = t.x + t.w - p.x; } else m.push({...t}); }
+    L.items = m; L.text = m.map(t => t.s).join("  ").replace(/\s+$/,""); }
+  return out;
+}
+async function pQR(page){
+  for(const scale of [3, 4.5, 2]){
+    const vp = page.getViewport({scale}), cv = document.createElement("canvas"); cv.width = Math.ceil(vp.width); cv.height = Math.ceil(vp.height);
+    const ctx = cv.getContext("2d", {willReadFrequently:true}); ctx.fillStyle = "#fff"; ctx.fillRect(0,0,cv.width,cv.height);
+    await page.render({canvasContext:ctx, viewport:vp}).promise;
+    for(const [x,y,w,h] of [[cv.width*0.5, 0, cv.width*0.5, cv.height*0.45], [0, 0, cv.width, cv.height]]){
+      const d = ctx.getImageData(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
+      const q = jsQR(d.data, d.width, d.height, {inversionAttempts:"attemptBoth"}); if(q && q.data) return q.data;
+    }
+  }
+  return null;
+}
+/* tabla genérica: columnas por sus títulos; filas agrupadas alrededor de la cifra del total (el texto puede venir centrado) */
+const COLKEYS = [[/^#$/,"idx"],[/descripci/i,"desc"],[/^empresa/i,"empresa"],[/recoge/i,"recoge"],[/entrega/i,"entrega"],[/^km$/i,"km"],[/veh[ií]culo/i,"vehiculo"],
+  [/observaci/i,"obs"],[/^fecha$/i,"fecha"],[/^cant/i,"cant"],[/precio/i,"precio"],[/^total$/i,"total"]];
+function pTabla(lines, iHead, fin){
+  // títulos (pueden ocupar 2-3 renglones cercanos)
+  const hy = lines[iHead].y, hl = lines.filter((l,i) => Math.abs(l.y - hy) <= 11 && i >= iHead - 2 && i <= iHead + 2);
+  const cols = [];
+  hl.forEach(l => l.items.forEach(t => { const c = cols.find(c => Math.abs(c.x - t.x) < 14 || (t.x >= c.x - 2 && t.x <= c.x + c.w + 2)); if(c){ c.t += " " + t.s; c.x = Math.min(c.x, t.x); c.w = Math.max(c.w, t.x + t.w - c.x); } else cols.push({x:t.x, w:t.w, t:t.s}); }));
+  cols.sort((a,b) => a.x - b.x);
+  cols.forEach(c => { c.t = c.t.replace(/\s+/g," ").trim(); const k = COLKEYS.find(([re]) => re.test(c.t) || re.test(c.t.split(" ")[0])); c.k = k ? k[1] : null;
+    if(!c.k && /lugar donde/i.test(c.t)) c.k = /entrega/i.test(c.t) ? "entrega" : "recoge"; });
+  const yIni = Math.max(...hl.map(l => l.y)) + 2, cuerpo = lines.filter(l => l.y > yIni && (fin==null || l.y < fin));
+  const colTot = cols.find(c => c.k==="total"); if(!colTot) return {cols, filas:[]};
+  const anclas = cuerpo.filter(l => l.items.some(t => t.x >= colTot.x - 40 && esDinero(t.s)));
+  // reparte los renglones: cada fila es un bloque centrado en su ancla
+  const filas = []; let k = 0;
+  if(anclas.length && cuerpo[0] === anclas[0]){   // texto alineado arriba: cada fila va desde su cifra hasta la siguiente
+    anclas.forEach((a, ia) => { const i0 = cuerpo.indexOf(a), i1 = ia+1 < anclas.length ? cuerpo.indexOf(anclas[ia+1]) : cuerpo.length; filas.push(cuerpo.slice(i0, i1)); });
+  } else anclas.forEach((a, ia) => {
+    const sig = anclas[ia+1];
+    let mejor = null, mejorD = Infinity, j = cuerpo.indexOf(a);
+    for(let e = j; e < cuerpo.length && (!sig || cuerpo[e].y < sig.y); e++){
+      const d = Math.abs((cuerpo[k].y + cuerpo[e].y)/2 - a.y); if(d < mejorD - 0.01){ mejorD = d; mejor = e; }
+    }
+    filas.push(cuerpo.slice(k, mejor + 1)); k = mejor + 1;
+  });
+  const lim = cols.map((c, i) => { const n = cols[i+1]; if(!n) return Infinity; return c.k==="idx" ? c.x + c.w + 14 : (c.x + c.w + n.x) / 2; });
+  const colDe = t => { const corto = esDinero(t.s) || /^[\d.,\/\s$-]+$/.test(t.s.trim()); const p = corto ? t.x + t.w/2 : t.x + 1; const i = lim.findIndex(l => p < l); return cols[i < 0 ? cols.length-1 : i]; };
+  const out = filas.map(blq => { const f = {};
+    blq.forEach(l => l.items.forEach(t => { const c = colDe(t); if(!c || !c.k) return; f[c.k] = (f[c.k] ? f[c.k] + (c.k==="desc" ? "\n" : " ") : "") + t.s.trim(); }));
+    return f; });
+  return {cols, filas:out};
+}
+async function leerPDF(bytes){
+  await libsPDF();
+  const pdf = await pdfjsLib.getDocument({data: bytes.slice()}).promise, pages = [];
+  for(let i=1;i<=pdf.numPages;i++){ const pg = await pdf.getPage(i), alto = pg.getViewport({scale:1}).height;
+    pages.push({lines: pLineas((await pg.getTextContent()).items, alto), qr: await pQR(pg).catch(() => null)}); }
+  const all = pages.map(p => p.lines.map(l => l.text).join("\n")).join("\n");
+  const qrs = [...new Set(pages.map(p => p.qr).filter(Boolean))];
+  const codigoQR = (() => { for(const u of qrs){ const m = u.match(/[?&]c=([A-Z0-9-]+)/i); if(m) return m[1].toUpperCase(); } return null; })();
+  if(/COTIZACI[OÓ]N DE (MATERIALES|MANO DE OBRA)/i.test(all)){
+    const d = {tipo:"Cotización", codigoQR, qrs};
+    d.numero = normCot(pDespues(all, /Cotizaci[oó]n\s*N[°º.]*\s+([A-Z]{1,3}-?\d{2,5})/i));
+    d.fecha = pFechaLarga(pDespues(all, /Fecha:\s*([^\n]+)/i)); d.validoHasta = pFechaLarga(pDespues(all, /V[ÁA]LIDO HASTA:\s*([^\n]+)/i));
+    const cli = pDespues(all, /CLIENTE:[ \t]*([^\n]+)/i); d.cliente = cli ? cli.split(/\s{2,}|CIP\/RUC:|EMAIL:/)[0].trim() : "";
+    const ruc = pDespues(all, /CIP\/RUC:[ \t]*([^\n]*)/i); d.ruc = ruc ? ruc.split(/\s{2,}|EMAIL:/)[0].trim() : "";
+    const em = all.match(/EMAIL:\s*([^\s]+@[^\s]+)/i); d.email = em ? em[1] : "";
+    const du = pDespues(all, /Duraci[oó]n estimada:\s*([^\n]+?)(?:\s{2,}|$)/im); d.duracion = du || "3 - 5 horas";
+    d.materiales = []; d.manoObra = []; d.leido = {};
+    pages.forEach(p => {
+      const t = p.lines.map(l => l.text).join("\n"), hoja = /MANO DE OBRA/i.test(t) && !/COTIZACI[OÓ]N DE MATERIALES/i.test(t) ? "mo" : "mat";
+      const iH = p.lines.findIndex(l => /Descripci[oó]n/i.test(l.text) && /Total/i.test(l.text)); if(iH < 0) return;
+      const fin = (p.lines.find(l => /SUB-?TOTAL/i.test(l.text)) || {}).y;
+      pTabla(p.lines, iH, fin).filas.forEach(f => { if(!f.desc && !f.total) return;
+        const it = {desc:(f.desc||"").trim(), cant:pDinero(f.cant) ?? 1, precio:pDinero(f.precio)}; if(it.precio==null) it.precio = r2((pDinero(f.total)||0) / (it.cant||1));
+        (hoja==="mo" ? d.manoObra : d.materiales).push(it); });
+      const st = t.match(/SUB-?TOTAL:\s*\$\s*([\d,]+\.\d{2})/i), tt = t.match(/(?:^|\s)TOTAL:\s*\$\s*([\d,]+\.\d{2})/m);
+      if(hoja==="mat"){ if(tt) d.leido.matTotal = pDinero(tt[1]); } else if(st) d.leido.moSub = pDinero(st[1]);
+    });
+    return d;
+  }
+  const tipo = /^\s*Factura\s*$/m.test(all) || /Factura\s*N\.?\s*º/i.test(all) ? "Factura" : "Recibo", p = pages[0];
+  const d = {tipo, codigoQR, qrs};
+  d.numero = (pDespues(all, new RegExp(tipo + "\\s*N\\.?\\s*[º°o]?\\s+(\\S+)", "i")) || "").replace(/\D/g,"");
+  const ped = pDespues(all, /Pedido\s*N\.?\s*[º°o]?\s+(\S+)/i); d.pedido = ped && ped.replace(/\D/g,"")!==d.numero ? (normCot(ped) || ped) : "";
+  d.fecha = pFechaCorta(pDespues(all, /^.*\bFecha\s+(\d{1,2}\/\d{1,2}\/\d{4})/m)); d.vence = pFechaCorta(pDespues(all, /Fecha de Vencimiento\s+(\d{1,2}\/\d{1,2}\/\d{4})/i));
+  const iL = p.lines.findIndex(l => /DESTINATARIO/i.test(l.text)); d.cliente = ""; d.ruc = ""; d.email = ""; d.telefono = ""; d.direccion = "";
+  if(iL >= 0){
+    const lab = p.lines[iL].items.find(t => /DESTINATARIO/i.test(t.s));
+    for(let i = iL+1; i < Math.min(p.lines.length, iL+7); i++){
+      const txt = p.lines[i].items.filter(t => t.x >= lab.x - 3 && t.x < lab.x + 200).map(t => t.s).join(" ").trim();
+      if(!txt || /VALIDADO|digital con copia|QR:|Excel 365/i.test(txt)) continue;
+      if(!d.cliente) d.cliente = txt;
+      else if(/@/.test(txt)) d.email = txt;
+      else if(/^(RUC|CIP|C[ée]dula)|\d+-\d+-\d+/i.test(txt) && !d.ruc) d.ruc = txt;
+      else if(/^\+?[\d\s()-]{7,}$/.test(txt)) d.telefono = txt;
+      else if(!d.direccion) d.direccion = txt;
+    }
+  }
+  const iH = p.lines.findIndex(l => /Total/i.test(l.text) && /(Descripci|Empresa|Observaci|Cantidad)/i.test(l.text));
+  const fin = (p.lines.find(l => /^\s*Subtotal/i.test(l.text)) || {}).y;
+  d.items = iH < 0 ? [] : pTabla(p.lines, iH, fin).filas.map(f => { const it = {}; ["desc","empresa","recoge","entrega","km","vehiculo","obs"].forEach(k => { if(f[k]) it[k] = f[k].trim(); });
+      if(f.fecha) it.fecha = pFechaCorta(f.fecha) || undefined; if(f.cant) it.cant = pDinero(f.cant); if(f.precio) it.precio = pDinero(f.precio); it.total = r2(pDinero(f.total)||0);
+      if(!it.desc && it.obs){ it.desc = it.obs; delete it.obs; } return it; });
+  d.leido = {total: pDinero(pDespues(all, /^\s*Total\s+(\$\s*[\d,]+\.\d{2})/m))};
+  d.conPago = /M[ée]todo de Pago/i.test(all);
+  return d;
+}
+
+/* ----- ventana de revisión y guardado ----- */
+const impIn = (id, v, ph="", tipo="text") => `<label class="imp-f"><span>${ph}</span><input id="${id}" type="${tipo}" value="${esc(v ?? "")}"></label>`;
+function impFilas(lista, kind){
+  return lista.map((it, i) => `<tr data-k="${kind}" data-i="${i}">
+    <td class="n">${i+1}</td><td><textarea class="ip-desc" rows="${Math.min(5, String(it.desc||"").split("\n").length)}">${esc(it.desc||"")}</textarea></td>
+    ${kind==="fac" ? "" : `<td><input class="ip-cant" type="number" step="any" placeholder="Cant." value="${it.cant ?? ""}"></td><td><input class="ip-precio" type="number" step="any" placeholder="Precio" value="${it.precio ?? ""}"></td>`}
+    <td class="r ip-tot">${kind==="fac" ? `<input class="ip-total" type="number" step="any" placeholder="Total" value="${it.total ?? ""}">` : money((it.cant||0)*(it.precio||0))}</td>
+    <td><button class="b-ghost b-sm ip-del" title="Quitar renglón">✕</button></td></tr>`).join("");
+}
+async function incorporarPDF(file){
+  const st = $("h-status"); st.className = "status"; st.textContent = "Leyendo el PDF…";
+  let bytes, d;
+  try{
+    bytes = new Uint8Array(await file.arrayBuffer());
+    if(String.fromCharCode(...bytes.slice(0,5)) !== "%PDF-") throw new Error("el archivo no es un PDF");
+    d = await leerPDF(bytes);
+    await Promise.all([recargarHist(), cargarFac()]);
+    d.portal = d.codigoQR ? await datosPortal(d.codigoQR) : null;
+  }catch(e){ console.error(e); st.className = "status bad"; st.textContent = "No se pudo leer el PDF: " + e.message; return; }
+  st.textContent = "";
+  const esCot = d.tipo === "Cotización";
+  if(esCot){ d.materiales.forEach(it => it.cant ??= 1); d.manoObra.forEach(it => it.cant ??= 1); }
+  const {caja, cerrar} = modal(`
+    <h2 style="margin-bottom:4px">📥 Incorporar ${esCot ? "cotización" : `<select id="ip-tipo" style="width:auto;display:inline-block;padding:4px 34px 4px 10px"><option${d.tipo==="Recibo"?" selected":""}>Recibo</option><option${d.tipo==="Factura"?" selected":""}>Factura</option></select>`}</h2>
+    <p class="hint" style="margin-bottom:10px">${esc(file.name)} · revisa lo que se leyó del PDF y corrige si hace falta. Se guardará el <b>PDF original</b> tal cual.</p>
+    <div class="imp-g">
+      ${impIn("ip-num", d.numero, esCot ? "Cotización N.º" : "N.º")}
+      ${impIn("ip-fecha", d.fecha, "Fecha", "date")}
+      ${esCot ? impIn("ip-valido", d.validoHasta, "Válido hasta", "date") : impIn("ip-vence", d.vence, "Vencimiento", "date")}
+      ${esCot ? impIn("ip-dur", d.duracion, "Duración estimada") : impIn("ip-ped", d.pedido, "Pedido N.º (cotización)")}
+      ${impIn("ip-cli", d.cliente, "Cliente")}${impIn("ip-ruc", d.ruc, "CIP/RUC")}${impIn("ip-email", d.email, "Email", "email")}
+      ${esCot ? "" : impIn("ip-tel", d.telefono, "Teléfono") + impIn("ip-dir", d.direccion, "Dirección")}
+    </div>
+    ${esCot ? `<h3 class="imp-h">Materiales</h3><div class="imp-t"><table><thead><tr><th>#</th><th>Descripción</th><th>Cant.</th><th>Precio</th><th class="r">Total</th><th></th></tr></thead><tbody id="ip-mat">${impFilas(d.materiales,"mat")}</tbody></table></div>
+      <h3 class="imp-h">Mano de obra</h3><div class="imp-t"><table><thead><tr><th>#</th><th>Descripción</th><th>Cant.</th><th>Precio</th><th class="r">Total</th><th></th></tr></thead><tbody id="ip-mo">${impFilas(d.manoObra,"mo")}</tbody></table></div>`
+    : `<h3 class="imp-h">Detalle</h3><div class="imp-t"><table><thead><tr><th>#</th><th>Descripción</th><th class="r">Total</th><th></th></tr></thead><tbody id="ip-fac">${impFilas(d.items,"fac")}</tbody></table></div>
+      <label class="chk" style="margin-top:10px"><input type="checkbox" id="ip-cxc" checked> Enviar a cuentas por cobrar</label>`}
+    <div id="ip-tot" style="margin-top:12px"></div>
+    <div id="ip-qr" class="hint" style="margin-top:8px"></div>
+    <div id="ip-dup"></div>
+    <div class="status" id="ip-st"></div>
+    <div class="actions" style="margin-top:14px"><button class="b-ghost" data-cerrar>Cancelar</button><button class="b-navy" id="ip-ok">Incorporar al sistema</button></div>`);
+  caja.classList.add("ancha");
+  const crecer = t => { t.style.height = "auto"; t.style.height = (t.scrollHeight + 2) + "px"; };
+  caja.querySelectorAll(".ip-desc").forEach(crecer); caja.addEventListener("input", e => { if(e.target.matches(".ip-desc")) crecer(e.target); });
+  const leer = kind => [...caja.querySelectorAll(`tr[data-k="${kind}"]`)].map(r => {
+    const base = (kind==="mat" ? d.materiales : kind==="mo" ? d.manoObra : d.items)[Number(r.dataset.i)] || {};
+    const it = {...base, desc: r.querySelector(".ip-desc").value.trim()};
+    if(kind==="fac") it.total = r2(Number(r.querySelector(".ip-total").value || 0));
+    else { it.cant = r.querySelector(".ip-cant").value==="" ? null : Number(r.querySelector(".ip-cant").value); it.precio = r.querySelector(".ip-precio").value==="" ? null : Number(r.querySelector(".ip-precio").value); }
+    return it; }).filter(it => it.desc || it.total || it.precio);
+  const tipoAct = () => esCot ? "Cotización" : $("ip-tipo").value;
+  const numAct = () => esCot ? normCot($("ip-num").value) : $("ip-num").value.replace(/\D/g,"");
+  function repintar(){
+    let html = "", ok = true;
+    if(esCot){
+      caja.querySelectorAll("tr[data-k]").forEach(r => { const c = Number(r.querySelector(".ip-cant").value||0), p = Number(r.querySelector(".ip-precio").value||0); r.querySelector(".ip-tot").textContent = money(c*p); });
+      const mat = leer("mat"), mo = leer("mo"), t = totales(mat, mo, mat.length>0, mo.length>0);
+      const linea = (nom, calc, leido) => { const bien = leido==null || Math.abs(leido - calc) < 0.011; if(!bien) ok = false;
+        return `<div>${nom}: <b>${money(calc)}</b>${leido==null ? ' <span class="hint">(no se encontró en el PDF)</span>' : bien ? ' <span style="color:var(--green)">✓ coincide con el PDF</span>' : ` <span style="color:var(--red)">⚠ el PDF dice ${money(leido)}</span>`}</div>`; };
+      html = (mat.length ? linea("Materiales con ITBMS", r2(t.matTotal), d.leido.matTotal) : "") + (mo.length ? linea("Mano de obra", r2(t.moSub), d.leido.moSub) : "") + `<div style="margin-top:4px">Total de la cotización: <b>${money(t.general)}</b></div>`;
+    } else {
+      const tot = r2(leer("fac").reduce((a,it) => a + it.total, 0)), bien = d.leido.total==null || Math.abs(d.leido.total - tot) < 0.011; ok = bien;
+      html = `<div>Total: <b>${money(tot)}</b>${d.leido.total==null ? "" : bien ? ' <span style="color:var(--green)">✓ coincide con el PDF</span>' : ` <span style="color:var(--red)">⚠ el PDF dice ${money(d.leido.total)}</span>`}</div>`;
+    }
+    $("ip-tot").innerHTML = `<div class="box ${ok ? "okb" : "warnb"}">${html}</div>`;
+    // duplicados
+    const num = numAct(), tipo = tipoAct(); let dup = "";
+    if(esCot){ const ex = num && (HIST.cotizaciones||[]).find(c => c.numero.toUpperCase()===num);
+      if(ex && !ex.resumen) dup = `La cotización ${esc(num)} ya está en el historial (${esc(ex.cliente)} · ${money(ex.total)}).`; }
+    else { const n = Number(num), ex = n && (FHIST.docs||[]).find(x => x.n===n);
+      if(ex) dup = `El N.º ${esc(pad3(n))} ya está en el historial (${esc(ex.tipo)} · ${esc(ex.cliente)} · ${money(ex.total)}).`; }
+    $("ip-dup").innerHTML = dup ? `<div class="box warnb" style="margin-top:10px">⚠ ${dup} Corrige el número o cancela.</div>` : "";
+    $("ip-ok").disabled = !!dup || !num;
+  }
+  const qrTxt = d.codigoQR
+    ? (d.portal ? `🔗 El QR del PDF ya está publicado en el portal (${esc(d.codigoQR)}); se enlazará tal cual.` : `🔗 El QR del PDF apunta al portal (${esc(d.codigoQR)}); se publicará con ese mismo código para que el QR impreso valide.`)
+    : `ℹ️ El QR de este PDF no es del portal de validación${d.qrs.length ? " (es de texto)" : ""}. Se publicará con un código nuevo; para validarlo usa el enlace «Ver en el portal».`;
+  $("ip-qr").innerHTML = qrTxt;
+  caja.addEventListener("input", repintar); caja.addEventListener("change", repintar);
+  caja.addEventListener("click", e => { const b = e.target.closest(".ip-del"); if(b){ b.closest("tr").remove(); caja.querySelectorAll("tbody").forEach(tb => [...tb.children].forEach((r,i) => r.querySelector(".n").textContent = i+1)); repintar(); } });
+  repintar();
+  $("ip-ok").onclick = async () => {
+    const s = $("ip-st"), btn = $("ip-ok"); btn.disabled = true; s.className = "status";
+    try{
+      const tipo = tipoAct(), num = numAct(), fecha = $("ip-fecha").value || hoyISO();
+      const cliente = $("ip-cli").value.trim(), ruc = $("ip-ruc").value.trim(), email = $("ip-email").value.trim();
+      if(!cliente) throw new Error("falta el cliente");
+      if(email && !EMAIL_OK(email)) throw new Error("el email no es válido");
+      const mismoQR = d.codigoQR && (!d.portal || String(d.portal.numero||"").replace(/\D/g,"") === String(num).replace(/\D/g,""));
+      let rec, portal;
+      if(esCot){
+        const mat = leer("mat").map(({desc,cant,precio}) => ({desc,cant,precio})), mo = leer("mo").map(({desc,cant,precio}) => ({desc,cant,precio}));
+        if(!mat.length && !mo.length) throw new Error("no hay renglones");
+        rec = registroCot({numero:num, codigo: mismoQR ? d.codigoQR : codigoNuevo(num.replace(/-/g,"")), cliente, ruc, fecha, validoHasta:$("ip-valido").value || masDias(fecha,30), materiales:mat, manoObra:mo, duracion:$("ip-dur").value.trim() || "3 - 5 horas"});
+        Object.assign(rec, {email, origen:"excel", pdfOriginal:true, publicado:true});
+        portal = { tipo:"Cotización", numero:rec.numero, cliente, ruc:ruc||undefined, fecha:rec.fecha, validoHasta:rec.validoHasta,
+          desglose:[...(rec.incMat?[["Materiales (con ITBMS)", r2(rec.tot.matTotal)]]:[]), ...(rec.incMO?[["Mano de obra", r2(rec.tot.moSub)]]:[])], total:rec.total, pdf:true };
+      } else {
+        const items = leer("fac"); if(!items.length) throw new Error("no hay renglones");
+        const n = Number(num), numero = pad3(n), vence = $("ip-vence").value || fecha, total = r2(items.reduce((a,it) => a + it.total, 0));
+        const pedido = $("ip-ped").value.trim() ? (normCot($("ip-ped").value) || $("ip-ped").value.trim()) : numero;
+        rec = { tipo, n, numero, pedido, codigo: mismoQR ? d.codigoQR : codigoNuevo((tipo==="Factura"?"F":"R") + numero), fecha, vence,
+          dias: Math.max(0, Math.round((new Date(vence) - new Date(fecha))/864e5)), cliente, ruc, email, direccion:$("ip-dir").value.trim(), telefono:$("ip-tel").value.trim(),
+          items, subtotal:total, total, conPago:d.conPago, conPie:tipo==="Recibo", cobro:{estado:"Pendiente"},
+          origen:"excel", pdfOriginal:true, publicado:true, creado:new Date().toISOString(), actualizado:new Date().toISOString() };
+        rec.cotRef = normCot(pedido) && pedido!==numero ? normCot(pedido) : null;
+        if($("ip-cxc").checked) rec.cxc = {desde:hoyISO()};
+        portal = { tipo, numero, cliente, ruc:ruc||undefined, cotizacion: rec.cotRef || undefined, fecha, vence, desglose:[], total, pdf:true, ...portalCobro(rec) };
+      }
+      // portal: si el QR ya está publicado no se toca; si no, se sube el PDF original cifrado
+      if(!(mismoQR && d.portal)){
+        s.textContent = "Publicando el PDF original en el portal…";
+        const k = await clavesPortal(rec.codigo), pp = `data/${k.id}.pdf.bin`, pj = `data/${k.id}.json`;
+        const [shaP, shaJ] = await Promise.all([ghShaOf(CFG.repoVal, pp), ghShaOf(CFG.repoVal, pj)]);
+        const ep = await cifrar(k.key, bytes); const bin = new Uint8Array(12+ep.ct.length); bin.set(ep.iv,0); bin.set(ep.ct,12);
+        await ghPut(CFG.repoVal, pp, bin, shaP, `Publicar PDF · ${tipo} ${rec.numero} (incorporado)`);
+        const ej = await cifrar(k.key, te.encode(JSON.stringify(portal)));
+        await ghPut(CFG.repoVal, pj, te.encode(JSON.stringify({iv:b64(ej.iv), ct:b64(ej.ct)})), shaJ, `Publicar datos · ${tipo} ${rec.numero} (incorporado)`);
+      }
+      s.textContent = "Guardando en el historial…";
+      for(let i=0;i<3;i++){
+        try{
+          if(esCot){ await recargarHist(); const j = HIST.cotizaciones.findIndex(c => c.numero===rec.numero);
+            if(j>=0 && !HIST.cotizaciones[j].resumen) throw new Error(`la cotización ${rec.numero} ya está en el historial`);
+            if(j>=0) HIST.cotizaciones[j] = rec; else HIST.cotizaciones.push(rec); await guardarHist(`Incorporar cotización ${rec.numero} (PDF)`); }
+          else { await cargarFac(); if(FHIST.docs.some(x => x.n===rec.n)) throw new Error(`el N.º ${rec.numero} ya está en el historial`);
+            FHIST.docs.push(rec); await guardarFac(`Incorporar ${tipo.toLowerCase()} ${rec.numero} (PDF)`); }
+          break;
+        }catch(e){ if(e.status!==409 || i===2) throw e; }
+      }
+      cerrar(); show("hist"); setHView(esCot ? "cot" : "fac");
+      const fem = tipo!=="Recibo"; st.className = "status ok";
+      st.textContent = `✓ ${tipo} ${rec.numero} · ${cliente} · ${money(rec.total)} ${fem?"incorporada":"incorporado"} con su PDF original.`;
+      try{ pintarAvisos && pintarAvisos(); }catch(e){}
+    }catch(e){ console.error(e); s.className = "status bad"; s.textContent = "No se pudo incorporar: " + e.message; btn.disabled = false; }
+  };
+}
+
 </script>
 </body>
 </html>
