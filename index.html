@@ -1957,18 +1957,31 @@ const menuCx = d => menuHTML([
   "sep", `<button class="mi red" data-x="quitar" data-c="${esc(d.codigo)}">✕ Anular cuenta</button>`]);
 
 let CXANIM = false;   // animar indicadores y barra la próxima vez que se pinte
+const CX_DUR = 1700, CX_PASO = 180, CX_BARRA = 1800;   // ms: duración de cada indicador, desfase entre ellos y llenado de la barra
 function animarCxc(){
   const red = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const segs = [...document.querySelectorAll("#cx-bar .seg-b[data-v]")];
-  requestAnimationFrame(() => requestAnimationFrame(() => segs.forEach(sg => sg.style.flexGrow = sg.dataset.v)));
-  if(red) return;
-  document.querySelectorAll("#cx-kpis .kpi b").forEach(el => {
-    const fin = Number(el.textContent.replace(/[^0-9.\-]/g,"")); if(!isFinite(fin) || fin===0) return;
-    const t0 = performance.now(), dur = 900, fmt = v => money(v);
-    const paso = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
-      el.textContent = fmt(k < 1 ? Math.round(fin * e * 100) / 100 : fin); if(k < 1) requestAnimationFrame(paso); };
-    el.textContent = fmt(0); requestAnimationFrame(paso);
+  const kpis = [...document.querySelectorAll("#cx-kpis .kpi")];
+  if(red){ segs.forEach(sg => { sg.style.transition = "none"; sg.style.flexGrow = sg.dataset.v; }); return; }
+  // 1) los indicadores aparecen y cuentan uno tras otro
+  kpis.forEach((k, i) => {
+    const el = k.querySelector("b"), fin = Number(el.textContent.replace(/[^0-9.\-]/g,""));
+    k.style.opacity = "0"; k.style.transform = "translateY(8px)";
+    const inicio = i * CX_PASO;
+    setTimeout(() => {
+      k.style.transition = "opacity .5s ease, transform .5s ease"; k.style.opacity = "1"; k.style.transform = "none";
+      if(!isFinite(fin) || fin===0) return;
+      const t0 = performance.now();
+      const paso = t => { const p = Math.min(1, (t - t0) / CX_DUR), e = 1 - Math.pow(1 - p, 3);
+        el.textContent = money(p < 1 ? Math.round(fin * e * 100) / 100 : fin); if(p < 1) requestAnimationFrame(paso); };
+      el.textContent = money(0); requestAnimationFrame(paso);
+    }, inicio);
+    if(isFinite(fin) && fin!==0) el.textContent = money(0);
   });
+  // 2) la barra se llena al final, cuando terminan los indicadores
+  const espera = (kpis.length - 1) * CX_PASO + CX_DUR * 0.85;
+  segs.forEach(sg => { sg.style.transition = `flex-grow ${CX_BARRA}ms cubic-bezier(.25,.8,.25,1)`; });
+  setTimeout(() => segs.forEach(sg => sg.style.flexGrow = sg.dataset.v), espera);
 }
 function pintarCxc(){
   if(!FHIST) return;
