@@ -43,6 +43,13 @@
   header{position:-webkit-sticky;position:sticky;top:0;z-index:30;box-shadow:0 2px 10px rgba(15,38,64,.06);background:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;display:flex;align-items:center;gap:14px;border-bottom:5px solid var(--orange);flex-wrap:wrap}
   header img{height:58px}
   header .t b{display:block;font-size:18px;color:var(--navy)}
+  #tab-ajustes{margin-left:8px;font-size:18px;padding:7px 11px;line-height:1}
+  #tab-ajustes.on{background:var(--navy);color:#fff}
+  #avisos:empty{display:none}
+  .aviso{display:flex;gap:12px;align-items:flex-start;border-radius:14px;padding:14px 16px;font-size:14px;line-height:1.5;box-shadow:0 8px 22px rgba(15,38,64,.08)}
+  .aviso b{display:block}.aviso .x{margin-left:auto;background:none;border:0;font-size:20px;line-height:1;color:inherit;opacity:.6;padding:0 4px}
+  .aviso.warn{background:var(--amber-bg);color:#5b3d07;border:1px solid #F3DDA9}.aviso.bad{background:var(--red-bg);color:#7f1d1d;border:1px solid #F5C2C2}.aviso.info{background:var(--blue-bg);color:#183a7a;border:1px solid #BCD3F5}
+  @media (max-width:720px){ header{position:sticky} #tab-ajustes{position:absolute;right:14px;top:calc(18px + env(safe-area-inset-top))} }
   header .t span{font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase}
   nav{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
   body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
@@ -217,9 +224,11 @@
     <button class="b-ghost" id="tab-cxc"><svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/></svg><span class="nl-full">Cuentas por cobrar</span><span class="nl-short">Por cobrar</span></button>
     <button class="b-ghost" id="tab-hist"><svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg><span class="nl-full">Historial</span><span class="nl-short">Historial</span></button>
   </nav>
+  <button class="b-ghost hidden" id="tab-ajustes" title="Ajustes, respaldo y seguridad" aria-label="Ajustes">⚙️</button>
 </header>
 
 <main>
+  <div id="avisos"></div>
   <!-- ======== ACCESO ======== -->
   <section class="card" id="sec-acceso">
     <h2>Acceso</h2>
@@ -438,6 +447,41 @@
     <div class="card hidden" id="cx-anul-card"><details><summary style="cursor:pointer"><h2 style="display:inline-flex;margin:0">Cuentas anuladas <span class="pill p-gray" id="cx-n-anul"></span></h2></summary>
       <p class="hint" style="margin:8px 0">No suman en los indicadores. El documento sigue en tu historial; «Restaurar» lo devuelve a cuentas por cobrar.</p>
       <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th class="r">Monto</th><th>Anulada el</th><th class="r"></th></tr></thead><tbody id="cx-anul"></tbody></table></div></details></div>
+  </section>
+
+  <!-- ======== AJUSTES / PROTECCIÓN ======== -->
+  <section id="sec-ajustes" class="hidden" style="display:flex;flex-direction:column;gap:20px">
+    <div class="card">
+      <h2>🔑 Clave de GitHub</h2>
+      <p class="hint">Tu clave de GitHub vence en la fecha que elegiste al crearla. Si vence, el Cotizador deja de guardar. Anota aquí esa fecha y te avisaré <b>15 días antes</b>.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
+        <div style="flex:1;min-width:200px"><label>Fecha de vencimiento de la clave</label><input type="date" id="aj-vence"></div>
+        <button class="b-navy" id="aj-vence-ok">Guardar fecha</button>
+      </div>
+      <div class="status" id="aj-vence-st"></div>
+      <details style="margin-top:12px"><summary class="hint" style="cursor:pointer;font-weight:700">¿Dónde veo la fecha y cómo renuevo la clave?</summary>
+        <ol class="hint" style="margin:8px 0 0 18px">
+          <li>Entra a <b>github.com</b> → tu foto → <b>Settings</b> → <b>Developer settings</b> → <b>Personal access tokens</b> → <b>Fine-grained tokens</b>.</li>
+          <li>Junto a tu clave aparece <b>«Expires on …»</b>: esa es la fecha.</li>
+          <li>Para renovarla: abre la clave → <b>Regenerate token</b> → copia la nueva → aquí pulsa <b>«Cambiar clave»</b> y pégala.</li>
+        </ol></details>
+      <div class="actions" style="justify-content:flex-start;margin-top:12px"><button class="b-ghost" id="aj-cambiar">Cambiar clave de GitHub</button></div>
+    </div>
+    <div class="card">
+      <h2>💾 Respaldo completo</h2>
+      <p class="hint">Descarga una copia de <b>todo</b>: cotizaciones, recibos y facturas con su detalle, cobros, cuentas por cobrar y clientes. Guárdala en tu computadora o en la nube. Recomendado: <b>una vez al mes</b>.</p>
+      <div class="actions" style="justify-content:flex-start;margin-top:10px">
+        <button class="b-navy" id="aj-resp-xlsx">Descargar respaldo en Excel</button>
+        <button class="b-ghost" id="aj-resp-json">Copia exacta (.json)</button>
+      </div>
+      <p class="hint" style="margin-top:8px">La copia exacta (.json) sirve para restaurar el sistema tal cual. No está cifrada: guárdala en un lugar seguro.</p>
+      <div class="status" id="aj-resp-st"></div>
+    </div>
+    <div class="card">
+      <h2>📄 Hoja de recuperación</h2>
+      <p class="hint">Tus datos están cifrados con tu <b>contraseña maestra</b>. Si la olvidas, <b>nadie puede recuperarlos</b>. Imprime esta hoja, escribe tu contraseña a mano y guárdala en un lugar seguro (no en el celular).</p>
+      <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="aj-hoja">Abrir hoja para imprimir</button></div>
+    </div>
   </section>
 
   <!-- ======== HISTORIAL ======== -->
@@ -854,8 +898,10 @@ const descifrar = (key, iv, ct) => crypto.subtle.decrypt({name:"AES-GCM",iv}, ke
 /* ==================== GitHub ==================== */
 let TOKEN = store.get("lean_token") || "";
 async function gh(repo, path, opts={}){
-  return fetch(`https://api.github.com/repos/${CFG.owner}/${repo}${path}`, {...opts,
+  const r = await fetch(`https://api.github.com/repos/${CFG.owner}/${repo}${path}`, {...opts,
     headers:{ "Authorization":"Bearer "+TOKEN, "Accept":"application/vnd.github+json", "X-GitHub-Api-Version":"2022-11-28", ...(opts.headers||{}) }});
+  if(r.status===401 && typeof avisoClave==="function") avisoClave();   // clave vencida o revocada
+  return r;
 }
 async function ghGet(repo, path){
   const r = await gh(repo, `/contents/${path}?ref=${CFG.branch}`, {cache:"no-store"});
@@ -953,13 +999,13 @@ async function recargarHist(){   // trae la versión más reciente antes de modi
 }
 async function entrar(){
   try{ await cargarFac(); }catch(e){ console.error(e); FHIST = {v:1, docs:[]}; }
-  $("sec-acceso").classList.add("hidden"); $("nav").classList.remove("hidden");
-  nueva(); fNueva(); show("nueva");
+  $("sec-acceso").classList.add("hidden"); $("nav").classList.remove("hidden"); $("tab-ajustes").classList.remove("hidden");
+  nueva(); fNueva(); show("nueva"); pintarAvisos();
 }
 
 /* ==================== navegación ==================== */
 function show(v){
-  $("sec-form").classList.toggle("hidden", v!=="nueva"); $("sec-hist").classList.toggle("hidden", v!=="hist"); $("sec-fac").classList.toggle("hidden", v!=="fac"); $("sec-cxc").classList.toggle("hidden", v!=="cxc");
+  $("sec-form").classList.toggle("hidden", v!=="nueva"); $("sec-hist").classList.toggle("hidden", v!=="hist"); $("sec-fac").classList.toggle("hidden", v!=="fac"); $("sec-cxc").classList.toggle("hidden", v!=="cxc"); $("sec-ajustes").classList.toggle("hidden", v!=="ajustes"); $("tab-ajustes").classList.toggle("on", v==="ajustes");
   $("tab-nueva").classList.toggle("on", v==="nueva"); $("tab-hist").classList.toggle("on", v==="hist"); $("tab-fac").classList.toggle("on", v==="fac"); $("tab-cxc").classList.toggle("on", v==="cxc");
   if(v==="cxc"){ $("cx-box").innerHTML = ""; $("cx-status").textContent = ""; pintarCxc(); }
   if(v==="hist") setHView(HVIEW);
@@ -1176,6 +1222,131 @@ async function compartirPDF(bytes, nombre, titulo, st, texto){
   bajarBytes(bytes, nombre);
   msg("warn", "Este navegador no abre el menú de compartir: se descargó el PDF para que lo adjuntes en WhatsApp (clip 📎 → Documento)." + (texto ? " El mensaje quedó copiado para que lo pegues." : ""));
 }
+
+/* ==================== AJUSTES · PROTECCIÓN ==================== */
+const AJ = () => (HIST && (HIST.ajustes ||= {})) || {};
+const diasHasta = iso => Math.round((new Date(iso+"T12:00:00Z") - new Date(hoyISO()+"T12:00:00Z")) / 864e5);
+let CLAVE_MALA = false;
+function avisoClave(){ if(CLAVE_MALA) return; CLAVE_MALA = true; pintarAvisos(); }
+function pintarAvisos(){
+  const box = $("avisos"); if(!box) return;
+  const a = AJ(), out = [], cerrados = (store.get("lean_avisos_cerrados")||"").split(",");
+  const aviso = (id, cls, tit, txt, boton) => { if(cerrados.includes(id + "@" + hoyISO())) return;
+    out.push(`<div class="aviso ${cls}" data-id="${id}"><div><b>${tit}</b>${txt}${boton ? `<div style="margin-top:8px">${boton}</div>` : ""}</div><button class="x" title="Ocultar por hoy" aria-label="Cerrar">×</button></div>`); };
+  const irAj = '<button class="b-navy b-sm" data-ir="ajustes">Ir a Ajustes</button>';
+  if(CLAVE_MALA) aviso("clave401", "bad", "Tu clave de GitHub venció o fue revocada.", "El Cotizador no puede guardar. Crea una clave nueva en GitHub y pégala en Ajustes → «Cambiar clave».", irAj);
+  else if(a.tokenVence){
+    const d = diasHasta(a.tokenVence);
+    if(d < 0) aviso("vencida", "bad", "Tu clave de GitHub ya venció.", `Venció el ${PDFFAC.dmy(a.tokenVence)}. Renuévala para seguir guardando.`, irAj);
+    else if(d <= 15) aviso("porvencer", "warn", `Tu clave de GitHub vence ${d===0 ? "hoy" : d===1 ? "mañana" : "en " + d + " días"}.`, ` Fecha: ${PDFFAC.dmy(a.tokenVence)}. Renuévala antes para no quedarte sin guardar.`, irAj);
+  } else aviso("sinfecha", "info", "Anota cuándo vence tu clave de GitHub.", " Así te aviso 15 días antes y no te quedas sin guardar.", irAj);
+  const ur = a.ultimoRespaldo, dr = ur ? -diasHasta(ur.slice(0,10)) : null;
+  if(dr==null || dr > 30) aviso("respaldo", "warn", dr==null ? "Aún no has hecho un respaldo completo." : `Hace ${dr} días que no haces un respaldo.`, " Descarga una copia de todo en Ajustes → «Respaldo completo».", irAj);
+  box.innerHTML = out.join("");
+  box.querySelectorAll(".aviso .x").forEach(b => b.onclick = () => { const id = b.closest(".aviso").dataset.id;
+    store.set("lean_avisos_cerrados", [...cerrados.filter(x => x.endsWith("@" + hoyISO())), id + "@" + hoyISO()].join(",")); pintarAvisos(); });
+  box.querySelectorAll("[data-ir=ajustes]").forEach(b => b.onclick = () => abrirAjustes());
+}
+async function guardarAjustes(cambio, msg){
+  for(let i=0;i<3;i++){ try{ await recargarHist(); HIST.ajustes ||= {}; cambio(HIST.ajustes); await guardarHist(msg); return; }catch(e){ if(e.status!==409 || i===2) throw e; } }
+}
+function abrirAjustes(){ show("ajustes"); $("aj-vence").value = AJ().tokenVence || ""; estadoVence(); }
+function estadoVence(){
+  const st = $("aj-vence-st"), v = AJ().tokenVence;
+  if(!v){ st.className = "status warn"; st.textContent = "Todavía no has anotado la fecha."; return; }
+  const d = diasHasta(v);
+  st.className = "status " + (d < 0 ? "bad" : d <= 15 ? "warn" : "ok");
+  st.textContent = d < 0 ? `Venció hace ${-d} día(s).` : d === 0 ? "Vence hoy." : `✓ Vence el ${PDFFAC.dmy(v)} (faltan ${d} días).`;
+}
+$("tab-ajustes").onclick = abrirAjustes;
+$("aj-vence-ok").onclick = async () => {
+  const v = $("aj-vence").value, st = $("aj-vence-st");
+  if(!v){ st.className = "status bad"; st.textContent = "Elige la fecha de vencimiento."; return; }
+  st.className = "status"; st.textContent = "Guardando…";
+  try{ await guardarAjustes(a => { a.tokenVence = v; }, "Ajustes: fecha de vencimiento de la clave"); estadoVence(); pintarAvisos(); }
+  catch(e){ st.className = "status bad"; st.textContent = "No se pudo guardar: " + e.message; }
+};
+$("aj-cambiar").onclick = () => {
+  const box = $("aj-vence-st");
+  box.className = "status"; box.innerHTML = `¿Cambiar la clave en este equipo? Tendrás que pegar la nueva y escribir tu contraseña maestra. <button class="b-red b-sm" id="aj-cambiar-ok">Sí, cambiar</button>`;
+  $("aj-cambiar-ok").onclick = () => { store.del("lean_token"); store.del("lean_hkey"); location.reload(); };
+};
+
+/* --- respaldo completo --- */
+function filasCot(){ return [...(HIST?.cotizaciones||[])].sort((a,b) => a.n-b.n).map(c => ({
+  "N° cotización": c.numero, "Fecha": PDFFAC.dmy(c.fecha), "Válida hasta": PDFFAC.dmy(c.validoHasta), "Cliente": c.cliente, "CIP/RUC": c.ruc||"", "Email": c.email||"",
+  "Materiales (con ITBMS)": c.incMat ? r2(c.tot.matTotal) : 0, "Mano de obra": c.incMO ? r2(c.tot.moSub) : 0, "Total": c.total,
+  "Estado": estadoCot(c).t, "Motivo anulación": c.anulado?.motivo||"", "En cuentas por cobrar": c.cxc ? "Sí" : "No", "Código": c.codigo })); }
+function filasFac(lista, etiqueta){ return [...lista].sort((a,b) => a.n-b.n).map(d => ({
+  "N.º": d.numero, "Tipo": etiqueta || d.tipo, "Pedido / cotización": d.pedido && d.pedido!==d.numero ? d.pedido : "", "Fecha": PDFFAC.dmy(d.fecha), "Vencimiento": PDFFAC.dmy(d.vence),
+  "Cliente": d.cliente, "CIP/RUC": d.ruc||"", "Email": d.email||"", "Teléfono": d.telefono||"", "Dirección": d.direccion||"", "Total": d.total,
+  "Cobrado": cobradoDe(d), "Saldo": d.anulado ? 0 : saldoDe(d), "Estado": d.anulado ? "Anulado" : estadoCxc(d), "En cuentas por cobrar": enCxc(d) ? "Sí" : "No", "Código": d.codigo })); }
+function clientesTodos(){
+  const m = new Map();
+  const add = (o, f) => { const k = String(o.cliente||"").trim().toLowerCase(); if(!k) return; const c = m.get(k) || {cliente:o.cliente.trim(), ruc:"", email:"", telefono:"", direccion:"", docs:0, ultimo:""};
+    ["ruc","email","telefono","direccion"].forEach(x => { if(o[x] && (!c[x] || (f||"") >= c.ultimo)) c[x] = o[x]; }); c.docs++; if((f||"") > c.ultimo) c.ultimo = f||""; m.set(k, c); };
+  (HIST?.cotizaciones||[]).forEach(c => add(c, c.fecha)); (FHIST?.docs||[]).forEach(d => add(d, d.fecha)); (FHIST?.previos||[]).forEach(d => add(d, d.fecha));
+  return [...m.values()].sort((a,b) => a.cliente.localeCompare(b.cliente, "es"));
+}
+async function marcarRespaldo(){ try{ await guardarAjustes(a => { a.ultimoRespaldo = new Date().toISOString(); }, "Respaldo completo descargado"); pintarAvisos(); }catch(e){ console.warn(e); } }
+$("aj-resp-xlsx").onclick = async () => {
+  const st = $("aj-resp-st"); st.className = "status"; st.textContent = "Preparando respaldo…";
+  try{
+    await Promise.all([recargarHist(), cargarFac()]);
+    const wb = XLSX.utils.book_new(), hoja = (nom, filas) => XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filas.length ? filas : [{"(vacío)":""}]), nom);
+    hoja("Cotizaciones", filasCot());
+    const detC = []; (HIST?.cotizaciones||[]).forEach(c => [["Materiales", c.materiales||[]], ["Mano de obra", c.manoObra||[]]].forEach(([h, arr]) => arr.forEach((it,i) =>
+      detC.push({"N° cotización": c.numero, "Hoja": h, "#": i+1, "Descripción": it.desc, "Cant.": it.cant, "Precio unit.": it.precio, "Total": r2(it.cant*it.precio)}))));
+    hoja("Detalle cotizaciones", detC);
+    hoja("Recibos y facturas", filasFac(FHIST?.docs||[]));
+    const detF = []; (FHIST?.docs||[]).forEach(d => d.items.forEach((it,i) => detF.push({"N.º": d.numero, "Tipo": d.tipo, "#": i+1, "Descripción": it.desc||"", "Cantidad": it.cant??"", "Precio unitario": it.precio??"", "Total": it.total})));
+    hoja("Detalle recibos", detF);
+    const cob = []; [...(FHIST?.docs||[]), ...(FHIST?.previos||[]), ...(HIST?.cotizaciones||[])].forEach(d => (d.cobro?.abonos||[]).forEach(a => cob.push({"Documento": d.numero, "Cliente": d.cliente, "Fecha": PDFFAC.dmy(a.fecha), "Monto": a.monto, "Método": a.metodo||"", "Nota": a.nota||""})));
+    hoja("Cobros", cob);
+    hoja("Control anterior", filasFac(FHIST?.previos||[], "Recibo (control anterior)"));
+    hoja("Clientes", clientesTodos().map(c => ({"Cliente": c.cliente, "CIP/RUC": c.ruc, "Email": c.email, "Teléfono": c.telefono, "Dirección": c.direccion, "Documentos": c.docs, "Último documento": c.ultimo ? PDFFAC.dmy(c.ultimo) : ""})));
+    XLSX.writeFile(wb, `Respaldo_Cotizador_GrupoLEAN_${hoyISO()}.xlsx`);
+    st.className = "status ok"; st.textContent = "✓ Respaldo descargado. Guárdalo en un lugar seguro."; marcarRespaldo();
+  }catch(e){ console.error(e); st.className = "status bad"; st.textContent = "No se pudo crear el respaldo: " + e.message; }
+};
+$("aj-resp-json").onclick = async () => {
+  const st = $("aj-resp-st"); st.className = "status"; st.textContent = "Preparando copia…";
+  try{
+    await Promise.all([recargarHist(), cargarFac()]);
+    const data = {app:"Cotizador Grupo Σ LEAN", version:1, fecha:new Date().toISOString(), cotizaciones:HIST, facturacion:FHIST};
+    const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], {type:"application/json"}));
+    const a = document.createElement("a"); a.href = url; a.download = `Copia_exacta_Cotizador_${hoyISO()}.json`; document.body.appendChild(a); a.click(); a.remove();
+    st.className = "status ok"; st.textContent = "✓ Copia exacta descargada. No está cifrada: guárdala en un lugar seguro."; marcarRespaldo();
+  }catch(e){ st.className = "status bad"; st.textContent = "No se pudo crear la copia: " + e.message; }
+};
+
+/* --- hoja de recuperación --- */
+$("aj-hoja").onclick = () => {
+  const w = window.open("", "_blank"); if(!w){ $("aj-resp-st").textContent = "Permite las ventanas emergentes para abrir la hoja."; return; }
+  const a = AJ(), cot = location.href.split("?")[0].split("#")[0];
+  w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hoja de recuperación · Cotizador Grupo Σ LEAN</title>
+  <style>body{font:14px/1.55 -apple-system,Segoe UI,Arial,sans-serif;color:#1A2433;max-width:760px;margin:24px auto;padding:0 20px}h1{color:#1A3554;font-size:22px;margin:0 0 4px}
+  h2{color:#1A3554;font-size:15px;margin:20px 0 6px;border-bottom:2px solid #EDA200;padding-bottom:3px}.lin{border-bottom:1px solid #999;height:30px}.k{color:#5B6878;font-size:12px}
+  table{border-collapse:collapse;width:100%}td{padding:6px 8px;border:1px solid #D3DBE6;vertical-align:top}td:first-child{width:34%;background:#F3F6FA;font-weight:600}
+  .alerta{background:#FDF0D5;border:1px solid #F3DDA9;border-radius:8px;padding:10px 12px;margin:12px 0}button{font:inherit;padding:8px 14px;border-radius:8px;border:0;background:#1A3554;color:#fff;font-weight:700}
+  @media print{button{display:none}body{margin:0}}</style></head><body>
+  <button onclick="print()">🖨️ Imprimir</button>
+  <h1>Hoja de recuperación — Cotizador Grupo Σ LEAN</h1><div class="k">Generada el ${PDFFAC.dmy(hoyISO())}. Guárdala en un lugar seguro y privado.</div>
+  <div class="alerta"><b>Importante:</b> tus datos están cifrados con tu contraseña maestra. Sin ella <b>no se pueden abrir</b>. Nadie (ni GitHub ni el soporte) puede recuperarla.</div>
+  <h2>1. Tu contraseña maestra (escríbela a mano)</h2><div class="lin"></div><div class="k">No la guardes en el celular ni la envíes por mensaje.</div>
+  <h2>2. Dónde está todo</h2><table>
+  <tr><td>Cotizador (app)</td><td>${cot}</td></tr><tr><td>Portal de validación</td><td>${CFG.site}</td></tr>
+  <tr><td>Cuenta de GitHub</td><td>${CFG.owner}</td></tr><tr><td>Repositorios</td><td>${CFG.owner}/${CFG.repoCot} (app e historial cifrado) · ${CFG.owner}/${CFG.repoVal} (portal y documentos)</td></tr>
+  <tr><td>Clave de GitHub vence</td><td>${a.tokenVence ? PDFFAC.dmy(a.tokenVence) : "(anótala en Ajustes)"}</td></tr>
+  <tr><td>Último respaldo</td><td>${a.ultimoRespaldo ? PDFFAC.dmy(a.ultimoRespaldo.slice(0,10)) : "(aún no)"}</td></tr></table>
+  <h2>3. Si cambias de celular o computadora</h2><ol><li>Abre el Cotizador (dirección de arriba).</li><li>Pega tu clave de GitHub (o crea una nueva: paso 4).</li><li>Escribe tu contraseña maestra. Todo aparece igual.</li></ol>
+  <h2>4. Si tu clave de GitHub venció o la perdiste</h2><ol><li>github.com → tu foto → Settings → Developer settings → Personal access tokens → Fine-grained tokens.</li>
+  <li>«Generate new token» (o «Regenerate» en la actual). Repositorios: <b>${CFG.repoCot}</b> y <b>${CFG.repoVal}</b>. Permiso <b>Contents: Read and write</b>.</li>
+  <li>Copia la clave, ábrela en el Cotizador → Ajustes → «Cambiar clave» y pégala. Anota la nueva fecha de vencimiento.</li></ol>
+  <h2>5. Respaldo</h2><p>En Ajustes → «Respaldo completo» descarga una copia en Excel (y una copia exacta .json). Hazlo una vez al mes y guárdala en tu computadora o en la nube.</p>
+  </body></html>`);
+  w.document.close();
+};
 
 /* ==================== bloque activo (marco naranja) ==================== */
 let CARD_FOCO = null, CARD_RAF = 0;
