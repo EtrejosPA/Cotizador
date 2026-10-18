@@ -524,24 +524,50 @@ const PDFCOT = (() => {
     R(doc, 52, 157.6, 507.2, 11.2, C.band);
     T(doc, "Servicios especializados en electricidad, plomería, construcción y mantenimiento.", 54.4, 159.1, {st:"italic", sz:7.2, c:C.gray});
     T(doc, "Fecha: " + fechaLarga(d.fecha), 392.8, 159.3, {sz:8});
-    // cliente / empresa (fila EMAIL solo si se escribió un correo)
-    const mail = String(d.email||"").trim();
-    const filas = mail ? ["cli","mail","emp"] : ["cli","emp"], RH = 22.4, H = RH*filas.length, dy = H - 44.8;
-    filas.forEach((f,i) => { const y = 168 + i*RH;
-      R(doc, 52, y, 58.4, RH, C.label); if(f!=="mail") R(doc, 390.4, y, 68, RH, C.label);
-      hline(doc, y, C.border);
-      if(f!=="mail"){ vline(doc, 390.4, y, y+RH+(i===filas.length-1?0.8:0), C.border); vline(doc, 458.4, y, y+RH+(i===filas.length-1?0.8:0), C.border); }
-      const ty = y + 8.1;
-      if(f==="cli"){ T(doc, "CLIENTE:", 54.4, ty, {st:"bold", c:C.navy}); T(doc, d.cliente, 112.8, ty);
-                     T(doc, "CIP/RUC:", 392.8, ty, {st:"bold", c:C.navy}); if(d.ruc) T(doc, d.ruc, 460.8, ty); }
-      if(f==="mail"){ T(doc, "EMAIL:", 54.4, ty, {st:"bold", c:C.navy}); T(doc, mail, 112.8, ty); }
-      if(f==="emp"){ T(doc, "EMPRESA:", 54.4, ty, {st:"bold", c:C.navy}); T(doc, "Grupo Σ LEAN — Ingeniería & Proyectos", 112.8, ty);
-                     T(doc, "VÁLIDO HASTA:", 392.8, ty, {st:"bold", c:C.navy}); T(doc, fechaLarga(d.validoHasta), 460.8, ty); }
-    });
-    hline(doc, 168 + H, C.border);
-    [52, 110.4, 558.4].forEach(x => vline(doc, x, 168, 168 + H + 0.8, C.border));
-    T(doc, "DETALLE DE SERVICIOS", 54.4, 217.9 + dy, {st:"bold", sz:8.8, c:C.navy});
-    return tableHeader(doc, 227.2 + dy);
+    // cliente / empresa · si hay email, va en la MISMA fila: CLIENTE | CIP/RUC | EMAIL (anchos automáticos)
+    const mail = String(d.email||"").trim(), Y1 = 168, Y2 = 190.4, Y3 = 212.8, X0 = 52, XL = 110.4, XE = 558.4, PAD = 2.4;
+    R(doc, X0, Y1, XL - X0, Y3 - Y1, C.label);                                   // etiquetas izquierda (2 filas)
+    R(doc, 390.4, Y2, 68, Y3 - Y2, C.label);                                     // «VÁLIDO HASTA» (fila 2)
+    [Y1, Y2, Y3].forEach(y => hline(doc, y, C.border));
+    [X0, XL, XE].forEach(x => vline(doc, x, Y1, Y3 + 0.8, C.border));
+    [390.4, 458.4].forEach(x => vline(doc, x, Y2, Y3 + 0.8, C.border));         // columnas de la fila 2
+    T(doc, "CLIENTE:", 54.4, 176.1, {st:"bold", c:C.navy});
+    if(!mail){   // diseño original
+      R(doc, 390.4, Y1, 68, Y2 - Y1, C.label); [390.4, 458.4].forEach(x => vline(doc, x, Y1, Y2, C.border));
+      T(doc, d.cliente, 112.8, 176.1);
+      T(doc, "CIP/RUC:", 392.8, 176.1, {st:"bold", c:C.navy}); if(d.ruc) T(doc, d.ruc, 460.8, 176.1);
+    } else {
+      const lab = t => W(doc, t, "bold", 8) + 2*PAD + 3;
+      const cipLab = lab("CIP/RUC:"), mailLab = lab("EMAIL:"), disp = XE - XL - cipLab - mailLab;
+      const medir = fs => ({ nom: W(doc, d.cliente, "normal", fs) + 2*PAD + 4,
+                             ruc: Math.max(W(doc, "446 121-95840 DV 56", "normal", fs), W(doc, d.ruc||"", "normal", fs)) + 2*PAD + 2,
+                             mai: W(doc, mail, "normal", fs) + 2*PAD + 4 });
+      let fs = 8, m = medir(fs), tot = m.nom + m.ruc + m.mai;
+      if(tot > disp){ fs = Math.max(6.5, 8 * disp / tot); m = medir(fs); tot = m.nom + m.ruc + m.mai; }
+      let wNom, wRuc = m.ruc, wMai;
+      if(tot <= disp){ const extra = disp - tot; wNom = m.nom + extra * 0.6; wMai = disp - wNom - wRuc; }   // el sobrante va a cliente y email
+      else { const resto = disp - wRuc; wNom = resto * m.nom / (m.nom + m.mai); wMai = resto - wNom; }       // no cabe: se reparte y baja a 2 líneas
+      const xCip = XL + wNom, xRuc = xCip + cipLab, xMl = xRuc + wRuc, xMai = xMl + mailLab;
+      R(doc, xCip, Y1, cipLab, Y2 - Y1, C.label); R(doc, xMl, Y1, mailLab, Y2 - Y1, C.label);
+      [xCip, xRuc, xMl, xMai].forEach(x => vline(doc, x, Y1, Y2, C.border));
+      const celda = (txt, x, w) => {   // 1 línea centrada, o 2 líneas si no cabe
+        doc.setFont("LS", "normal"); doc.setFontSize(fs);
+        let ls = doc.splitTextToSize(String(txt), w - 2*PAD - 1);
+        let f = fs; if(ls.length > 2){ f = Math.max(5.5, fs - 1); doc.setFontSize(f); ls = doc.splitTextToSize(String(txt), w - 2*PAD - 1).slice(0, 2); }
+        if(ls.length === 1) return T(doc, ls[0], x + PAD, 176.1 + (8 - f) * 0.45, {sz:f});   // misma altura que las etiquetas
+        const lh = f * 1.1, top = Y1 + (Y2 - Y1 - 2 * lh) / 2 + 0.4;
+        ls.forEach((l, i) => T(doc, l, x + PAD, top + i * lh, {sz:f}));
+      };
+      celda(d.cliente, XL, wNom);
+      T(doc, "CIP/RUC:", xCip + PAD, 176.1, {st:"bold", c:C.navy}); if(d.ruc) celda(d.ruc, xRuc, wRuc);
+      T(doc, "EMAIL:", xMl + PAD, 176.1, {st:"bold", c:C.navy}); celda(mail, xMai, wMai);
+    }
+    T(doc, "EMPRESA:", 54.4, 198.5, {st:"bold", c:C.navy});
+    T(doc, "Grupo Σ LEAN — Ingeniería & Proyectos", 112.8, 198.5);
+    T(doc, "VÁLIDO HASTA:", 392.8, 198.5, {st:"bold", c:C.navy});
+    T(doc, fechaLarga(d.validoHasta), 460.8, 198.5);
+    T(doc, "DETALLE DE SERVICIOS", 54.4, 217.9, {st:"bold", sz:8.8, c:C.navy});
+    return tableHeader(doc, 227.2);
   }
   function tableHeader(doc, y){
     R(doc, 52, y, 507.2, 23.2, C.navy);
