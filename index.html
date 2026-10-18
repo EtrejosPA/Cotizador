@@ -66,6 +66,9 @@
   .rp-mini{height:4px;background:var(--panel);border-radius:3px;margin-top:4px;overflow:hidden}.rp-mini i{display:block;height:100%;background:var(--orange);border-radius:3px}
   @media (max-width:720px){ .rp-bars{gap:2px;height:160px}.rp-col{gap:1px}.rp-mes small{font-size:9px} }
   #offline{display:none}#offline.on{display:block;position:fixed;z-index:70;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));width:min(680px,calc(100vw - 24px));background:#3F2D00;color:#FFF3D6;border:1px solid var(--orange);border-radius:12px;padding:10px 14px;font-size:13.5px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  @media (max-width:720px){ .aj-txt{display:none} .seg:has(.seg-aj){display:flex;flex-wrap:nowrap;width:100%}
+    .seg:has(.seg-aj) .segbtn{flex:1 1 auto;min-width:0;justify-content:center;padding:8px 6px;white-space:nowrap;font-size:clamp(12.5px,3.7vw,14px)}
+    .seg:has(.seg-aj) .seg-aj{flex:0 0 auto;font-size:17px;padding:6px 12px} }
   .fx-op-b{display:flex;flex-direction:column;align-items:center;gap:4px;padding:18px 12px;border-radius:14px;background:var(--panel);border:1.5px solid #CBD3DF;color:var(--navy);white-space:normal;text-align:center}
   .fx-op-b span{font-size:28px}.fx-op-b b{font-size:16px}.fx-op-b small{font-size:12px;color:var(--muted);font-weight:500}
   .fx-op-b:hover,.fx-op-b:focus{border-color:var(--orange);background:#FFF8E8;outline:none}
@@ -501,7 +504,7 @@
   <!-- ======== AJUSTES / PROTECCIÓN ======== -->
   <section id="sec-ajustes" class="hidden" style="display:flex;flex-direction:column;gap:20px">
     <div class="card" style="padding:14px 20px">
-      <div class="seg"><button class="segbtn" id="aj-hv-cot">Cotizaciones</button><button class="segbtn" id="aj-hv-fac">Recibos y facturas</button><button class="segbtn on">⚙️ Ajustes</button></div>
+      <div class="seg"><button class="segbtn" id="aj-hv-cot">Cotizaciones</button><button class="segbtn" id="aj-hv-fac">Recibos y facturas</button><button class="segbtn on seg-aj" title="Ajustes" aria-label="Ajustes">⚙️<span class="aj-txt"> Ajustes</span></button></div>
       <h2 style="margin:12px 0 0">Ajustes · respaldo y seguridad</h2>
     </div>
     <div class="card">
@@ -540,7 +543,7 @@
 
   <!-- ======== HISTORIAL ======== -->
   <section class="card hidden" id="sec-hist">
-    <div class="seg" style="margin-bottom:14px"><button class="segbtn on" id="hv-cot">Cotizaciones</button><button class="segbtn" id="hv-fac">Recibos y facturas</button><button class="segbtn" id="hv-aj">⚙️ Ajustes</button></div>
+    <div class="seg" style="margin-bottom:14px"><button class="segbtn on" id="hv-cot">Cotizaciones</button><button class="segbtn" id="hv-fac">Recibos y facturas</button><button class="segbtn seg-aj" id="hv-aj" title="Ajustes" aria-label="Ajustes">⚙️<span class="aj-txt"> Ajustes</span></button></div>
     <h2><span id="h-title">Historial de cotizaciones</span> <span class="pill p-blue" id="h-count"></span></h2>
     <div class="htools">
       <input type="search" id="h-q" placeholder="Buscar por N°, cliente o RUC…">
