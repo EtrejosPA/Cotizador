@@ -511,6 +511,7 @@
         <div style="flex:1;min-width:200px"><label>Fecha de vencimiento de la clave</label><input type="date" id="aj-vence"></div>
         <button class="b-navy" id="aj-vence-ok">Guardar fecha</button>
       </div>
+      <label class="chk" style="margin-top:8px"><input type="checkbox" id="aj-nunca"> Mi clave no tiene fecha de vencimiento («This token has no expiration date»)</label>
       <div class="status" id="aj-vence-st"></div>
       <details style="margin-top:12px"><summary class="hint" style="cursor:pointer;font-weight:700">¿Dónde veo la fecha y cómo renuevo la clave?</summary>
         <ol class="hint" style="margin:8px 0 0 18px">
@@ -1300,6 +1301,7 @@ function pintarAvisos(){
     out.push(`<div class="aviso ${cls}" data-id="${id}"><div><b>${tit}</b>${txt}${boton ? `<div style="margin-top:8px">${boton}</div>` : ""}</div><button class="x" title="Ocultar por hoy" aria-label="Cerrar">×</button></div>`); };
   const irAj = '<button class="b-navy b-sm" data-ir="ajustes">Ir a Ajustes</button>';
   if(CLAVE_MALA) aviso("clave401", "bad", "Tu clave de GitHub venció o fue revocada.", "El Cotizador no puede guardar. Crea una clave nueva en GitHub y pégala en Ajustes → «Cambiar clave».", irAj);
+  else if(a.tokenVence==="nunca"){ /* clave sin vencimiento: no hay nada que avisar */ }
   else if(a.tokenVence){
     const d = diasHasta(a.tokenVence);
     if(d < 0) aviso("vencida", "bad", "Tu clave de GitHub ya venció.", `Venció el ${PDFFAC.dmy(a.tokenVence)}. Renuévala para seguir guardando.`, irAj);
@@ -1315,14 +1317,21 @@ function pintarAvisos(){
 async function guardarAjustes(cambio, msg){
   for(let i=0;i<3;i++){ try{ await recargarHist(); HIST.ajustes ||= {}; cambio(HIST.ajustes); await guardarHist(msg); return; }catch(e){ if(e.status!==409 || i===2) throw e; } }
 }
-function abrirAjustes(){ show("ajustes"); $("aj-vence").value = AJ().tokenVence || ""; estadoVence(); }
+function abrirAjustes(){ show("ajustes"); const v = AJ().tokenVence; $("aj-vence").value = v && v!=="nunca" ? v : ""; $("aj-nunca").checked = v==="nunca"; estadoVence(); }
 function estadoVence(){
   const st = $("aj-vence-st"), v = AJ().tokenVence;
+  $("aj-vence").disabled = $("aj-vence-ok").disabled = v==="nunca";
+  if(v==="nunca"){ st.className = "status ok"; st.textContent = "✓ Tu clave no vence. No necesitas renovarla; solo cámbiala si la borras o la revocas en GitHub."; return; }
   if(!v){ st.className = "status warn"; st.textContent = "Todavía no has anotado la fecha."; return; }
   const d = diasHasta(v);
   st.className = "status " + (d < 0 ? "bad" : d <= 15 ? "warn" : "ok");
   st.textContent = d < 0 ? `Venció hace ${-d} día(s).` : d === 0 ? "Vence hoy." : `✓ Vence el ${PDFFAC.dmy(v)} (faltan ${d} días).`;
 }
+$("aj-nunca").onchange = async () => {
+  const nunca = $("aj-nunca").checked, st = $("aj-vence-st"); st.className = "status"; st.textContent = "Guardando…";
+  try{ await guardarAjustes(a => { if(nunca) a.tokenVence = "nunca"; else delete a.tokenVence; }, nunca ? "Ajustes: la clave no tiene vencimiento" : "Ajustes: quitar «la clave no vence»"); estadoVence(); pintarAvisos(); }
+  catch(e){ $("aj-nunca").checked = !nunca; st.className = "status bad"; st.textContent = "No se pudo guardar: " + e.message; }
+};
 $("aj-vence-ok").onclick = async () => {
   const v = $("aj-vence").value, st = $("aj-vence-st");
   if(!v){ st.className = "status bad"; st.textContent = "Elige la fecha de vencimiento."; return; }
@@ -1401,7 +1410,7 @@ $("aj-hoja").onclick = () => {
   <h2>2. Dónde está todo</h2><table>
   <tr><td>Cotizador (app)</td><td>${cot}</td></tr><tr><td>Portal de validación</td><td>${CFG.site}</td></tr>
   <tr><td>Cuenta de GitHub</td><td>${CFG.owner}</td></tr><tr><td>Repositorios</td><td>${CFG.owner}/${CFG.repoCot} (app e historial cifrado) · ${CFG.owner}/${CFG.repoVal} (portal y documentos)</td></tr>
-  <tr><td>Clave de GitHub vence</td><td>${a.tokenVence ? PDFFAC.dmy(a.tokenVence) : "(anótala en Ajustes)"}</td></tr>
+  <tr><td>Clave de GitHub vence</td><td>${a.tokenVence==="nunca" ? "No vence" : a.tokenVence ? PDFFAC.dmy(a.tokenVence) : "(anótala en Ajustes)"}</td></tr>
   <tr><td>Último respaldo</td><td>${a.ultimoRespaldo ? PDFFAC.dmy(a.ultimoRespaldo.slice(0,10)) : "(aún no)"}</td></tr></table>
   <h2>3. Si cambias de celular o computadora</h2><ol><li>Abre el Cotizador (dirección de arriba).</li><li>Pega tu clave de GitHub (o crea una nueva: paso 4).</li><li>Escribe tu contraseña maestra. Todo aparece igual.</li></ol>
   <h2>4. Si tu clave de GitHub venció o la perdiste</h2><ol><li>github.com → tu foto → Settings → Developer settings → Personal access tokens → Fine-grained tokens.</li>
