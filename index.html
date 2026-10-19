@@ -1334,10 +1334,20 @@ function mensajeWA(tipo, rec, url){   // mensaje por defecto que acompaña al PD
   const empresa = /\b(s\.?\s?a\.?|inc\.?|corp\.?|ltda\.?|s\.?r\.?l\.?|llc|group|grupo|company|cía|cia)(\b|$)/i.test(cli);
   const doc = tipo==="Cotización" ? `cotización ${rec.numero}` : `${tipo==="Factura" ? "factura" : "recibo"} ${rec.numero}`;
   const saludo = empresa || !cli ? `Buen día${cli ? ", " + cli : ""}` : `Hola ${(n => n.charAt(0).toUpperCase() + n.slice(1))(cli.split(/\s+/)[0])}`;
-  return `${saludo}, le comparto su ${doc}. Puede verla y validarla aquí: ${url}\nSaludos, *Grupo Σ LEAN — Ingeniería & Proyectos*.`   // *…* = negrita en WhatsApp
+  return `${saludo}, le comparto su ${doc}. Puede verla y validarla aquí: ${url}\nSaludos,\n*Grupo Σ LEAN — Ingeniería & Proyectos*`   // *…* = negrita (solo para WhatsApp)
     .replace("verla y validarla", tipo==="Cotización" || tipo==="Factura" ? "verla y validarla" : "verlo y validarlo");
 }
-async function compartirPDF(bytes, nombre, titulo, st, texto){
+/* al compartir se elige la app: para WhatsApp la firma va en negrita (*…*); para las demás, sin asteriscos */
+const sinNegrita = t => String(t||"").replace(/\*([^*\n]+)\*/g, "$1");
+function compartirPDF(bytes, nombre, titulo, st, texto){
+  if(!texto || !(navigator.canShare && navigator.share)) return compartirPDF_(bytes, nombre, titulo, st, texto);
+  const {caja, cerrar} = modal(`<h2 style="margin-bottom:4px">📤 Compartir ${esc(nombre)}</h2><p class="hint" style="margin-bottom:12px">¿Por dónde lo vas a enviar?</p>
+    <div class="fx-op"><button class="fx-op-b" data-app="wa"><span>💬</span><b>WhatsApp</b><small>firma en negrita</small></button>
+    <button class="fx-op-b" data-app="otra"><span>📨</span><b>Otra app</b><small>correo, mensajes, etc.</small></button></div>
+    <div class="actions" style="margin-top:12px"><button class="b-ghost" data-cerrar>Cancelar</button></div>`);
+  caja.querySelectorAll("[data-app]").forEach(b => b.onclick = () => { cerrar(); compartirPDF_(bytes, nombre, titulo, st, b.dataset.app==="wa" ? texto : sinNegrita(texto)); });
+}
+async function compartirPDF_(bytes, nombre, titulo, st, texto){
   const file = new File([bytes], nombre, {type:"application/pdf"});
   const msg = (cls, t) => { if(st){ st.className = "status " + cls; st.innerHTML = t; } };
   if(texto){ try{ navigator.clipboard && navigator.clipboard.writeText(texto).catch(() => {}); }catch(e){} }   // copia de respaldo
@@ -1348,7 +1358,7 @@ async function compartirPDF(bytes, nombre, titulo, st, texto){
       if(e.name==="AbortError"){ if(st) st.textContent = ""; return; }
       if(e.name==="NotAllowedError"){   // el navegador pide un toque nuevo (pasó tiempo cargando el PDF)
         msg("", `PDF listo. <button class="b-navy b-sm" id="share-again">Compartir ahora</button>`);
-        const bt = document.getElementById("share-again"); if(bt) bt.onclick = () => compartirPDF(bytes, nombre, titulo, st, texto);
+        const bt = document.getElementById("share-again"); if(bt) bt.onclick = () => compartirPDF_(bytes, nombre, titulo, st, texto);
         return;
       }
       console.warn(e);
