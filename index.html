@@ -80,6 +80,7 @@
   .pw .ojo{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:38px;height:38px;padding:0;margin:0;border:0;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
   .pw .ojo svg{width:20px;height:20px}.pw .ojo .o-a{display:none}.pw .ojo.on .o-a{display:inline}.pw .ojo.on .o-c{display:none}.pw .ojo:hover,.pw .ojo.on{color:var(--navy);background:var(--panel)}
   .rp-anul{display:block;margin-top:4px;color:#D46A6A;font-weight:600;font-style:normal}
+  .an-lig{margin-top:10px;padding:10px 12px;background:#fff;border:1px solid #F5C2C2;border-radius:10px;display:flex;flex-direction:column;gap:6px}
   .fx-op-b{display:flex;flex-direction:column;align-items:center;gap:4px;padding:18px 12px;border-radius:14px;background:var(--panel);border:1.5px solid #CBD3DF;color:var(--navy);white-space:normal;text-align:center}
   .fx-op-b span{font-size:28px}.fx-op-b b{font-size:16px}.fx-op-b small{font-size:12px;color:var(--muted);font-weight:500}
   .fx-op-b:hover,.fx-op-b:focus{border-color:var(--orange);background:#FFF8E8;outline:none}
@@ -2111,13 +2112,30 @@ async function portalMarcar(codigo, anulado){   // pone o quita la marca «anula
   await ghPut(CFG.repoVal, pj, te.encode(JSON.stringify({iv:b64(ej.iv), ct:b64(ej.ct)})), f.sha, `${anulado?"Anular":"Reactivar"} ${doc.tipo} ${doc.numero}`);
   return true;
 }
+const esPrueba = m => /\bpruebas?\b/.test(sinTilde(m||""));
+/* borra del historial los anulados «de prueba»; su número queda reservado (no se vuelve a usar) */
+function quitarPruebas(lista, cont){
+  const fuera = lista.filter(x => x.anulado && esPrueba(x.anulado.motivo)); if(!fuera.length) return 0;
+  cont.ultimoExcel = Math.max(Number(cont.ultimoExcel||0), ...fuera.map(x => Number(x.n)||0));
+  fuera.forEach(x => lista.splice(lista.indexOf(x), 1)); return fuera.length;
+}
+async function purgarPruebas(){
+  let n = 0;
+  for(let i=0;i<3;i++){ try{ await recargarHist(); const k = quitarPruebas(HIST.cotizaciones, HIST); if(k){ await guardarHist(`Borrar ${k} cotización(es) de prueba`); } n += k; break; }catch(e){ if(e.status!==409 || i===2) throw e; } }
+  for(let i=0;i<3;i++){ try{ await cargarFac(); const k = quitarPruebas(FHIST.docs, FHIST); if(k){ await guardarFac(`Borrar ${k} documento(s) de prueba`); } n += k; break; }catch(e){ if(e.status!==409 || i===2) throw e; } }
+  return n;
+}
 function pedirAnular(kind, rec, anular){
   const box = $("h-imp"), fem = kind==="cot" || rec.tipo==="Factura";
   const nom = kind==="cot" ? `la cotización ${rec.numero}` : `${rec.tipo==="Factura"?"la factura":"el recibo"} ${rec.numero}`;
+  const ligados = anular && kind==="cot" ? (FHIST?.docs||[]).filter(d => !d.anulado && cotsDeDoc(d).includes(rec.numero)) : [];
   box.innerHTML = anular
     ? `<div class="box badb"><b>⚠ ¿Anular ${esc(nom)}?</b> · ${esc(rec.cliente)} · ${money(rec.total)}<br>
        Seguirá en tu historial marcada como <b>${fem?"Anulada":"Anulado"}</b> y su número no se volverá a usar. Si alguien escanea su QR, el portal mostrará <b>«Documento anulado»</b> y no podrá abrir el PDF.
+       ${ligados.length ? `<div class="an-lig"><b>Esta cotización tiene ${ligados.length === 1 ? "un documento hecho" : ligados.length + " documentos hechos"} desde ella. ¿También quieres anularlo${ligados.length === 1 ? "" : "s"}?</b>
+         ${ligados.map(d => `<label class="chk"><input type="checkbox" class="an-l" value="${esc(d.codigo)}"> ${esc(d.tipo)} ${esc(d.numero)} · ${money(d.total)}${cotsDeDoc(d).length > 1 ? ` <span class="hint">(junta ${esc(cotsDeDoc(d).join(", "))})</span>` : ""}</label>`).join("")}</div>` : ""}
        <div style="margin-top:8px"><input type="text" id="an-motivo" maxlength="120" placeholder="Motivo (obligatorio; se muestra en el portal)" style="max-width:440px"></div>
+       <div class="hint hidden" id="an-prueba" style="margin-top:6px;color:var(--red)">🧪 Es un documento de prueba: se <b>borrará del historial y del Excel</b> al anularlo. Su número queda reservado y el QR mostrará «Documento anulado».</div>
        <div class="actions" style="justify-content:flex-start;margin-top:8px"><button class="b-red" id="an-ok">Sí, anular</button><button class="b-ghost" id="an-no">Cancelar</button></div>
        <div class="status" id="an-st"></div></div>`
     : `<div class="box warnb"><b>¿Reactivar ${esc(nom)}?</b> · ${esc(rec.cliente)} · ${money(rec.total)}<br>
@@ -2126,27 +2144,39 @@ function pedirAnular(kind, rec, anular){
        <div class="status" id="an-st"></div></div>`;
   box.scrollIntoView({behavior:"smooth", block:"center"});
   $("an-no").onclick = () => box.innerHTML = "";
+  if(anular) $("an-motivo").addEventListener("input", () => { const p = esPrueba($("an-motivo").value); $("an-prueba").classList.toggle("hidden", !p); $("an-ok").textContent = p ? "Sí, anular y borrar" : "Sí, anular"; });
   $("an-ok").onclick = async () => {
     const st = $("an-st");
     if(anular && !$("an-motivo").value.trim()){ st.className = "status bad"; st.textContent = "Escribe el motivo de la anulación (es obligatorio)."; $("an-motivo").focus(); return; }
     $("an-ok").disabled = true; $("an-no").disabled = true;
-    const marca = anular ? {fecha: hoyISO(), motivo: $("an-motivo").value.trim()} : null;
+    const marca = anular ? {fecha: hoyISO(), motivo: $("an-motivo").value.trim()} : null, prueba = anular && esPrueba(marca.motivo);
+    const extra = anular ? [...box.querySelectorAll(".an-l:checked")].map(c => ligados.find(d => d.codigo===c.value)).filter(Boolean) : [];
     try{
-      if(rec.publicado!==false){ st.className="status"; st.textContent = "Actualizando el portal de validación…"; await portalMarcar(rec.codigo, marca); }
+      for(const r of [rec, ...extra]) if(r.publicado!==false){ st.className="status"; st.textContent = `Actualizando el portal de validación (${r.numero})…`; await portalMarcar(r.codigo, marca); }
       st.className="status"; st.textContent = "Guardando en el historial…";
       for(let i=0;i<3;i++){
         try{
           if(kind==="cot"){ await recargarHist(); const x = HIST.cotizaciones.find(c => c.codigo===rec.codigo); if(!x) throw new Error("no está en el historial");
             if(marca) x.anulado = marca; else delete x.anulado; x.actualizado = new Date().toISOString();
-            await guardarHist(`${anular?"Anular":"Reactivar"} cotización ${rec.numero}`); }
+            if(prueba) quitarPruebas(HIST.cotizaciones, HIST);
+            await guardarHist(`${prueba ? "Borrar cotización de prueba" : anular ? "Anular cotización" : "Reactivar cotización"} ${rec.numero}`); }
           else { await cargarFac(); const x = FHIST.docs.find(d => d.codigo===rec.codigo); if(!x) throw new Error("no está en el historial");
             if(marca) x.anulado = marca; else delete x.anulado; x.actualizado = new Date().toISOString();
-            await guardarFac(`${anular?"Anular":"Reactivar"} ${rec.tipo.toLowerCase()} ${rec.numero}`); }
+            if(prueba) quitarPruebas(FHIST.docs, FHIST);
+            await guardarFac(`${prueba ? "Borrar documento de prueba" : anular ? "Anular" : "Reactivar"} ${rec.tipo.toLowerCase()} ${rec.numero}`); }
           break;
         }catch(e){ if(e.status!==409 || i===2) throw e; }
       }
+      if(extra.length) for(let i=0;i<3;i++){   // documentos hechos desde la cotización
+        try{ await cargarFac(); extra.forEach(r => { const x = FHIST.docs.find(d => d.codigo===r.codigo); if(x){ x.anulado = {...marca, porCotizacion: rec.numero}; x.actualizado = new Date().toISOString(); } });
+          if(prueba) quitarPruebas(FHIST.docs, FHIST);
+          await guardarFac(`${prueba ? "Borrar" : "Anular"} ${extra.map(r => r.numero).join(", ")} (de la cotización ${rec.numero})`); break; }
+        catch(e){ if(e.status!==409 || i===2) throw e; }
+      }
       box.innerHTML = ""; $("h-status").className = "status ok";
-      $("h-status").textContent = `✓ ${kind==="cot" ? "Cotización" : rec.tipo} ${rec.numero} ${anular ? (fem?"anulada":"anulado") : (fem?"reactivada":"reactivado")}.`;
+      const nomOk = `${kind==="cot" ? "Cotización" : rec.tipo} ${rec.numero}`;
+      $("h-status").textContent = prueba ? `✓ ${nomOk}${extra.length ? " y " + extra.map(r => r.tipo.toLowerCase() + " " + r.numero).join(", ") : ""}: de prueba, ${extra.length || fem ? "borrados" : "borrado"} del historial.`
+        : `✓ ${nomOk} ${anular ? (fem?"anulada":"anulado") : (fem?"reactivada":"reactivado")}${extra.length ? ` · también ${extra.length === 1 ? "anulado" : "anulados"}: ${extra.map(r => r.tipo.toLowerCase() + " " + r.numero).join(", ")}` : ""}.`;
       kind==="cot" ? pintarHist() : pintarFac();
     }catch(e){ console.error(e); st.className="status bad"; st.textContent = "No se pudo completar: " + e.message; $("an-ok").disabled = false; $("an-no").disabled = false; }
   };
@@ -2780,7 +2810,9 @@ function pintarRep(){
   const pend = r2(D.fact.filter(d => enCxc(d) || d._k==="cot").reduce((a, d) => a + saldoDe(d), 0));
   const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
   const fAn = d => (d.anulado?.fecha || d.cxcAnulada?.fecha || d.fecha);
-  const anC = D.anCots.filter(c => enRango(fAn(c))), anF = D.anFact.filter(d => enRango(fAn(d)));
+  const reciente = d => diasEntre(fAn(d), hoyISO()) < 3;   // el aviso se ve 3 días; en el Excel quedan todos
+  const anC = D.anCots.filter(c => enRango(fAn(c)) && reciente(c)), anF = D.anFact.filter(d => enRango(fAn(d)) && reciente(d));
+  const anTodos = [...D.anCots.map(c => ({...c, tipo:"Cotización"})), ...D.anFact].filter(d => enRango(fAn(d)));
   const sAn = L => r2(L.reduce((a, d) => a + Number(d.total||0), 0));
   const notaAn = L => L.length ? `<i class="rp-anul">Anulado: ${money(sAn(L))}</i>` : "";
   $("rp-kpis").innerHTML = [
@@ -2789,7 +2821,7 @@ function pintarRep(){
     ["Cobrado", money(tCob), tFac ? `${pct(tCob, tFac)}% de lo facturado` : "&nbsp;"],
     ["Por cobrar hoy", money(pend), "saldo pendiente total"],
     ["Conversión", pct(nConv, nCot) + "%", `${nConv} de ${nCot} cotizaciones facturadas`],
-    ["Promedio por documento", money(nFac ? r2(tFac / nFac) : 0), nFac ? `${money(tFac)} ÷ ${nFac} documento${nFac===1?"":"s"}` : "sin documentos"]
+    ["Promedio por documento", money(nFac ? r2(tFac / nFac) : 0), nFac ? `${money(tFac)} / ${nFac} documento${nFac===1?"":"s"}` : "sin documentos"]
   ].map(([t, v, s]) => `<div class="kpi"><span>${t}</span><b>${v}</b><small>${s}</small></div>`).join("");
   // gráfico de barras por mes
   const max = Math.max(1, ...meses.flatMap(m => [M[m].cot, M[m].fac, M[m].cob]));
@@ -2819,15 +2851,17 @@ function pintarRep(){
     <td>${(e => `<span class="pill ${e.cls}">${e.t}</span>`)(estadoCot(c))}</td><td class="r">${money(c.total)}</td></tr>`).join("")
     + (sinF.length > 15 ? `<tr><td colspan="5" class="hint">… y ${sinF.length - 15} más</td></tr>` : "")
     : `<tr><td colspan="5" class="empty">Todas las cotizaciones del período tienen recibo o factura.</td></tr>`;
-  REPCACHE = {meses, M, top, sinF};
+  REPCACHE = {meses, M, top, sinF, anTodos};
 }
 let REPCACHE = null;
 function exportarRep(){
-  if(!REPCACHE) return; const {meses, M, top, sinF} = REPCACHE, wb = XLSX.utils.book_new();
+  if(!REPCACHE) return; const {meses, M, top, sinF, anTodos} = REPCACHE, wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(meses.map(m => ({"Mes": nomMes(m), "Cotizaciones": M[m].nCot, "Cotizado": r2(M[m].cot), "Recibos/facturas": M[m].nFac,
     "Facturado": r2(M[m].fac), "Cobrado": r2(M[m].cob), "Cotizaciones facturadas": M[m].conv, "Conversión %": M[m].nCot ? Math.round(M[m].conv/M[m].nCot*100) : ""}))), "Por mes");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(top.map((x,i) => ({"#": i+1, "Cliente": x.nombre, "Cotizado": r2(x.cot), "Documentos": x.n, "Facturado": r2(x.fac), "Cobrado": r2(x.cob)}))), "Mejores clientes");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sinF.map(c => ({"N.º": c.numero, "Fecha": PDFFAC.dmy(c.fecha), "Cliente": c.cliente, "Estado": estadoCot(c).t, "Total": c.total}))), "Sin facturar");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(anTodos.length ? anTodos.map(d => ({"Tipo": d.tipo, "N.º": d.numero, "Cliente": d.cliente, "Fecha": PDFFAC.dmy(d.fecha),
+    "Fecha de anulación": PDFFAC.dmy(d.anulado?.fecha || d.cxcAnulada?.fecha || ""), "Motivo": d.anulado?.motivo || "", "Monto": r2(Number(d.total||0))})) : [{"Tipo": "Sin anulados en el período"}]), "Anulados");
   XLSX.writeFile(wb, `Reporte_${$("rp-anio").value==="12m" ? "12_meses" : $("rp-anio").value}_${hoyISO()}.xlsx`);
 }
 $("rp-anio").onchange = () => { pintarRep(); animarRep(); };
