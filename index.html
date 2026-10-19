@@ -79,7 +79,7 @@
   .pw{position:relative;max-width:420px}.pw input{width:100%;padding-right:46px}
   .pw .ojo{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:38px;height:38px;padding:0;margin:0;border:0;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
   .pw .ojo svg{width:20px;height:20px}.pw .ojo .o-a{display:none}.pw .ojo.on .o-a{display:inline}.pw .ojo.on .o-c{display:none}.pw .ojo:hover,.pw .ojo.on{color:var(--navy);background:var(--panel)}
-  .rp-anul{display:inline-block;margin-top:3px;color:var(--red);font-weight:600;font-style:normal}
+  .rp-anul{display:table;margin:6px auto 0;padding:2px 9px;border-radius:999px;background:var(--red-bg);border:1px solid #F5C2C2;color:var(--red);font-size:11.5px;font-weight:600;font-style:normal}
   .fx-op-b{display:flex;flex-direction:column;align-items:center;gap:4px;padding:18px 12px;border-radius:14px;background:var(--panel);border:1.5px solid #CBD3DF;color:var(--navy);white-space:normal;text-align:center}
   .fx-op-b span{font-size:28px}.fx-op-b b{font-size:16px}.fx-op-b small{font-size:12px;color:var(--muted);font-weight:500}
   .fx-op-b:hover,.fx-op-b:focus{border-color:var(--orange);background:#FFF8E8;outline:none}
@@ -2739,11 +2739,13 @@ checkToken().then(ok => { if(ok) prepPass(); });
 const MES_C = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const mesDe = iso => String(iso||"").slice(0,7);
 const nomMes = k => MES_C[Number(k.slice(5,7))-1] + " " + k.slice(2,4);
-function repMeses(sel){
+const mesMas = (k, n) => { let y = Number(k.slice(0,4)), m = Number(k.slice(5,7)) - 1 + n; y += Math.floor(m/12); m = ((m % 12) + 12) % 12; return `${y}-${String(m+1).padStart(2,"0")}`; };
+function repMeses(sel, primero){
   if(sel && /^\d{4}$/.test(sel)) return Array.from({length:12}, (_,i) => `${sel}-${String(i+1).padStart(2,"0")}`);
-  const h = hoyISO(); let y = Number(h.slice(0,4)), m = Number(h.slice(5,7)); const out = [];
-  for(let i=0;i<12;i++){ out.unshift(`${y}-${String(m).padStart(2,"0")}`); if(--m===0){ m=12; y--; } }
-  return out;
+  // 12 meses: empieza en el primer mes con datos (o el actual) y avanza; cuando ya hay más de un año, muestra los últimos 12
+  const actual = mesDe(hoyISO()), hace11 = mesMas(actual, -11);
+  let ini = primero && primero > hace11 ? primero : hace11; if(ini > actual) ini = actual;
+  return Array.from({length:12}, (_,i) => mesMas(ini, i));
 }
 function repDatos(){
   const cots = (HIST?.cotizaciones||[]).filter(c => !c.anulado);
@@ -2752,7 +2754,7 @@ function repDatos(){
   const fact = [...docs, ...cotCx];
   // anulados: no se suman, solo se informan
   const anCots = (HIST?.cotizaciones||[]).filter(c => c.anulado);
-  const anFact = [...[...(FHIST?.docs||[]), ...(FHIST?.previos||[])].filter(d => d.anulado), ...anCots.filter(c => c.cxc || c.cxcAnulada)];
+  const anFact = [...(FHIST?.docs||[]), ...(FHIST?.previos||[])].filter(d => d.anulado);   // solo recibos y facturas anulados
   const cobros = []; fact.forEach(d => {
     const ab = d.cobro?.abonos;
     if(ab && ab.length) ab.forEach(a => cobros.push({fecha:a.fecha || d.fecha, monto:Number(a.monto||0), cliente:d.cliente}));
@@ -2767,7 +2769,8 @@ function pintarRep(){
   const anios = [...new Set([...D.cots.map(c => c.fecha), ...D.fact.map(d => d.fecha), ...D.cobros.map(c => c.fecha)].filter(Boolean).map(f => f.slice(0,4)))].sort().reverse();
   sel.innerHTML = `<option value="12m">Últimos 12 meses</option>` + anios.map(a => `<option value="${a}"${a===cur?" selected":""}>${a}</option>`).join("");
   if(cur!=="12m" && !anios.includes(cur)) sel.value = "12m";
-  const meses = repMeses(sel.value), enRango = f => meses.includes(mesDe(f));
+  const fechas = [...D.cots, ...D.fact, ...D.anCots, ...D.anFact].map(x => x.fecha).concat(D.cobros.map(c => c.fecha)).filter(Boolean).map(mesDe).sort();
+  const meses = repMeses(sel.value, fechas[0]), enRango = f => meses.includes(mesDe(f));
   const M = Object.fromEntries(meses.map(k => [k, {cot:0, nCot:0, fac:0, nFac:0, cob:0, conv:0}]));
   D.cots.filter(c => enRango(c.fecha)).forEach(c => { const m = M[mesDe(c.fecha)]; m.cot += Number(c.total||0); m.nCot++; if(D.conv.has(c.numero)) m.conv++; });
   D.fact.filter(d => enRango(d.fecha)).forEach(d => { const m = M[mesDe(d.fecha)]; m.fac += Number(d.total||0); m.nFac++; });
@@ -2779,7 +2782,7 @@ function pintarRep(){
   const fAn = d => (d.anulado?.fecha || d.cxcAnulada?.fecha || d.fecha);
   const anC = D.anCots.filter(c => enRango(fAn(c))), anF = D.anFact.filter(d => enRango(fAn(d)));
   const sAn = L => r2(L.reduce((a, d) => a + Number(d.total||0), 0));
-  const notaAn = L => L.length ? `<br><i class="rp-anul">Anulado: ${money(sAn(L))} · no suma</i>` : "";
+  const notaAn = L => L.length ? `<i class="rp-anul">Anulado: ${money(sAn(L))} · no suma</i>` : "";
   $("rp-kpis").innerHTML = [
     ["Cotizado", money(tCot), `${nCot} cotizaci${nCot===1?"ón":"ones"}` + notaAn(anC)],
     ["Facturado", money(tFac), `${nFac} recibo(s) / factura(s)` + notaAn(anF)],
