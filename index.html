@@ -79,6 +79,7 @@
   .pw{position:relative;max-width:420px}.pw input{width:100%;padding-right:46px}
   .pw .ojo{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:38px;height:38px;padding:0;margin:0;border:0;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
   .pw .ojo svg{width:20px;height:20px}.pw .ojo .o-a{display:none}.pw .ojo.on .o-a{display:inline}.pw .ojo.on .o-c{display:none}.pw .ojo:hover,.pw .ojo.on{color:var(--navy);background:var(--panel)}
+  .rp-anul{display:inline-block;margin-top:3px;color:var(--red);font-weight:600;font-style:normal}
   .fx-op-b{display:flex;flex-direction:column;align-items:center;gap:4px;padding:18px 12px;border-radius:14px;background:var(--panel);border:1.5px solid #CBD3DF;color:var(--navy);white-space:normal;text-align:center}
   .fx-op-b span{font-size:28px}.fx-op-b b{font-size:16px}.fx-op-b small{font-size:12px;color:var(--muted);font-weight:500}
   .fx-op-b:hover,.fx-op-b:focus{border-color:var(--orange);background:#FFF8E8;outline:none}
@@ -2447,9 +2448,9 @@ function pintarCxc(){
     kp("Total vencido", money(venT), `${ven.length} documento(s)`, "k-bad") +
     kp("Total por vencer", money(porT), `${por.length} documento(s)`, "k-warn") +
     kp("Total cobrado", money(cobT), `${pct(cobT)} del facturado`, "k-ok") +
-    kp("Total cotizado", money(cotT), cotMat > 0 ? `M. de obra ${money(cotMO)} · Mat. ${money(cotMat)}` : `${cots.length} cotización(es) · solo mano de obra`, "k-blue") +
-    kp("Saldo por cobrar", money(saldoT), `${pct(saldoT)} del facturado`, "k-navy") +
-    kp("Facturado", money(fact), `${pct(cobT)} cobrado`, "k-lila");
+    kp("Total cotizado", money(cotT), !cots.length ? "sin cotizaciones vigentes" : cotMat > 0 ? `M. de obra ${money(cotMO)} · Mat. ${money(cotMat)}` : `${cots.length} cotización(es) · solo mano de obra`, "k-blue") +
+    kp("Facturado", money(fact), `${pct(cobT)} cobrado`, "k-navy") +
+    kp("Saldo por cobrar", money(saldoT), `${pct(saldoT)} del facturado`, "k-lila");
   const segs = [["Cobrado", cobT, "s-ok"], ["Vencido", venT, "s-bad"], ["Por vencer", porT, "s-warn"]];
   $("cx-bar").innerHTML = fact ? `<div class="cx-fill" style="width:${CXANIM ? 0 : 100}%">` + segs.filter(s => s[1] > 0).map(([t,v,c]) => `<div class="seg-b ${c}" style="flex:${v} 1 0" title="${t}: ${money(v)} (${pct(v)})"></div>`).join("") + `</div>` : '<div class="seg-b s-empty" style="flex:1"></div>';
   $("cx-pend").innerHTML = (ven.length + por.length)
@@ -2749,13 +2750,16 @@ function repDatos(){
   const docs = [...(FHIST?.docs||[]), ...(FHIST?.previos||[])].filter(d => !d.anulado);
   const cotCx = cots.filter(c => c.cxc).map(vistaCot);           // cotizaciones cobradas sin recibo
   const fact = [...docs, ...cotCx];
+  // anulados: no se suman, solo se informan
+  const anCots = (HIST?.cotizaciones||[]).filter(c => c.anulado);
+  const anFact = [...[...(FHIST?.docs||[]), ...(FHIST?.previos||[])].filter(d => d.anulado), ...anCots.filter(c => c.cxc || c.cxcAnulada)];
   const cobros = []; fact.forEach(d => {
     const ab = d.cobro?.abonos;
     if(ab && ab.length) ab.forEach(a => cobros.push({fecha:a.fecha || d.fecha, monto:Number(a.monto||0), cliente:d.cliente}));
     else if(d.cobro?.estado==="Cobrado") cobros.push({fecha:d.cobro.fecha || d.fecha, monto:Number(d.total||0), cliente:d.cliente});
   });
   const conv = new Set(docs.flatMap(cotsDeDoc)); cotCx.forEach(c => conv.add(c.numero));
-  return {cots, docs, fact, cobros, conv};
+  return {cots, docs, fact, cobros, conv, anCots, anFact};
 }
 function pintarRep(){
   if(!HIST || !FHIST) return;
@@ -2772,13 +2776,17 @@ function pintarRep(){
   const tCot = sum("cot"), tFac = sum("fac"), tCob = sum("cob"), nCot = sum("nCot"), nConv = sum("conv"), nFac = sum("nFac");
   const pend = r2(D.fact.filter(d => enCxc(d) || d._k==="cot").reduce((a, d) => a + saldoDe(d), 0));
   const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+  const fAn = d => (d.anulado?.fecha || d.cxcAnulada?.fecha || d.fecha);
+  const anC = D.anCots.filter(c => enRango(fAn(c))), anF = D.anFact.filter(d => enRango(fAn(d)));
+  const sAn = L => r2(L.reduce((a, d) => a + Number(d.total||0), 0));
+  const notaAn = L => L.length ? `<br><i class="rp-anul">Anulado: ${money(sAn(L))} · no suma</i>` : "";
   $("rp-kpis").innerHTML = [
-    ["Cotizado", money(tCot), `${nCot} cotizaci${nCot===1?"ón":"ones"}`],
-    ["Facturado", money(tFac), `${nFac} documento(s) emitido(s), estén o no en «Por cobrar»`],
+    ["Cotizado", money(tCot), `${nCot} cotizaci${nCot===1?"ón":"ones"}` + notaAn(anC)],
+    ["Facturado", money(tFac), `${nFac} recibo(s) / factura(s)` + notaAn(anF)],
     ["Cobrado", money(tCob), tFac ? `${pct(tCob, tFac)}% de lo facturado` : "&nbsp;"],
     ["Por cobrar hoy", money(pend), "saldo pendiente total"],
     ["Conversión", pct(nConv, nCot) + "%", `${nConv} de ${nCot} cotizaciones facturadas`],
-    ["Ticket promedio", money(nFac ? r2(tFac / nFac) : 0), "por recibo / factura"]
+    ["Promedio por documento", money(nFac ? r2(tFac / nFac) : 0), "por recibo o factura"]
   ].map(([t, v, s]) => `<div class="kpi"><span>${t}</span><b>${v}</b><small>${s}</small></div>`).join("");
   // gráfico de barras por mes
   const max = Math.max(1, ...meses.flatMap(m => [M[m].cot, M[m].fac, M[m].cob]));
