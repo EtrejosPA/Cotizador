@@ -86,6 +86,11 @@
   .ff-it span{font-size:11px;font-weight:700;color:var(--navy)}.ff-x{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;padding:0;margin:0;background:var(--red);color:#fff;border:2px solid #fff;font-size:13px;line-height:1;cursor:pointer}
   .ff-btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.ff-b{position:relative;overflow:hidden;cursor:pointer;margin:0;text-transform:none;letter-spacing:0;font-size:13px}.ff-b input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
   .ajc{display:flex;gap:6px;align-items:center;margin-bottom:6px}.ajc .ajc-t{flex:1;min-width:0}.ajc .ajc-tipo{width:auto;flex:none}.ajc .b-sm{flex:none;padding:6px 10px}
+  .col-t{cursor:pointer;border-radius:4px}.col-t i{font-style:normal;opacity:.45;font-size:10px}.col-t:hover i{opacity:1;color:var(--navy)}.col-t:hover{color:var(--navy)}
+  .col-in{font-size:16px!important;padding:3px 6px!important;height:auto!important;text-transform:none;font-weight:600;width:100%}
+  .ff-drop{font-size:12.5px;color:var(--muted);border:1.5px dashed #CBD3DF;border-radius:8px;padding:7px 12px;flex:1;min-width:180px;text-align:center}
+  .ffotos.ff-sobre{background:#FFF8E8;outline:2px dashed var(--orange);outline-offset:4px;border-radius:8px}
+  @media (hover:none), (pointer:coarse){ .ff-drop{display:none} }
   .fx-op-b{display:flex;flex-direction:column;align-items:center;gap:4px;padding:18px 12px;border-radius:14px;background:var(--panel);border:1.5px solid #CBD3DF;color:var(--navy);white-space:normal;text-align:center}
   .fx-op-b span{font-size:28px}.fx-op-b b{font-size:16px}.fx-op-b small{font-size:12px;color:var(--muted);font-weight:500}
   .fx-op-b:hover,.fx-op-b:focus{border-color:var(--orange);background:#FFF8E8;outline:none}
@@ -432,7 +437,7 @@
     </div>
 
     <div class="card">
-      <h2>Detalle</h2>
+      <h2 style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">Detalle <button class="b-ghost b-sm" id="fx-cols-edit" title="Agregar, quitar u ordenar columnas">⚙️ Editar columnas</button></h2>
       <p class="hint" style="margin-bottom:10px">Llena solo las columnas que necesites: <b>en el PDF salen únicamente las columnas que tengan datos</b>. Si pones precio unitario, el total se calcula solo (cantidad × precio); si no, escribe el total directamente.</p>
       <div class="rows" id="fx-rows"></div>
       <button class="b-ghost b-sm" style="margin-top:10px" id="fx-add">+ Agregar fila</button>
@@ -1395,6 +1400,7 @@ function pintarCols(){
     row.querySelector(".ajc-dn").onclick = () => { [AJCOLS[i+1], AJCOLS[i]] = [AJCOLS[i], AJCOLS[i+1]]; pintarCols(); };
     row.querySelector(".ajc-x").onclick = () => { AJCOLS.splice(i,1); pintarCols(); }; });
 }
+$("fx-cols-edit").onclick = () => { abrirAjustes(); setTimeout(() => $("aj-cols").closest(".card").scrollIntoView({behavior:"smooth", block:"start"}), 300); };
 $("aj-col-add").onclick = () => { AJCOLS.push({k:"c" + idFoto(), t:""}); pintarCols(); const ins = $("aj-cols").querySelectorAll(".ajc-t"); ins[ins.length-1].focus(); };
 $("aj-col-def").onclick = () => { AJCOLS = COLS_DEF.map(c => ({...c})); pintarCols(); $("aj-col-st").className = "status"; $("aj-col-st").textContent = "Pulsa «Guardar columnas» para aplicar."; };
 $("aj-col-ok").onclick = async () => {
@@ -1815,6 +1821,38 @@ async function fotoPortal(codigo, id){   // trae y descifra una foto ya publicad
   if(!r.ok) throw new Error("foto no encontrada"); const bin = new Uint8Array(await r.arrayBuffer());
   return FOTOCACHE[kk] = URL.createObjectURL(new Blob([await descifrar(k.key, bin.slice(0,12), bin.slice(12))], {type:"image/jpeg"}));
 }
+let FILA_ACT = null;   // fila donde se pegan las fotos con Ctrl+V
+async function agregarFotos(div, files){
+  const st = div.querySelector(".ff-st"), fs = files.filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|heic|heif|webp|gif)$/i.test(f.name||""));
+  if(!fs.length){ if(files.length) st.textContent = "Solo se aceptan imágenes."; return; }
+  st.textContent = "Preparando foto(s)…";
+  for(const f of fs){ try{ const blob = await comprimirFoto(f); div._fotos.push({id:idFoto(), blob, url:URL.createObjectURL(blob)}); }catch(e){ st.textContent = "No pude leer " + (f.name || "la imagen"); } }
+  if(st.textContent==="Preparando foto(s)…") st.textContent = ""; pintarFotos(div); fCalc();
+}
+document.addEventListener("paste", e => {   // pegar fotos con Ctrl+V en la fila activa de Facturación
+  if($("sec-fac").classList.contains("hidden")) return;
+  const fs = [...(e.clipboardData?.files || [])].filter(f => /^image\//.test(f.type)); if(!fs.length) return;
+  const filas = [...$("fx-rows").children], div = filas.includes(FILA_ACT) ? FILA_ACT : filas[filas.length-1]; if(!div) return;
+  e.preventDefault(); agregarFotos(div, fs.map((f,i) => new File([f], f.name && f.name!=="image.png" ? f.name : `pegada_${Date.now()}_${i}.png`, {type:f.type})));
+});
+/* renombrar una columna tocando su título (queda guardado para los documentos nuevos) */
+document.addEventListener("click", e => {
+  const tl = e.target.closest("#fx-rows .col-t"); if(!tl || tl.querySelector("input")) return; if(!FCOLS) FCOLS = colsFac();
+  const k = tl.dataset.k, c = fcols().find(x => x.k===k); if(!c) return;
+  tl.innerHTML = `<input type="text" class="col-in" value="${esc(c.t)}" maxlength="40">`; const ip = tl.querySelector("input"); ip.focus(); ip.select();
+  let hecho = false;
+  const fin = async ok => { if(hecho) return; hecho = true; const t = ip.value.trim();
+    if(ok && t && t!==c.t){
+      if(["descripción","descripcion","cantidad","precio unitario","total"].includes(t.toLowerCase()) || fcols().some(x => x.k!==k && x.t.toLowerCase()===t.toLowerCase())){ $("fx-status").className = "status bad"; $("fx-status").textContent = `Ya existe una columna llamada «${t}».`; }
+      else { c.t = t; try{ await guardarAjustes(a => { const L = (Array.isArray(a.colsFac) && a.colsFac.length ? a.colsFac : COLS_DEF.map(x => ({...x}))); const y = L.find(x => x.k===k); if(y) y.t = t; else L.push({k, t}); a.colsFac = L; }, `Ajustes: columna «${t}»`);
+               $("fx-status").className = "status ok"; $("fx-status").textContent = `✓ Columna renombrada a «${t}». Se usará también en los próximos documentos.`; }
+             catch(err){ $("fx-status").className = "status bad"; $("fx-status").textContent = "No se pudo guardar el nombre: " + err.message; } }
+    }
+    document.querySelectorAll(`#fx-rows .col-t[data-k="${CSS.escape(k)}"]`).forEach(x => x.innerHTML = `${esc(c.t)} <i>✎</i>`);
+  };
+  ip.addEventListener("keydown", ev => { if(ev.key==="Enter"){ ev.preventDefault(); fin(true); } if(ev.key==="Escape") fin(false); });
+  ip.addEventListener("blur", () => fin(true));
+});
 function pintarFotos(r, codigo){
   const list = r.querySelector(".ff-list"); if(!list) return;
   list.innerHTML = r._fotos.map((f,j) => `<div class="ff-it" data-id="${f.id}"><img alt="${etiquetaFoto(j)}"${f.url ? ` src="${f.url}"` : ""}><span>${etiquetaFoto(j)}</span><button type="button" class="ff-x" title="Quitar foto">×</button></div>`).join("");
@@ -1836,24 +1874,25 @@ function fRow(it={}){
   div.innerHTML = `<div class="frow-h"><b class="fn"></b><button class="b-x" title="Quitar fila">×</button></div>
     <div><span class="lbl2">Descripción</span><textarea class="in fx-desc" rows="2" placeholder="Descripción del servicio">${esc(it.desc||"")}</textarea></div>
     <div class="fgrid">
-      ${fcols().map(c => c.tipo==="fecha"
-        ? `<div><span class="lbl2">${esc(c.t)}</span><input type="date" class="in fx-c" data-k="${esc(c.k)}" value="${esc(it[c.k]??"")}"></div>`
-        : `<div><span class="lbl2">${esc(c.t)}</span><textarea class="in fx-c" data-k="${esc(c.k)}" rows="1">${esc(it[c.k]??"")}</textarea></div>`).join("")}
+      ${fcols().map(c => { const tl = `<span class="lbl2 col-t" data-k="${esc(c.k)}" title="Toca para cambiar el título de la columna">${esc(c.t)} <i>✎</i></span>`;
+        return c.tipo==="fecha"
+        ? `<div>${tl}<input type="date" class="in fx-c" data-k="${esc(c.k)}" value="${esc(it[c.k]??"")}"></div>`
+        : `<div>${tl}<textarea class="in fx-c" data-k="${esc(c.k)}" rows="1">${esc(it[c.k]??"")}</textarea></div>`; }).join("")}
       <div><span class="lbl2">Cantidad</span><input type="number" inputmode="decimal" step="any" min="0" class="in fx-cant" value="${it.cant??""}"></div>
       <div><span class="lbl2">Precio unitario</span><input type="number" inputmode="decimal" step="any" min="0" class="in fx-precio" value="${it.precio??""}"></div>
       <div><span class="lbl2">Total</span><input type="number" inputmode="decimal" step="any" min="0" class="in fx-tot" value="${it.precio==null||it.precio==="" ? (it.total??"") : ""}"></div>
     </div>`;
   const ff = document.createElement("div"); ff.className = "ffotos";
   ff.innerHTML = `<span class="lbl2">Evidencia fotográfica</span><div class="ff-list"></div>
-    <div class="ff-btns"><label class="b-ghost b-sm ff-b">📷 Tomar foto<input type="file" accept="image/*" capture="environment"></label>
-    <label class="b-ghost b-sm ff-b">🖼️ Galería o archivo<input type="file" accept="image/*" multiple></label><span class="hint ff-st"></span></div>`;
+    <div class="ff-btns"><label class="b-ghost b-sm ff-b">🖼️ Galería o archivo<input type="file" accept="image/*" multiple></label>
+    <span class="ff-drop">o arrastra las fotos aquí · también puedes pegarlas (Ctrl+V)</span><span class="hint ff-st"></span></div>`;
   div.appendChild(ff); div._fotos = [];
-  ff.querySelectorAll("input[type=file]").forEach(inp => inp.onchange = async () => {
-    const st = ff.querySelector(".ff-st"), fs = [...inp.files]; inp.value = ""; if(!fs.length) return;
-    st.textContent = "Preparando foto(s)…";
-    for(const f of fs){ try{ const blob = await comprimirFoto(f); div._fotos.push({id:idFoto(), blob, url:URL.createObjectURL(blob)}); }catch(e){ st.textContent = "No pude leer " + f.name; } }
-    st.textContent = ""; pintarFotos(div); fCalc();
-  });
+  const finp = ff.querySelector("input[type=file]");
+  finp.onchange = () => { const fs = [...finp.files]; finp.value = ""; agregarFotos(div, fs); };
+  ff.addEventListener("dragover", e => { if([...e.dataTransfer.items].some(i => i.kind==="file")){ e.preventDefault(); ff.classList.add("ff-sobre"); } });
+  ff.addEventListener("dragleave", e => { if(!ff.contains(e.relatedTarget)) ff.classList.remove("ff-sobre"); });
+  ff.addEventListener("drop", e => { e.preventDefault(); ff.classList.remove("ff-sobre"); agregarFotos(div, [...e.dataTransfer.files]); });
+  div.addEventListener("pointerdown", () => FILA_ACT = div); div.addEventListener("focusin", () => FILA_ACT = div);
   div.querySelector(".b-x").onclick = () => { div.remove(); if(!$("fx-rows").children.length) fAdd(); fCalc(); };
   div.querySelectorAll("input,textarea").forEach(el => el.addEventListener("input", fCalc));
   div.querySelectorAll("textarea").forEach(ta => { const fit = () => { ta.style.height="auto"; ta.style.height=(ta.scrollHeight+2)+"px"; }; ta.addEventListener("input", fit); requestAnimationFrame(fit); });
