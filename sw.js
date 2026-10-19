@@ -1,6 +1,6 @@
 /* Cotizador · Grupo LEAN — modo sin conexión.
    Siempre pide la versión nueva a internet; solo si no hay conexión usa la última copia guardada. */
-const VERSION = "lean-cot-v1";
+const VERSION = "lean-cot-v2";
 const BASE = ["./", "index.html", "manifest.webmanifest", "marca-agua.png", "apple-touch-icon.png", "icon-192.png", "icon-512.png",
   "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
   "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js",
@@ -21,7 +21,9 @@ self.addEventListener("fetch", e => {
   e.respondWith((async () => {
     const k = clave(req);
     try{
-      const r = await fetch(req);
+      // páginas y archivos propios: siempre se confirma con el servidor (sin usar la copia de 10 min del navegador)
+      const propio = u.origin === self.location.origin || u.hostname.endsWith("github.io");
+      const r = await fetch(propio ? new Request(req, {cache: "no-cache"}) : req);
       if(r.ok || r.type === "opaque"){ const copia = r.clone(); caches.open(VERSION).then(c => c.put(k, copia)).catch(() => {}); }
       return r;
     }catch(err){
