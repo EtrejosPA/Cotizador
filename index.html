@@ -81,6 +81,11 @@
   .pw .ojo svg{width:20px;height:20px}.pw .ojo .o-a{display:none}.pw .ojo.on .o-a{display:inline}.pw .ojo.on .o-c{display:none}.pw .ojo:hover,.pw .ojo.on{color:var(--navy);background:var(--panel)}
   .rp-anul{display:block;margin-top:4px;color:#D46A6A;font-weight:600;font-style:normal}
   .an-lig{margin-top:10px;padding:10px 12px;background:#fff;border:1px solid #F5C2C2;border-radius:10px;display:flex;flex-direction:column;gap:6px}
+  .ffotos{border-top:1px dashed #CBD3DF;padding-top:8px}.ff-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}.ff-list:empty{display:none}
+  .ff-it{position:relative;width:84px;text-align:center}.ff-it img{width:84px;height:64px;object-fit:cover;border-radius:8px;background:#E3E7EE;display:block}
+  .ff-it span{font-size:11px;font-weight:700;color:var(--navy)}.ff-x{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;padding:0;margin:0;background:var(--red);color:#fff;border:2px solid #fff;font-size:13px;line-height:1;cursor:pointer}
+  .ff-btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.ff-b{position:relative;overflow:hidden;cursor:pointer;margin:0;text-transform:none;letter-spacing:0;font-size:13px}.ff-b input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+  .ajc{display:flex;gap:6px;align-items:center;margin-bottom:6px}.ajc .ajc-t{flex:1;min-width:0}.ajc .ajc-tipo{width:auto;flex:none}.ajc .b-sm{flex:none;padding:6px 10px}
   .fx-op-b{display:flex;flex-direction:column;align-items:center;gap:4px;padding:18px 12px;border-radius:14px;background:var(--panel);border:1.5px solid #CBD3DF;color:var(--navy);white-space:normal;text-align:center}
   .fx-op-b span{font-size:28px}.fx-op-b b{font-size:16px}.fx-op-b small{font-size:12px;color:var(--muted);font-weight:500}
   .fx-op-b:hover,.fx-op-b:focus{border-color:var(--orange);background:#FFF8E8;outline:none}
@@ -535,6 +540,15 @@
       <div class="actions" style="justify-content:flex-start;margin-top:12px"><button class="b-ghost" id="aj-cambiar">Cambiar clave de GitHub</button></div>
     </div>
     <div class="card">
+      <h2>🧾 Columnas de recibos y facturas</h2>
+      <p class="hint" style="margin-bottom:10px"><b>Descripción, Cantidad, Precio unitario y Total</b> son fijas. Las de abajo las puedes agregar, renombrar, ordenar o quitar. En el PDF solo salen las columnas que tengan datos. Los documentos ya emitidos conservan sus columnas.</p>
+      <div id="aj-cols"></div>
+      <div class="actions" style="justify-content:flex-start;margin-top:10px">
+        <button class="b-ghost" id="aj-col-add">+ Agregar columna</button><button class="b-navy" id="aj-col-ok">Guardar columnas</button><button class="b-ghost" id="aj-col-def">Restaurar las de fábrica</button>
+      </div>
+      <div class="status" id="aj-col-st"></div>
+    </div>
+    <div class="card">
       <h2>💾 Respaldo completo</h2>
       <p class="hint">Descarga una copia de <b>todo</b>: cotizaciones, recibos y facturas con su detalle, cobros, cuentas por cobrar y clientes. Guárdala en tu computadora o en la nube. Recomendado: <b>una vez al mes</b>.</p>
       <div class="actions" style="justify-content:flex-start;margin-top:10px">
@@ -558,6 +572,7 @@
     <div class="htools">
       <input type="search" id="h-q" placeholder="Buscar por N°, cliente o RUC…">
       <button class="b-ghost" id="h-sort">Orden: más reciente primero ↓</button>
+      <button class="b-ghost hidden" id="h-cons" title="Junta en un solo recibo o factura los saldos de varios del mismo cliente">🧩 Consolidar</button>
       <button class="b-ghost" id="h-pdf" title="Agrega al sistema una cotización, recibo o factura hecha en Excel y exportada a PDF">📥 Incorporar PDF</button>
       <button class="b-ghost" id="h-import">Importar desde Excel</button>
       <button class="b-navy" id="h-export">Exportar a Excel</button>
@@ -836,8 +851,15 @@ const PDFFAC = (() => {
   }
 
   /* columnas que se imprimen: las que tienen algún dato (Descripción y Total siempre) */
-  function visibles(items){
-    return COLS.filter(([k]) => k==="desc" || k==="total" || items.some(it => it[k]!=null && String(it[k]).trim()!==""));
+  const PESO = {empresa:1.5, recoge:1.6, entrega:1.6, km:0.7, vehiculo:1.0, obs:1.6, fecha:1.3};
+  function columnas(d){   // d.cols = columnas guardadas con el documento (configurables); si no, las de siempre
+    if(!Array.isArray(d.cols)) return COLS.map(c => [...c, c[0]==="fecha" ? "fecha" : ""]);
+    const mid = d.cols.map(c => [c.k, c.t, PESO[c.k] || 1.4, (c.tipo==="fecha" || c.k==="km" || c.k==="vehiculo") ? "center" : "left", c.tipo || ""]);
+    return [["desc","Descripción",3.2,"left",""], ...mid, ["cant","Cantidad",1.1,"left",""], ["precio","Precio Unitario",1.3,"right",""], ["total","Total",1.1,"right",""]];
+  }
+  function visibles(d){
+    return columnas(d).filter(([k]) => k==="desc" || k==="total" || d.items.some(it => it[k]!=null && String(it[k]).trim()!==""))
+      .map(c => c[0]==="desc" && d.tituloDesc ? [c[0], d.tituloDesc, ...c.slice(2)] : c);
   }
   function header(doc, A, d){
     doc.addImage(A.logo, "PNG", 5.5, 16.7, 153.4, 153.4, "logo", "FAST");
@@ -867,9 +889,9 @@ const PDFFAC = (() => {
     return yEnd + 24.9;
   }
   function tabla(doc, A, d, y){
-    const cols = visibles(d.items);
+    const cols = visibles(d);
     const peso = cols.reduce((a,c) => a + c[2], 0);
-    let x = L; const geo = cols.map(([k,t,w,al]) => { const cw = W*w/peso, g = {k,t,al,x,w:cw}; x += cw; return g; });
+    let x = L; const geo = cols.map(([k,t,w,al,tipo]) => { const cw = W*w/peso, g = {k,t,al,x,w:cw,tipo}; x += cw; return g; });
     const sz = cols.length > 7 ? 8.2 : cols.length > 5 ? 9 : 10.1, lh = sz*1.14;
     // encabezado
     doc.setFont("Serif","bold"); doc.setFontSize(sz);
@@ -884,14 +906,32 @@ const PDFFAC = (() => {
         if(g.k==="total") v = money(it.total);
         else if(g.k==="precio") v = (v==null||v==="") ? "" : money(v);
         else if(g.k==="cant") v = (v==null||v==="") ? "" : fmtCant(v);
-        else if(g.k==="fecha") v = v ? dmy(v) : "";
+        else if(g.tipo==="fecha") v = v ? dmy(v) : "";
         doc.setFont("Serif", g.k==="total" ? "bold" : "normal"); doc.setFontSize(sz);
         const lines = String(v??"").split("\n").flatMap(p => doc.splitTextToSize(p, g.w-10));
-        return {g, lines};
+        // evidencia fotográfica: «Evidencia fotográfica: img01, img02» al final de la descripción, con enlaces al carrusel del portal
+        let fotos = null;
+        if(g.k==="desc" && it.fotos?.length && d.url){
+          const lab = "Evidencia fotográfica:", fila = d.items.indexOf(it) + 1;
+          doc.setFont("Serif","bold"); const wl = doc.getTextWidth(lab + " "); doc.setFont("Serif","normal");
+          const segs = []; let fx = g.x + 5 + wl, fl = 0;
+          it.fotos.forEach((id, j) => { const t = "img" + String(j+1).padStart(2,"0") + (j < it.fotos.length-1 ? "," : ""), tw = doc.getTextWidth(t);
+            if(fx + tw > g.x + g.w - 5 && fx > g.x + 5 + wl){ fl++; fx = g.x + 5; }
+            segs.push({t, x:fx, l:fl, w:doc.getTextWidth(t.replace(",","")), url: d.url + "&f=" + fila + "&i=" + (j+1)}); fx += tw + doc.getTextWidth(" "); });
+          fotos = {lab, ini: lines.length, segs, n: fl + 1};
+        }
+        return {g, lines, fotos};
       });
-      const n = Math.max(1, ...cel.map(c => c.lines.length)), h = n*lh + 11;
+      const n = Math.max(1, ...cel.map(c => c.lines.length + (c.fotos ? c.fotos.n : 0))), h = n*lh + 11;
       if(y + h > 640){ doc.addPage(); y = 50; }
       cel.forEach(({g, lines}) => lines.forEach((ln,i) => T(doc, ln, g.al==="right" ? g.x+g.w-5 : g.al==="center" ? g.x+g.w/2 : g.x+5, y + i*lh, {sz, st: g.k==="total"?"bold":"normal", al:g.al})));
+      cel.filter(c => c.fotos).forEach(({g, fotos}) => {
+        const y0 = y + fotos.ini*lh;
+        T(doc, fotos.lab, g.x+5, y0, {sz, st:"bold", c:C.navy});
+        fotos.segs.forEach(sg => { const yy = y0 + sg.l*lh; T(doc, sg.t, sg.x, yy, {sz, c:[30,79,184]});
+          doc.setDrawColor(30,79,184); doc.setLineWidth(0.5); doc.line(sg.x, yy + sz*0.92, sg.x + sg.w, yy + sz*0.92);
+          doc.link(sg.x - 1, yy - 1, sg.w + 2, lh + 2, {url: sg.url}); });
+      });
       R(doc, L, y + h - 6.5, W, 0.5, C.sep);
       y += h;
     });
@@ -909,7 +949,7 @@ const PDFFAC = (() => {
   }
 
   /* d = { tipo:"Recibo"|"Factura", numero, pedido, fecha, vence, cliente, ruc, direccion, telefono, url,
-          items:[{desc,empresa,recoge,entrega,km,vehiculo,obs,fecha,cant,precio,total}], subtotal, total, conPago, conPie } */
+          items:[{desc, <columnas de d.cols>, cant, precio, total, fotos:[ids]}], cols:[{k,t,tipo}], tituloDesc, subtotal, total, conPago, conPie } */
   function build(A, d){
     const doc = make(A);
     doc.setProperties({title:`${d.tipo} ${d.numero} · Grupo LEAN`, subject:d.cliente, author:"Grupo Σ LEAN — Ingeniería & Proyectos", creator:"Cotizador Grupo LEAN"});
@@ -932,8 +972,8 @@ const PDFFAC = (() => {
 
 </script>
 <script>
-const CFG = { owner:"EtrejosPA", repoVal:"Validar", repoCot:"Cotizador", branch:"main",
-              site:"https://etrejospa.github.io/Validar/", hist:"historial/registro.json" };
+const CFG = { owner:"GrupoLean", repoVal:"Validar", repoCot:"Cotizador", branch:"main",
+              site:"https://grupolean.github.io/Validar/", hist:"historial/registro.json" };
 const ALF = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 const $ = id => document.getElementById(id);
 const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1340,7 +1380,35 @@ function pintarAvisos(){
 async function guardarAjustes(cambio, msg){
   for(let i=0;i<3;i++){ try{ await recargarHist(); HIST.ajustes ||= {}; cambio(HIST.ajustes); await guardarHist(msg); return; }catch(e){ if(e.status!==409 || i===2) throw e; } }
 }
-function abrirAjustes(){ show("ajustes"); const v = AJ().tokenVence; $("aj-vence").value = v && v!=="nunca" ? v : ""; $("aj-nunca").checked = v==="nunca"; estadoVence(); }
+/* ----- editor de columnas ----- */
+let AJCOLS = null;
+function pintarCols(){
+  $("aj-cols").innerHTML = AJCOLS.map((c,i) => `<div class="ajc" data-i="${i}">
+    <input type="text" class="ajc-t" value="${esc(c.t)}" maxlength="40" placeholder="Título de la columna">
+    <select class="ajc-tipo"><option value="">Texto</option><option value="fecha"${c.tipo==="fecha"?" selected":""}>Fecha</option></select>
+    <button class="b-ghost b-sm ajc-up" title="Subir"${i===0?" disabled":""}>↑</button><button class="b-ghost b-sm ajc-dn" title="Bajar"${i===AJCOLS.length-1?" disabled":""}>↓</button>
+    <button class="b-ghost b-sm ajc-x" title="Quitar">✕</button></div>`).join("") || '<p class="hint">Sin columnas extra: los documentos solo tendrán Descripción, Cantidad, Precio y Total.</p>';
+  $("aj-cols").querySelectorAll(".ajc").forEach(row => { const i = Number(row.dataset.i);
+    row.querySelector(".ajc-t").oninput = e => AJCOLS[i].t = e.target.value;
+    row.querySelector(".ajc-tipo").onchange = e => { if(e.target.value) AJCOLS[i].tipo = e.target.value; else delete AJCOLS[i].tipo; };
+    row.querySelector(".ajc-up").onclick = () => { [AJCOLS[i-1], AJCOLS[i]] = [AJCOLS[i], AJCOLS[i-1]]; pintarCols(); };
+    row.querySelector(".ajc-dn").onclick = () => { [AJCOLS[i+1], AJCOLS[i]] = [AJCOLS[i], AJCOLS[i+1]]; pintarCols(); };
+    row.querySelector(".ajc-x").onclick = () => { AJCOLS.splice(i,1); pintarCols(); }; });
+}
+$("aj-col-add").onclick = () => { AJCOLS.push({k:"c" + idFoto(), t:""}); pintarCols(); const ins = $("aj-cols").querySelectorAll(".ajc-t"); ins[ins.length-1].focus(); };
+$("aj-col-def").onclick = () => { AJCOLS = COLS_DEF.map(c => ({...c})); pintarCols(); $("aj-col-st").className = "status"; $("aj-col-st").textContent = "Pulsa «Guardar columnas» para aplicar."; };
+$("aj-col-ok").onclick = async () => {
+  const st = $("aj-col-st"), L = AJCOLS.map(c => ({...c, t:c.t.trim()}));
+  if(L.some(c => !c.t)){ st.className = "status bad"; st.textContent = "Ponle título a todas las columnas (o quita las vacías)."; return; }
+  const dup = L.find((c,i) => L.findIndex(x => x.t.toLowerCase()===c.t.toLowerCase())!==i); if(dup){ st.className = "status bad"; st.textContent = `La columna «${dup.t}» está repetida.`; return; }
+  if(L.some(c => ["descripción","descripcion","cantidad","precio unitario","total"].includes(c.t.toLowerCase()))){ st.className = "status bad"; st.textContent = "Ese título ya es una columna fija."; return; }
+  st.className = "status"; st.textContent = "Guardando…";
+  try{ await guardarAjustes(a => { a.colsFac = L; }, "Ajustes: columnas de recibos y facturas"); AJCOLS = colsFac(); pintarCols();
+       if(!FEDIT && [...$("fx-rows").children].every(rowVacia)){ FCOLS = colsFac(); $("fx-rows").innerHTML = ""; fAdd(); }
+       st.className = "status ok"; st.textContent = "✓ Columnas guardadas. Se usan en los recibos y facturas nuevos."; }
+  catch(e){ st.className = "status bad"; st.textContent = "No se pudo guardar: " + e.message; }
+};
+function abrirAjustes(){ show("ajustes"); AJCOLS = colsFac(); pintarCols(); $("aj-col-st").textContent = ""; const v = AJ().tokenVence; $("aj-vence").value = v && v!=="nunca" ? v : ""; $("aj-nunca").checked = v==="nunca"; estadoVence(); }
 function estadoVence(){
   const st = $("aj-vence-st"), v = AJ().tokenVence;
   $("aj-vence").disabled = $("aj-vence-ok").disabled = v==="nunca";
@@ -1376,7 +1444,7 @@ function filasCot(){ return [...(HIST?.cotizaciones||[])].sort((a,b) => a.n-b.n)
 function filasFac(lista, etiqueta){ return [...lista].sort((a,b) => a.n-b.n).map(d => ({
   "N.º": d.numero, "Tipo": etiqueta || d.tipo, "Pedido / cotización": d.pedido && d.pedido!==d.numero ? d.pedido : "", "Fecha": PDFFAC.dmy(d.fecha), "Vencimiento": PDFFAC.dmy(d.vence),
   "Cliente": d.cliente, "CIP/RUC": d.ruc||"", "Email": d.email||"", "Teléfono": d.telefono||"", "Dirección": d.direccion||"", "Total": d.total,
-  "Cobrado": cobradoDe(d), "Saldo": d.anulado ? 0 : saldoDe(d), "Estado": d.anulado ? "Anulado" : estadoCxc(d), "En cuentas por cobrar": enCxc(d) ? "Sí" : "No", "Código": d.codigo })); }
+  "Cobrado": cobradoDe(d), "Saldo": d.anulado ? 0 : saldoDe(d), "Estado": d.anulado ? "Anulado" : d.consolidadoEn ? `En consolidado ${d.consolidadoEn.numero}` : estadoCxc(d), "En cuentas por cobrar": enCxc(d) ? "Sí" : "No", "Código": d.codigo })); }
 function clientesTodos(){
   const m = new Map();
   const add = (o, f) => { const k = String(o.cliente||"").trim().toLowerCase(); if(!k) return; const c = m.get(k) || {cliente:o.cliente.trim(), ruc:"", email:"", telefono:"", direccion:"", docs:0, ultimo:""};
@@ -1395,7 +1463,7 @@ $("aj-resp-xlsx").onclick = async () => {
       detC.push({"N° cotización": c.numero, "Hoja": h, "#": i+1, "Descripción": it.desc, "Cant.": it.cant, "Precio unit.": it.precio, "Total": r2(it.cant*it.precio)}))));
     hoja("Detalle cotizaciones", detC);
     hoja("Recibos y facturas", filasFac(FHIST?.docs||[]));
-    const detF = []; (FHIST?.docs||[]).forEach(d => d.items.forEach((it,i) => detF.push({"N.º": d.numero, "Tipo": d.tipo, "#": i+1, "Descripción": it.desc||"", "Cantidad": it.cant??"", "Precio unitario": it.precio??"", "Total": it.total})));
+    const detF = detalleFac([...(FHIST?.docs||[])].sort((a,b) => a.n-b.n));
     hoja("Detalle recibos", detF);
     const cob = []; [...(FHIST?.docs||[]), ...(FHIST?.previos||[]), ...(HIST?.cotizaciones||[])].forEach(d => (d.cobro?.abonos||[]).forEach(a => cob.push({"Documento": d.numero, "Cliente": d.cliente, "Fecha": PDFFAC.dmy(a.fecha), "Monto": a.monto, "Método": a.metodo||"", "Nota": a.nota||""})));
     hoja("Cobros", cob);
@@ -1686,7 +1754,20 @@ $("h-export").onclick = () => { if(HVIEW==="fac") return exportarFac();
 /* ==================== FACTURACIÓN (recibos y facturas) ==================== */
 CFG.histFac = "historial/facturacion.json";
 let FHIST = null, FSHA = null, FEDIT = null;
-const FCAMPOS = [["empresa","Empresa"],["recoge","Lugar donde recoge"],["entrega","Lugar donde entrega"],["km","KM"],["vehiculo","Vehículo"],["obs","Observaciones"],["fecha","Fecha"]];
+/* columnas de recibos y facturas: Descripción, Cantidad, Precio y Total son fijas; las demás se configuran en Ajustes */
+const COLS_LEGADO = {empresa:"Empresa", recoge:"Lugar donde recoge", entrega:"Lugar donde entrega", km:"KM", vehiculo:"Vehículo", obs:"Observaciones", fecha:"Fecha"};
+const COLS_DEF = [{k:"empresa",t:"Empresa"},{k:"recoge",t:"Lugar donde recoge"},{k:"entrega",t:"Lugar donde entrega"},{k:"obs",t:"Observaciones"},{k:"fecha",t:"Fecha",tipo:"fecha"}];
+const COLS_FIJAS = ["desc","cant","precio","total","_auto","fotos"];
+const colsFac = () => (Array.isArray(AJ().colsFac) && AJ().colsFac.length ? AJ().colsFac : COLS_DEF).map(c => ({...c}));
+function colsDe(items, base){   // las columnas configuradas + las que ya traiga el documento (para no perder datos viejos)
+  const out = (base || colsFac()).map(c => ({...c}));
+  (items||[]).forEach(it => Object.keys(it).forEach(k => { if(COLS_FIJAS.includes(k) || out.some(c => c.k===k) || it[k]==null || it[k]==="") return;
+    out.push({k, t: COLS_LEGADO[k] || k, ...(k==="fecha" ? {tipo:"fecha"} : {})}); }));
+  return out;
+}
+let FCOLS = null, FCONS = null;   // columnas del formulario abierto · recibos/facturas que se consolidan
+const fcols = () => FCOLS || colsFac();
+const FCAMPOS_ = () => fcols().map(c => [c.k, c.t]);
 async function cargarFac(){
   const f = await ghGet(CFG.repoCot, CFG.histFac);
   if(f){ const env = JSON.parse(td.decode(f.bytes)); FHIST = JSON.parse(td.decode(await descifrar(HKEY, unb64(env.iv), unb64(env.ct)))); FSHA = f.sha; }
@@ -1716,22 +1797,63 @@ function fHint(){
   $("fx-numero").value = n==null ? "—" : pad3(n);
   $("fx-num-hint").textContent = FEDIT ? "Número asignado (no cambia al corregir)." : "Se asigna solo (consecutivo de recibos y facturas).";
 }
+/* ----- evidencia fotográfica ----- */
+const idFoto = () => [...crypto.getRandomValues(new Uint8Array(6))].map(b => "abcdefghjkmnpqrstuvwxyz23456789"[b % 31]).join("");
+const etiquetaFoto = j => "img" + String(j+1).padStart(2,"0");
+async function comprimirFoto(file, max=1600, q=0.82){   // la foto se achica (máx. 1600 px) y se guarda como JPG
+  const bmp = await createImageBitmap(file, {imageOrientation:"from-image"}).catch(async () => {
+    const img = new Image(); img.src = URL.createObjectURL(file); await img.decode(); return img; });
+  const fz = Math.min(1, max / Math.max(bmp.width, bmp.height)), w = Math.round(bmp.width*fz), h = Math.round(bmp.height*fz);
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h; const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0,0,w,h); ctx.drawImage(bmp, 0, 0, w, h);
+  return await new Promise(ok => cv.toBlob(ok, "image/jpeg", q));
+}
+const FOTOCACHE = {};
+async function fotoPortal(codigo, id){   // trae y descifra una foto ya publicada
+  const kk = codigo + "/" + id; if(FOTOCACHE[kk]) return FOTOCACHE[kk];
+  const k = await clavesPortal(codigo), r = await fetch(`${CFG.site}data/${k.id}-${id}.bin`, {cache:"no-store"});
+  if(!r.ok) throw new Error("foto no encontrada"); const bin = new Uint8Array(await r.arrayBuffer());
+  return FOTOCACHE[kk] = URL.createObjectURL(new Blob([await descifrar(k.key, bin.slice(0,12), bin.slice(12))], {type:"image/jpeg"}));
+}
+function pintarFotos(r, codigo){
+  const list = r.querySelector(".ff-list"); if(!list) return;
+  list.innerHTML = r._fotos.map((f,j) => `<div class="ff-it" data-id="${f.id}"><img alt="${etiquetaFoto(j)}"${f.url ? ` src="${f.url}"` : ""}><span>${etiquetaFoto(j)}</span><button type="button" class="ff-x" title="Quitar foto">×</button></div>`).join("");
+  list.querySelectorAll(".ff-x").forEach(b => b.onclick = () => { const id = b.closest(".ff-it").dataset.id; r._fotos = r._fotos.filter(f => f.id!==id); pintarFotos(r, codigo); fCalc(); });
+  list.querySelectorAll(".ff-it img").forEach((img, j) => { const f = r._fotos[j]; if(!f.url && codigo) fotoPortal(codigo, f.id).then(u => { f.url = u; img.src = u; }).catch(() => img.alt = "sin vista"); });
+}
+async function subirFotos(codigo, st){   // publica en el portal (cifradas) las fotos nuevas de todas las filas
+  const pend = [...$("fx-rows").children].flatMap(r => (r._fotos||[]).filter(f => f.blob && !f.subido));
+  if(!pend.length) return; const k = await clavesPortal(codigo);
+  for(let i=0;i<pend.length;i++){ const f = pend[i]; st.textContent = `Subiendo evidencia fotográfica ${i+1} de ${pend.length}…`;
+    const e = await cifrar(k.key, new Uint8Array(await f.blob.arrayBuffer())); const bin = new Uint8Array(12+e.ct.length); bin.set(e.iv,0); bin.set(e.ct,12);
+    await ghPut(CFG.repoVal, `data/${k.id}-${f.id}.bin`, bin, null, `Evidencia fotográfica · ${codigo.split("-")[0]}`); f.subido = true; }
+}
+const fotosPortal = d => d.items.map((it,i) => it.fotos?.length ? {fila:i+1, desc:String(it.desc||"").split("\n")[0].slice(0,120), ids:it.fotos} : null).filter(Boolean);
+const enlacesFotos = (d, i) => (d.items[i]?.fotos||[]).map((id,j) => `${fUrl(d)}&f=${i+1}&i=${j+1}`);
 function fRow(it={}){
   const div = document.createElement("div"); div.className = "frow";
   const inp = (k, ph, extra="") => `<div><span class="lbl2">${ph}</span><input type="${k==="fecha"?"date":"text"}" class="in fx-${k}" value="${esc(it[k]??"")}" ${extra}></div>`;
   div.innerHTML = `<div class="frow-h"><b class="fn"></b><button class="b-x" title="Quitar fila">×</button></div>
     <div><span class="lbl2">Descripción</span><textarea class="in fx-desc" rows="2" placeholder="Descripción del servicio">${esc(it.desc||"")}</textarea></div>
     <div class="fgrid">
-      <div><span class="lbl2">Empresa</span><input type="text" class="in fx-empresa" value="${esc(it.empresa??"")}"></div>
-      <div><span class="lbl2">Lugar donde recoge</span><textarea class="in fx-recoge" rows="1">${esc(it.recoge??"")}</textarea></div>
-      <div><span class="lbl2">Lugar donde entrega</span><textarea class="in fx-entrega" rows="1">${esc(it.entrega??"")}</textarea></div>
-      ${inp("km","KM")} ${inp("vehiculo","Vehículo")}
-      <div><span class="lbl2">Observaciones</span><textarea class="in fx-obs" rows="1">${esc(it.obs??"")}</textarea></div>
-      ${inp("fecha","Fecha")}
+      ${fcols().map(c => c.tipo==="fecha"
+        ? `<div><span class="lbl2">${esc(c.t)}</span><input type="date" class="in fx-c" data-k="${esc(c.k)}" value="${esc(it[c.k]??"")}"></div>`
+        : `<div><span class="lbl2">${esc(c.t)}</span><textarea class="in fx-c" data-k="${esc(c.k)}" rows="1">${esc(it[c.k]??"")}</textarea></div>`).join("")}
       <div><span class="lbl2">Cantidad</span><input type="number" inputmode="decimal" step="any" min="0" class="in fx-cant" value="${it.cant??""}"></div>
       <div><span class="lbl2">Precio unitario</span><input type="number" inputmode="decimal" step="any" min="0" class="in fx-precio" value="${it.precio??""}"></div>
       <div><span class="lbl2">Total</span><input type="number" inputmode="decimal" step="any" min="0" class="in fx-tot" value="${it.precio==null||it.precio==="" ? (it.total??"") : ""}"></div>
     </div>`;
+  const ff = document.createElement("div"); ff.className = "ffotos";
+  ff.innerHTML = `<span class="lbl2">Evidencia fotográfica</span><div class="ff-list"></div>
+    <div class="ff-btns"><label class="b-ghost b-sm ff-b">📷 Tomar foto<input type="file" accept="image/*" capture="environment"></label>
+    <label class="b-ghost b-sm ff-b">🖼️ Galería o archivo<input type="file" accept="image/*" multiple></label><span class="hint ff-st"></span></div>`;
+  div.appendChild(ff); div._fotos = [];
+  ff.querySelectorAll("input[type=file]").forEach(inp => inp.onchange = async () => {
+    const st = ff.querySelector(".ff-st"), fs = [...inp.files]; inp.value = ""; if(!fs.length) return;
+    st.textContent = "Preparando foto(s)…";
+    for(const f of fs){ try{ const blob = await comprimirFoto(f); div._fotos.push({id:idFoto(), blob, url:URL.createObjectURL(blob)}); }catch(e){ st.textContent = "No pude leer " + f.name; } }
+    st.textContent = ""; pintarFotos(div); fCalc();
+  });
   div.querySelector(".b-x").onclick = () => { div.remove(); if(!$("fx-rows").children.length) fAdd(); fCalc(); };
   div.querySelectorAll("input,textarea").forEach(el => el.addEventListener("input", fCalc));
   div.querySelectorAll("textarea").forEach(ta => { const fit = () => { ta.style.height="auto"; ta.style.height=(ta.scrollHeight+2)+"px"; }; ta.addEventListener("input", fit); requestAnimationFrame(fit); });
@@ -1742,13 +1864,14 @@ $("fx-add").onclick = () => { fAdd(); $("fx-rows").lastChild.querySelector("text
 function fItems(){
   return [...$("fx-rows").children].map(r => {
     const g = k => r.querySelector(".fx-"+k).value.trim();
-    const it = {desc:g("desc")}; FCAMPOS.forEach(([k]) => { const v = g(k); if(v) it[k] = v; });
+    const it = {desc:g("desc")}; r.querySelectorAll(".fx-c").forEach(el => { const v = el.value.trim(); if(v) it[el.dataset.k] = v; });
+    if(r._fotos?.length) it.fotos = r._fotos.map(f => f.id);
     const c = g("cant"), p = g("precio"), t = g("tot");
     if(c!=="") it.cant = Number(c); if(p!=="") it.precio = Number(p);
     it.total = p!=="" ? r2((c===""?1:Number(c)) * Number(p)) : (t==="" ? null : r2(Number(t)));
     if(r.dataset.auto) it._auto = r.dataset.auto;
     return it;
-  }).filter(it => it.desc || it.total!=null || FCAMPOS.some(([k]) => it[k]));
+  }).filter(it => it.desc || it.total!=null || fcols().some(c => it[c.k]) || it.fotos);
 }
 function fCalc(){
   [...$("fx-rows").children].forEach((r,i) => {
@@ -1777,7 +1900,7 @@ function fNueva(){
   document.querySelector('input[name="fx-tipo"][value="Recibo"]').checked = true;
   document.querySelectorAll('input[name="fx-tipo"]').forEach(r => r.disabled = false);
   $("fx-pago").checked = true; $("fx-pie").checked = true; $("fx-xml").checked = false;
-  $("fx-rows").innerHTML = ""; fAdd(); $("fx-status").textContent = ""; $("fx-msg").innerHTML = ""; fCalc();
+  FCOLS = colsFac(); FCONS = null; $("fx-rows").innerHTML = ""; fAdd(); $("fx-status").textContent = ""; $("fx-msg").innerHTML = ""; fCalc();
 }
 function fCargar(d, modo){
   FEDIT = modo==="editar" ? d : null;
@@ -1789,7 +1912,11 @@ function fCargar(d, modo){
   $("fx-ped-mo").checked = d.pedOpts ? !!d.pedOpts.mo : true; $("fx-ped-mat").checked = d.pedOpts ? !!d.pedOpts.mat : false;
   ["fx-cliente","fx-ruc"].forEach(id => delete $(id).dataset.auto); $("fx-dias").value = d.dias ?? 4;
   $("fx-pago").checked = !!d.conPago; $("fx-pie").checked = !!d.conPie; $("fx-xml").checked = !!d.conXml;
-  $("fx-rows").innerHTML = ""; (d.items.length ? d.items : [{}]).forEach(it => { fAdd(it); if(it._auto) $("fx-rows").lastChild.dataset.auto = it._auto; });
+  const its = modo==="editar" ? d.items : d.items.map(({fotos, ...x}) => x);   // una copia no se lleva las fotos (son del documento original)
+  FCOLS = colsDe(its, d.cols ? colsDe([], d.cols).concat(colsFac().filter(c => !d.cols.some(x => x.k===c.k))) : colsFac());
+  FCONS = modo==="editar" && d.consolida ? {tipo:d.tipo, docs:d.consolida} : null;
+  $("fx-rows").innerHTML = ""; (its.length ? its : [{}]).forEach(it => { fAdd(it); if(it._auto) $("fx-rows").lastChild.dataset.auto = it._auto; });
+  if(modo==="editar") [...$("fx-rows").children].forEach((r,i) => { r._fotos = (its[i]?.fotos||[]).map(id => ({id, subido:true})); pintarFotos(r, d.codigo); });
   if(enl) aplicarPedido(false); else fEnlazar(null, false);
   $("fx-title").firstChild.textContent = modo==="editar" ? `Corregir ${d.tipo.toLowerCase()} ` : `${d.tipo==="Factura"?"Nueva factura":"Nuevo recibo"} (copia) `;
   $("fx-badge").textContent = modo==="editar" ? d.numero : "copia de " + d.numero;
@@ -1804,7 +1931,7 @@ function fArmar(){
   if(!cliente) errs.push("el cliente");
   if($("fx-email").value.trim() && !EMAIL_OK($("fx-email").value.trim())) errs.push("un email válido (o dejarlo vacío)");
   if(!items.length) errs.push("al menos una fila en el detalle");
-  items.forEach((it,i) => { if(it.total==null) errs.push(`el total (o el precio) de la fila ${i+1}`); if(!it.desc && !FCAMPOS.some(([k])=>it[k])) errs.push(`la descripción de la fila ${i+1}`); });
+  items.forEach((it,i) => { if(it.total==null) errs.push(`el total (o el precio) de la fila ${i+1}`); if(!it.desc && !fcols().some(c => it[c.k])) errs.push(`la descripción de la fila ${i+1}`); });
   const tipo = FEDIT ? FEDIT.tipo : fTipo();
   const dup = (FHIST.docs||[]).find(x => x.n===n && (!FEDIT || x.codigo!==FEDIT.codigo));
   if(dup) errs.push(`actualizar: el número ${pad3(n)} ya existe (${dup.tipo} ${dup.numero}). Recarga la página`);
@@ -1818,6 +1945,8 @@ function fArmar(){
   return { tipo, n, numero, pedido, cotRef: !igual && FPED ? FPED.numero : null, ...(!igual && FPEDS.length > 1 ? {cotRefs: FPEDS.map(c => c.numero)} : {}), pedOpts: !igual && FPED ? {mo:$("fx-ped-mo").checked, mat:$("fx-ped-mat").checked} : null, codigo, fecha, vence, dias, cliente,
            ruc:$("fx-ruc").value.trim(), email:$("fx-email").value.trim(), direccion:$("fx-dir").value.trim(), telefono:$("fx-tel").value.trim(),
            items, subtotal: total, total, conPago:$("fx-pago").checked, conPie:$("fx-pie").checked, conXml:$("fx-xml").checked,
+           cols: fcols().filter(c => items.some(it => it[c.k]!=null && String(it[c.k]).trim()!=="")).map(({k,t,tipo}) => ({k,t,...(tipo?{tipo}:{})})),
+           ...(FCONS ? {consolida: FCONS.docs, tituloDesc: `Consolidado de ${FCONS.tipo==="Factura" ? "facturas" : "recibos"}`, ...(FEDIT ? {} : {cxc:{desde:hoyISO()}})} : {}),
            cobro: FEDIT?.cobro || {estado:"Pendiente"}, creado: FEDIT ? FEDIT.creado : new Date().toISOString(), actualizado: new Date().toISOString() };
 }
 const fUrl = d => CFG.site + "?c=" + d.codigo;
@@ -1830,7 +1959,8 @@ $("fx-emit").onclick = async () => {
   let d; try{ d = fArmar(); }catch(e){ st.className="status bad"; st.textContent=e.message; return; }
   $("fx-emit").disabled = true;
   try{
-    st.className="status"; st.textContent="Generando PDF…";
+    st.className="status"; await subirFotos(d.codigo, st);
+    st.textContent="Generando PDF…";
     const pdf = new Uint8Array(fPdf(d).output("arraybuffer"));
     st.textContent="Publicando en el portal de validación…";
     const k = await clavesPortal(d.codigo), pp = `data/${k.id}.pdf.bin`, pj = `data/${k.id}.json`;
@@ -1839,12 +1969,14 @@ $("fx-emit").onclick = async () => {
     const ep = await cifrar(k.key, pdf); const bin = new Uint8Array(12+ep.ct.length); bin.set(ep.iv,0); bin.set(ep.ct,12);
     await ghPut(CFG.repoVal, pp, bin, shaP, `Publicar PDF · ${d.tipo} ${d.numero}`);
     const portal = { tipo:d.tipo, numero:d.numero, cliente:d.cliente, ruc:d.ruc||undefined, cotizacion: d.pedido!==d.numero ? d.pedido : undefined,
-                     fecha:d.fecha, vence:d.vence, desglose:[], total:d.total, pdf:true, ...portalCobro(d), ...(d.anulado ? {anulado:d.anulado} : {}) };
+                     fecha:d.fecha, vence:d.vence, desglose:[], total:d.total, pdf:true, ...portalCobro(d), ...(d.anulado ? {anulado:d.anulado} : {}),
+                     ...(fotosPortal(d).length ? {fotos: fotosPortal(d)} : {}) };
     const ej = await cifrar(k.key, te.encode(JSON.stringify(portal)));
     await ghPut(CFG.repoVal, pj, te.encode(JSON.stringify({iv:b64(ej.iv), ct:b64(ej.ct)})), shaJ, `Publicar datos · ${d.tipo} ${d.numero}`);
     st.textContent="Guardando en el historial…";
     for(let i=0;i<3;i++){
       try{ await cargarFac(); const j = FHIST.docs.findIndex(x => x.codigo===d.codigo); if(j>=0) FHIST.docs[j] = d; else FHIST.docs.push(d);
+           if(d.consolida) marcarConsolidados(d, true);
            await guardarFac(`${FEDIT?"Corregir":"Emitir"} ${d.tipo.toLowerCase()} ${d.numero}`); break; }
       catch(e){ if(e.status!==409 || i===2) throw e; }
     }
@@ -1871,8 +2003,10 @@ const xnum = v => Number(v ?? 0).toFixed(2);
 function xmlDe(d){
   const tag = (t, v, ind="    ") => (v==null || v==="") ? "" : `${ind}<${t}>${xesc(v)}</${t}>\n`;
   const items = d.items.map((it,i) => `    <Item linea="${i+1}">\n` +
-    tag("Descripcion", it.desc, "      ") + tag("Empresa", it.empresa, "      ") + tag("LugarRecoge", it.recoge, "      ") + tag("LugarEntrega", it.entrega, "      ") +
-    tag("KM", it.km, "      ") + tag("Vehiculo", it.vehiculo, "      ") + tag("Observaciones", it.obs, "      ") + tag("Fecha", it.fecha, "      ") +
+    tag("Descripcion", it.desc, "      ") + colsDe([it], Array.isArray(d.cols) ? d.cols : []).filter(c => it[c.k]).map(c => {
+      const nom = {empresa:"Empresa", recoge:"LugarRecoge", entrega:"LugarEntrega", km:"KM", vehiculo:"Vehiculo", obs:"Observaciones", fecha:"Fecha"}[c.k];
+      return nom ? tag(nom, it[c.k], "      ") : `      <Campo nombre="${xesc(c.t)}">${xesc(it[c.k])}</Campo>\n`; }).join("") +
+    (it.fotos?.length ? `      <EvidenciaFotografica>${enlacesFotos(d, i).map(u => `<Foto url="${xesc(u)}"/>`).join("")}</EvidenciaFotografica>\n` : "") +
     (it.cant!=null ? `      <Cantidad>${it.cant}</Cantidad>\n` : "") + (it.precio!=null ? `      <PrecioUnitario>${xnum(it.precio)}</PrecioUnitario>\n` : "") +
     `      <Total>${xnum(it.total)}</Total>\n    </Item>\n`).join("");
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -1924,7 +2058,7 @@ function pintarFac(){
     <td>${esc(d.tipo)}</td><td>${esc(PDFFAC.dmy(d.fecha))}</td>
     <td>${esc(d.cliente)}<div class="hint">${esc((d.items[0]?.desc||"").split("\n")[0].slice(0,60))}</div></td>
     <td class="r"><b>${money(d.total)}</b></td>
-    <td>${d.anulado ? `<span class="pill p-gray">${d.tipo==="Factura"?"Anulada":"Anulado"}</span><div class="hint">${esc(PDFFAC.dmy(d.anulado.fecha))}${d.anulado.motivo ? " · " + esc(d.anulado.motivo) : ""}</div>` : (!enCxc(d) && cobradoDe(d)===0) ? '<span class="pill p-gray" title="No está en Cuentas por cobrar">Sin cobro</span>' : (e => `<span class="pill ${e==="Cobrado"?"p-ok":e==="Vencido"?"p-bad":"p-warn"}">${e}</span>${e!=="Cobrado" && cobradoDe(d) > 0 ? `<div class="hint">abonado ${money(cobradoDe(d))}</div>` : ""}`)(estadoCxc(d))}</td>
+    <td>${d.consolidadoEn && !d.anulado ? `<span class="pill p-blue" title="Su saldo se cobra en el consolidado">En consolidado ${esc(d.consolidadoEn.numero)}</span>` : d.anulado ? `<span class="pill p-gray">${d.tipo==="Factura"?"Anulada":"Anulado"}</span><div class="hint">${esc(PDFFAC.dmy(d.anulado.fecha))}${d.anulado.motivo ? " · " + esc(d.anulado.motivo) : ""}</div>` : (!enCxc(d) && cobradoDe(d)===0) ? '<span class="pill p-gray" title="No está en Cuentas por cobrar">Sin cobro</span>' : (e => `<span class="pill ${e==="Cobrado"?"p-ok":e==="Vencido"?"p-bad":"p-warn"}">${e}</span>${e!=="Cobrado" && cobradoDe(d) > 0 ? `<div class="hint">abonado ${money(cobradoDe(d))}</div>` : ""}`)(estadoCxc(d))}</td>
     <td class="acts-td"><div class="acts">
       <button class="b-navy b-sm" data-f="pdf" data-c="${esc(d.codigo)}">Descargar</button>
       ${menuHTML([
@@ -1955,29 +2089,77 @@ function pintarFac(){
     if(b.dataset.f==="dup") fCargar(d, "duplicar");
   });
 }
+/* detalle de filas para Excel: columnas fijas + todas las columnas (configurables o viejas) que tengan datos + enlaces a las fotos */
+function detalleFac(ds){
+  const cols = []; ds.forEach(d => colsDe(d.items, Array.isArray(d.cols) ? d.cols : []).forEach(c => { if(!cols.some(x => x.k===c.k) && d.items.some(it => it[c.k])) cols.push(c); }));
+  const det = []; ds.forEach(d => d.items.forEach((it,i) => { const o = {"N.º": d.numero, "Tipo": d.tipo, "Cliente": d.cliente, "#": i+1, "Descripción": it.desc||""};
+    cols.forEach(c => { const v = it[c.k]; o[c.t] = v==null ? "" : c.tipo==="fecha" ? PDFFAC.dmy(v) : v; });
+    Object.assign(o, {"Cantidad": it.cant??"", "Precio unitario": it.precio??"", "Total": it.total, "Evidencia fotográfica": enlacesFotos(d, i).join("  ")}); det.push(o); }));
+  return det;
+}
 function exportarFac(){
   const ds = [...(FHIST?.docs||[])].sort((a,b) => a.n-b.n);
   if(!ds.length){ $("h-status").className="status warn"; $("h-status").textContent="No hay recibos ni facturas para exportar."; return; }
   const res = ds.map(d => ({"N.º": d.numero, "Tipo": d.tipo, "Pedido N.º": d.pedido, "Fecha": PDFFAC.dmy(d.fecha), "Vencimiento": PDFFAC.dmy(d.vence),
     "Cliente": d.cliente, "CIP/RUC": d.ruc||"", "Email": d.email||"", "Descripción": d.items.map(i=>i.desc).filter(Boolean).join(" | "), "Total": d.total,
-    "Estado de cobro": d.anulado ? (d.tipo==="Factura"?"Anulada":"Anulado") : (!enCxc(d) && cobradoDe(d)===0) ? "No está en cuentas por cobrar" : estadoCxc(d), "Cobrado": cobradoDe(d), "Saldo": d.anulado ? 0 : saldoDe(d), "Fecha de cobro": d.cobro?.fecha ? PDFFAC.dmy(d.cobro.fecha) : "", "Motivo de anulación": d.anulado?.motivo || "",
+    "Estado de cobro": d.anulado ? (d.tipo==="Factura"?"Anulada":"Anulado") : d.consolidadoEn ? `En consolidado ${d.consolidadoEn.numero}` : (!enCxc(d) && cobradoDe(d)===0) ? "No está en cuentas por cobrar" : estadoCxc(d), "Cobrado": cobradoDe(d), "Saldo": d.anulado ? 0 : saldoDe(d), "Fecha de cobro": d.cobro?.fecha ? PDFFAC.dmy(d.cobro.fecha) : "", "Motivo de anulación": d.anulado?.motivo || "",
     "Código de validación": d.codigo, "Enlace del QR": fUrl(d)}));
-  const det = []; ds.forEach(d => d.items.forEach((it,i) => det.push({"N.º": d.numero, "Tipo": d.tipo, "Cliente": d.cliente, "#": i+1, "Descripción": it.desc||"",
-    "Empresa": it.empresa||"", "Lugar donde recoge": it.recoge||"", "Lugar donde entrega": it.entrega||"", "KM": it.km||"", "Vehículo": it.vehiculo||"",
-    "Observaciones": it.obs||"", "Fecha": it.fecha ? PDFFAC.dmy(it.fecha) : "", "Cantidad": it.cant??"", "Precio unitario": it.precio??"", "Total": it.total})));
+  const det = detalleFac(ds);
   const wb = XLSX.utils.book_new(), s1 = XLSX.utils.json_to_sheet(res), s2 = XLSX.utils.json_to_sheet(det);
-  s1["!cols"] = [7,9,10,11,12,28,22,28,50,10,13,12,26,22,52].map(w=>({wch:w})); s2["!cols"] = [7,9,26,4,44,16,22,22,6,10,22,11,9,12,10].map(w=>({wch:w}));
+  s1["!cols"] = [7,9,10,11,12,28,22,28,50,10,13,12,26,22,52].map(w=>({wch:w})); s2["!cols"] = Object.keys(det[0]||{}).map(k => ({wch: k==="Descripción" ? 44 : k==="Evidencia fotográfica" ? 60 : k==="Cliente" ? 26 : Math.max(8, Math.min(24, k.length+2))}));
   XLSX.utils.book_append_sheet(wb, s1, "Recibos y facturas"); XLSX.utils.book_append_sheet(wb, s2, "Detalle");
   XLSX.writeFile(wb, `Historial_Recibos_Facturas_${hoyISO()}.xlsx`);
   $("h-status").className="status ok"; $("h-status").textContent = `✓ Exportados ${ds.length} documentos.`;
 }
 function setHView(v){
-  HVIEW = v; $("hv-cot").classList.toggle("on", v==="cot"); $("hv-fac").classList.toggle("on", v==="fac");
+  HVIEW = v; $("hv-cot").classList.toggle("on", v==="cot"); $("hv-fac").classList.toggle("on", v==="fac"); $("h-cons").classList.toggle("hidden", v!=="fac");
   $("hist-cot").classList.toggle("hidden", v!=="cot"); $("hist-fac").classList.toggle("hidden", v!=="fac");
   $("h-title").textContent = v==="cot" ? "Historial de cotizaciones" : "Historial de recibos y facturas";
   $("h-status").textContent = ""; $("h-imp").innerHTML = "";
   v==="cot" ? pintarHist() : pintarFac();
 }
+/* ----- consolidar varios recibos o facturas en uno ----- */
+const todosFac = () => [...(FHIST?.docs||[]), ...(FHIST?.previos||[])];
+function marcarConsolidados(cons, on){   // marca (o libera) los documentos que junta un consolidado
+  (cons.consolida||[]).forEach(c => { const o = todosFac().find(y => y.codigo===c.codigo); if(!o) return;
+    if(on) o.consolidadoEn = {numero:cons.numero, codigo:cons.codigo, fecha:cons.fecha}; else if(o.consolidadoEn?.codigo===cons.codigo) delete o.consolidadoEn; });
+}
+const consolidables = tipo => todosFac().filter(d => d.tipo===tipo && !d.anulado && !d.consolida && !d.consolidadoEn && saldoDe(d) > 0.004);
+$("h-cons").onclick = async () => {
+  try{ await cargarFac(); }catch(e){}
+  const {caja, cerrar} = modal(`<h2 style="margin-bottom:4px">🧩 Consolidar recibos o facturas</h2>
+    <p class="hint" style="margin-bottom:12px">Junta en un documento nuevo el <b>saldo actual</b> de varios del mismo cliente. Los originales salen de «Por cobrar» y el cobro se registra en el consolidado.</p>
+    <div class="seg" style="margin-bottom:10px"><label class="segopt"><input type="radio" name="cs-tipo" value="Recibo" checked hidden> Recibos</label><label class="segopt"><input type="radio" name="cs-tipo" value="Factura" hidden> Facturas</label></div>
+    <label>Cliente</label><select id="cs-cli"></select>
+    <div id="cs-list" style="margin-top:10px"></div>
+    <div id="cs-tot" style="margin-top:10px;font-weight:700;color:var(--navy)"></div>
+    <div class="status" id="cs-st"></div>
+    <div class="actions" style="margin-top:12px"><button class="b-ghost" data-cerrar>Cancelar</button><button class="b-navy" id="cs-ok">Crear consolidado</button></div>`);
+  const tipo = () => caja.querySelector('input[name="cs-tipo"]:checked').value, norm = c => sinTilde(c).replace(/[^a-z0-9]/g,"");
+  function clientes(){ const m = new Map(); consolidables(tipo()).forEach(d => { const k = norm(d.cliente); if(!m.has(k)) m.set(k, d.cliente.trim()); m.set(k+"#", (m.get(k+"#")||0)+1); });
+    const L = [...m.keys()].filter(k => !k.endsWith("#")).map(k => [k, m.get(k), m.get(k+"#")]).filter(x => x[2] >= 2).sort((a,b) => a[1].localeCompare(b[1], "es"));
+    $("cs-cli").innerHTML = L.length ? L.map(([k,n,c]) => `<option value="${esc(k)}">${esc(n)} · ${c} con saldo</option>`).join("") : `<option value="">Ningún cliente tiene 2 o más ${tipo()==="Factura"?"facturas":"recibos"} con saldo pendiente</option>`; lista(); }
+  function lista(){ const k = $("cs-cli").value, L = k ? consolidables(tipo()).filter(d => norm(d.cliente)===k).sort((a,b) => a.n-b.n) : [];
+    $("cs-list").innerHTML = L.map(d => `<label class="chk" style="padding:6px 0;border-bottom:1px solid var(--line)"><input type="checkbox" class="cs-d" value="${esc(d.codigo)}" checked>
+      <span style="flex:1">${esc(d.tipo)} <b>${esc(d.numero)}</b> · ${esc(PDFFAC.dmy(d.fecha))}${cobradoDe(d) > 0 ? ` <span class="hint">(abonado ${money(cobradoDe(d))} de ${money(d.total)})</span>` : ""}</span><b>${money(saldoDe(d))}</b></label>`).join("");
+    caja.querySelectorAll(".cs-d").forEach(c => c.onchange = total); total(); }
+  function total(){ const sel = [...caja.querySelectorAll(".cs-d:checked")].map(c => todosFac().find(d => d.codigo===c.value));
+    $("cs-tot").textContent = sel.length ? `${sel.length} documento(s) · saldo total ${money(r2(sel.reduce((a,d) => a + saldoDe(d), 0)))}` : ""; $("cs-ok").disabled = sel.length < 2; }
+  caja.querySelectorAll('input[name="cs-tipo"]').forEach(r => r.onchange = clientes); $("cs-cli").onchange = lista; clientes();
+  $("cs-ok").onclick = () => {
+    const sel = [...caja.querySelectorAll(".cs-d:checked")].map(c => todosFac().find(d => d.codigo===c.value)).sort((a,b) => a.n-b.n); if(sel.length < 2) return;
+    cerrar(); fNueva(); show("fac"); const t = tipo();
+    const r = document.querySelector(`input[name="fx-tipo"][value="${t}"]`); r.checked = true; r.dispatchEvent(new Event("change", {bubbles:true}));
+    const u = sel[sel.length-1]; $("fx-cliente").value = u.cliente; $("fx-ruc").value = u.ruc||""; $("fx-email").value = u.email||""; $("fx-dir").value = u.direccion||""; $("fx-tel").value = u.telefono||"";
+    FCONS = {tipo:t, docs: sel.map(d => ({codigo:d.codigo, numero:d.numero, total:r2(d.total), saldo:saldoDe(d)}))};
+    $("fx-rows").innerHTML = "";
+    sel.forEach(d => { const sal = saldoDe(d); fAdd({desc:`${d.tipo} ${d.numero} · ${PDFFAC.dmy(d.fecha)}${sal < r2(d.total) - 0.004 ? ` · saldo pendiente (total ${money(d.total)}, abonado ${money(cobradoDe(d))})` : ""}`, total:sal});
+      $("fx-rows").lastChild.dataset.auto = "cons"; });
+    fCalc(); $("fx-status").className = "status ok";
+    $("fx-status").textContent = `🧩 Consolidado de ${t==="Factura"?"facturas":"recibos"} ${sel.map(d => d.numero).join(", ")} preparado. Revisa y pulsa «Emitir y publicar».`;
+    setTimeout(() => $("fx-rows").scrollIntoView({behavior:"smooth", block:"center"}), 300);
+  };
+};
 /* ----- Pedido N.º enlazado a una cotización ----- */
 let FPED = null, FPEDS = [], FPED_ERR = null, FPED_VARIAS = false;   // cotización(es) enlazada(s) en «Pedido N.º»
 const codsCot = s => [...new Set((String(s||"").toUpperCase().match(/[A-ZÑ]\s*-?\s*\d{1,4}/g) || []).map(x => normCot(x.replace(/\s/g,""))).filter(Boolean))];
@@ -2116,6 +2298,7 @@ const esPrueba = m => /\bpruebas?\b/.test(sinTilde(m||""));
 /* borra del historial los anulados «de prueba»; su número queda reservado (no se vuelve a usar) */
 function quitarPruebas(lista, cont){
   const fuera = lista.filter(x => x.anulado && esPrueba(x.anulado.motivo)); if(!fuera.length) return 0;
+  fuera.forEach(x => { if(x.consolida) marcarConsolidados(x, false); });
   cont.ultimoExcel = Math.max(Number(cont.ultimoExcel||0), ...fuera.map(x => Number(x.n)||0));
   fuera.forEach(x => lista.splice(lista.indexOf(x), 1)); return fuera.length;
 }
@@ -2162,6 +2345,7 @@ function pedirAnular(kind, rec, anular){
             await guardarHist(`${prueba ? "Borrar cotización de prueba" : anular ? "Anular cotización" : "Reactivar cotización"} ${rec.numero}`); }
           else { await cargarFac(); const x = FHIST.docs.find(d => d.codigo===rec.codigo); if(!x) throw new Error("no está en el historial");
             if(marca) x.anulado = marca; else delete x.anulado; x.actualizado = new Date().toISOString();
+            if(x.consolida) marcarConsolidados(x, !marca);   // al anular un consolidado, sus documentos vuelven a «Por cobrar»
             if(prueba) quitarPruebas(FHIST.docs, FHIST);
             await guardarFac(`${prueba ? "Borrar documento de prueba" : anular ? "Anular" : "Reactivar"} ${rec.tipo.toLowerCase()} ${rec.numero}`); }
           break;
@@ -2312,7 +2496,7 @@ async function impFac(wb){
     const n = xNum(String(x["N.º"]).replace(/\D/g,"")), tipo = /factura/i.test(x["Tipo"]) ? "Factura" : "Recibo"; if(n==null) return;
     const numero = pad3(n), fecha = xFecha(x["Fecha"]) || hoyISO(), vence = xFecha(x["Vencimiento"]) || fecha;
     const items = det.filter(y => xNum(String(y["N.º"]).replace(/\D/g,""))===n).map(y => {
-      const it = {desc:xTxt(y["Descripción"])}; FCAMPOS.forEach(([k,t]) => { const v = k==="fecha" ? xFecha(y[t]) : xTxt(y[t]); if(v) it[k] = v; });
+      const it = {desc:xTxt(y["Descripción"])}; [...Object.entries(COLS_LEGADO), ...colsFac().map(c => [c.k, c.t])].forEach(([k,t]) => { if(it[k]) return; const v = k==="fecha" ? xFecha(y[t]) : xTxt(y[t]); if(v) it[k] = v; });
       if(xNum(y["Cantidad"])!=null) it.cant = xNum(y["Cantidad"]); if(xNum(y["Precio unitario"])!=null) it.precio = xNum(y["Precio unitario"]);
       it.total = r2(xNum(y["Total"]) ?? 0); return it; });
     if(!items.length) items.push({desc:xTxt(x["Descripción"]), total:r2(xNum(x["Total"])||0)});
@@ -2392,7 +2576,7 @@ function estadoCxc(d){   // Cobrado · Vencido · Por vencer (+ abonado)
 }
 function ultimoCobro(d){ const ab = d.cobro?.abonos || []; return ab.length ? ab[ab.length-1] : (d.cobro?.fecha ? {fecha:d.cobro.fecha, metodo:d.cobro.metodo||""} : null); }
 const descDe = d => (d.items?.map(i => i.desc).filter(Boolean).join(" · ") || "").replace(/\n/g, " ");
-const enCxc = d => d.origen==="control" ? d.cxc!==false : !!d.cxc;   // solo lo que tú envías a cuentas por cobrar
+const enCxc = d => d.consolidadoEn ? false : d.origen==="control" ? d.cxc!==false : !!d.cxc;   // lo consolidado se cobra en el documento consolidado   // solo lo que tú envías a cuentas por cobrar
 function vistaCot(c){ return {...c, _k:"cot", tipo:"Cotización", vence:c.cxc?.vence || c.validoHasta, cotRef:c.numero, pedido:c.numero,
   items:[...(c.manoObra||[]), ...(c.materiales||[])].map(i => ({desc:i.desc})).concat(!(c.manoObra||[]).length && !(c.materiales||[]).length ? [{desc:"Cotización " + c.numero}] : [])}; }
 function todasCuentas(){
@@ -2781,11 +2965,11 @@ function repDatos(){
   const cots = (HIST?.cotizaciones||[]).filter(c => !c.anulado);
   const docs = [...(FHIST?.docs||[]), ...(FHIST?.previos||[])].filter(d => !d.anulado);
   const cotCx = cots.filter(c => c.cxc).map(vistaCot);           // cotizaciones cobradas sin recibo
-  const fact = [...docs, ...cotCx];
+  const fact = [...docs.filter(d => !d.consolida), ...cotCx];   // un consolidado solo junta saldos ya facturados: no se suma otra vez
   // anulados: no se suman, solo se informan
   const anCots = (HIST?.cotizaciones||[]).filter(c => c.anulado);
   const anFact = [...(FHIST?.docs||[]), ...(FHIST?.previos||[])].filter(d => d.anulado);   // solo recibos y facturas anulados
-  const cobros = []; fact.forEach(d => {
+  const cobros = []; [...fact, ...docs.filter(d => d.consolida)].forEach(d => {
     const ab = d.cobro?.abonos;
     if(ab && ab.length) ab.forEach(a => cobros.push({fecha:a.fecha || d.fecha, monto:Number(a.monto||0), cliente:d.cliente}));
     else if(d.cobro?.estado==="Cobrado") cobros.push({fecha:d.cobro.fecha || d.fecha, monto:Number(d.total||0), cliente:d.cliente});
@@ -2807,7 +2991,7 @@ function pintarRep(){
   D.cobros.filter(c => enRango(c.fecha)).forEach(c => { M[mesDe(c.fecha)].cob += c.monto; });
   const sum = k => r2(meses.reduce((a, m) => a + M[m][k], 0));
   const tCot = sum("cot"), tFac = sum("fac"), tCob = sum("cob"), nCot = sum("nCot"), nConv = sum("conv"), nFac = sum("nFac");
-  const pend = r2(D.fact.filter(d => enCxc(d) || d._k==="cot").reduce((a, d) => a + saldoDe(d), 0));
+  const pend = r2([...D.fact, ...D.docs.filter(d => d.consolida)].filter(d => enCxc(d) || d._k==="cot").reduce((a, d) => a + saldoDe(d), 0));
   const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
   const fAn = d => (d.anulado?.fecha || d.cxcAnulada?.fecha || d.fecha);
   const reciente = d => diasEntre(fAn(d), hoyISO()) < 3;   // el aviso se ve 3 días; en el Excel quedan todos
