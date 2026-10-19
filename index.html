@@ -2774,7 +2774,7 @@ function pintarRep(){
   const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
   $("rp-kpis").innerHTML = [
     ["Cotizado", money(tCot), `${nCot} cotizaci${nCot===1?"ón":"ones"}`],
-    ["Facturado", money(tFac), `${nFac} recibo(s) / factura(s)`],
+    ["Facturado", money(tFac), `${nFac} documento(s) emitido(s), estén o no en «Por cobrar»`],
     ["Cobrado", money(tCob), tFac ? `${pct(tCob, tFac)}% de lo facturado` : "&nbsp;"],
     ["Por cobrar hoy", money(pend), "saldo pendiente total"],
     ["Conversión", pct(nConv, nCot) + "%", `${nConv} de ${nCot} cotizaciones facturadas`],
