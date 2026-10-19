@@ -1784,7 +1784,6 @@ function colsDe(items, base){   // las columnas configuradas + las que ya traiga
 }
 let FCOLS = null, FCONS = null;   // columnas del formulario abierto · recibos/facturas que se consolidan
 const fcols = () => FCOLS || colsFac();
-const FCAMPOS_ = () => fcols().map(c => [c.k, c.t]);
 async function cargarFac(){
   const f = await ghGet(CFG.repoCot, CFG.histFac);
   if(f){ const env = JSON.parse(td.decode(f.bytes)); FHIST = JSON.parse(td.decode(await descifrar(HKEY, unb64(env.iv), unb64(env.ct)))); FSHA = f.sha; }
@@ -1881,7 +1880,6 @@ const fotosPortal = d => d.items.map((it,i) => it.fotos?.length ? {fila:i+1, des
 const enlacesFotos = (d, i) => (d.items[i]?.fotos||[]).map((id,j) => `${fUrl(d)}&f=${i+1}&i=${j+1}`);
 function fRow(it={}){
   const div = document.createElement("div"); div.className = "frow";
-  const inp = (k, ph, extra="") => `<div><span class="lbl2">${ph}</span><input type="${k==="fecha"?"date":"text"}" class="in fx-${k}" value="${esc(it[k]??"")}" ${extra}></div>`;
   div.innerHTML = `<div class="frow-h"><b class="fn"></b><button class="b-x" title="Quitar fila">×</button></div>
     <div><span class="lbl2">Descripción</span><textarea class="in fx-desc" rows="2" placeholder="Descripción del servicio">${esc(it.desc||"")}</textarea></div>
     <div class="fgrid">
