@@ -1388,21 +1388,33 @@ function mensajeWA(tipo, rec, url){   // mensaje por defecto que acompaña al PD
 }
 /* al compartir se elige la app: para WhatsApp la firma va en negrita (*…*); para las demás, sin asteriscos */
 const sinNegrita = t => String(t||"").replace(/\*([^*\n]+)\*/g, "$1");
+/* En PC (sobre todo Chrome en Mac) el menú de compartir mezcla archivo + texto: WhatsApp recibe la ruta del archivo pegada al mensaje
+   y el PDF dos veces. Por eso en PC: WhatsApp se abre con el mensaje listo (wa.me) y el PDF se descarga para arrastrarlo al chat. */
+const esPC = () => !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) && (navigator.maxTouchPoints||0) < 2;
 function compartirPDF(bytes, nombre, titulo, st, texto){
-  if(!texto || !(navigator.canShare && navigator.share)) return compartirPDF_(bytes, nombre, titulo, st, texto);
+  const pc = esPC();
+  if(!texto || (!pc && !(navigator.canShare && navigator.share))) return compartirPDF_(bytes, nombre, titulo, st, texto);
   const {caja, cerrar} = modal(`<h2 style="margin-bottom:4px">📤 Compartir ${esc(nombre)}</h2><p class="hint" style="margin-bottom:12px">¿Por dónde lo vas a enviar?</p>
-    <div class="fx-op"><button class="fx-op-b" data-app="wa"><span>💬</span><b>WhatsApp</b><small>firma en negrita</small></button>
+    <div class="fx-op"><button class="fx-op-b" data-app="wa"><span>💬</span><b>WhatsApp</b><small>${pc ? "se abre con el mensaje listo" : "firma en negrita"}</small></button>
     <button class="fx-op-b" data-app="otra"><span>📨</span><b>Otra app</b><small>correo, mensajes, etc.</small></button></div>
     <div class="actions" style="margin-top:12px"><button class="b-ghost" data-cerrar>Cancelar</button></div>`);
-  caja.querySelectorAll("[data-app]").forEach(b => b.onclick = () => { cerrar(); compartirPDF_(bytes, nombre, titulo, st, b.dataset.app==="wa" ? texto : sinNegrita(texto)); });
+  caja.querySelectorAll("[data-app]").forEach(b => b.onclick = () => { cerrar();
+    if(b.dataset.app==="wa") return pc ? compartirWAPC(bytes, nombre, st, texto) : compartirPDF_(bytes, nombre, titulo, st, texto);
+    compartirPDF_(bytes, nombre, titulo, st, sinNegrita(texto), pc); });
 }
-async function compartirPDF_(bytes, nombre, titulo, st, texto){
+function compartirWAPC(bytes, nombre, st, texto){   // PC: mensaje limpio en WhatsApp + PDF descargado
+  window.open("https://wa.me/?text=" + encodeURIComponent(texto), "_blank", "noopener");
+  try{ navigator.clipboard && navigator.clipboard.writeText(texto).catch(() => {}); }catch(e){}
+  bajarBytes(bytes, nombre);
+  if(st){ st.className = "status ok"; st.innerHTML = `✓ Se abrió WhatsApp con el mensaje listo y se descargó <b>${esc(nombre)}</b>. Elige el chat, envía el mensaje y arrastra el PDF (está en Descargas) al mismo chat.`; }
+}
+async function compartirPDF_(bytes, nombre, titulo, st, texto, soloArchivo){   // soloArchivo: en PC el texto va copiado, no dentro del menú
   const file = new File([bytes], nombre, {type:"application/pdf"});
   const msg = (cls, t) => { if(st){ st.className = "status " + cls; st.innerHTML = t; } };
   if(texto){ try{ navigator.clipboard && navigator.clipboard.writeText(texto).catch(() => {}); }catch(e){} }   // copia de respaldo
   if(navigator.canShare && navigator.share && navigator.canShare({files:[file]})){
-    try{ await navigator.share({files:[file], title:titulo, ...(texto ? {text:texto} : {})});
-         msg("ok", "✓ Listo." + (texto ? " El mensaje también quedó copiado: si WhatsApp no lo muestra, mantén presionado y pega." : "")); return; }
+    try{ await navigator.share({files:[file], title:titulo, ...(texto && !soloArchivo ? {text:texto} : {})});
+         msg("ok", "✓ Listo." + (texto ? (soloArchivo ? " El mensaje quedó copiado: pégalo (⌘V / Ctrl+V) en el correo o mensaje." : " El mensaje también quedó copiado: si WhatsApp no lo muestra, mantén presionado y pega.") : "")); return; }
     catch(e){
       if(e.name==="AbortError"){ if(st) st.textContent = ""; return; }
       if(e.name==="NotAllowedError"){   // el navegador pide un toque nuevo (pasó tiempo cargando el PDF)
