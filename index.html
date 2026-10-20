@@ -2259,6 +2259,8 @@ function destinoCons(sel){   // sel = documentos (del más antiguo al más recie
     [...sel].reverse().forEach(d => { const v = String(d[f]||"").trim(); if(!v) return; const o = vs.find(x => k(x.v)===k(v)); if(o) o.docs.push(d.numero); else vs.push({v, docs:[d.numero]}); });
     val[id] = vs[0]?.v || ""; $(id).value = val[id]; if(vs.length > 1) difs.push({id, lab, vs});
   });
+  const dir = clientesTodos().filter(c => mismoCliente(c.cliente, sel[0].cliente));   // lo que falte: del directorio de clientes (cotizaciones y otros documentos)
+  DE_CAMPOS.forEach(([f,id]) => { if(!val[id]){ const c = dir.find(c => c[f]); if(c){ val[id] = c[f]; $(id).value = c[f]; } } });
   FDEST = val;
   if(!difs.length){ $("fx-de-cons").classList.remove("hidden"); $("fx-de-igual").checked = true; $("fx-de-box").classList.add("hidden"); resumenDest(); return; }
   const aviso = $("fx-de-aviso"); aviso.classList.remove("hidden");
