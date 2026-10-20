@@ -452,7 +452,12 @@
 
     <div class="card">
       <h2>Destinatario</h2>
-      <div class="grid g2">
+      <div id="fx-de-cons" class="hidden">
+        <label class="chk"><input type="checkbox" id="fx-de-igual" checked> Usar los datos de los documentos consolidados</label>
+        <div class="hint" id="fx-de-res" style="margin-top:2px"></div>
+      </div>
+      <div id="fx-de-aviso" class="box warnb hidden" style="margin-bottom:10px"></div>
+      <div class="grid g2" id="fx-de-box">
         <div><label>Cliente</label><input type="text" id="fx-cliente" class="in" placeholder="Nombre del cliente o empresa"></div>
         <div><label>CIP / RUC</label><input type="text" id="fx-ruc" class="in" placeholder="Opcional (ej. RUC: 155643349-2-2017 DV 2)"></div>
         <div><label>Email</label><input type="email" id="fx-email" class="in" placeholder="Opcional" inputmode="email" autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
@@ -1992,7 +1997,7 @@ function fNueva(){
   document.querySelector('input[name="fx-tipo"][value="Recibo"]').checked = true;
   document.querySelectorAll('input[name="fx-tipo"]').forEach(r => r.disabled = false);
   $("fx-pago").checked = true; $("fx-pie").checked = true; $("fx-xml").checked = false;
-  FCOLS = colsFac(); FCONS = null; pintarEmisor(null); $("fx-rows").innerHTML = ""; fAdd(); $("fx-status").textContent = ""; $("fx-msg").innerHTML = ""; fCalc();
+  FCOLS = colsFac(); FCONS = null; pintarEmisor(null); destinoNormal(); $("fx-rows").innerHTML = ""; fAdd(); $("fx-status").textContent = ""; $("fx-msg").innerHTML = ""; fCalc();
 }
 function fCargar(d, modo){
   FEDIT = modo==="editar" ? d : null;
@@ -2006,7 +2011,7 @@ function fCargar(d, modo){
   $("fx-pago").checked = !!d.conPago; $("fx-pie").checked = !!d.conPie; $("fx-xml").checked = !!d.conXml;
   const its = modo==="editar" ? d.items : d.items.map(({fotos, ...x}) => x);   // una copia no se lleva las fotos (son del documento original)
   FCOLS = colsDe(its, d.cols ? colsDe([], d.cols).concat(colsFac().filter(c => !d.cols.some(x => x.k===c.k))) : colsFac());
-  FCONS = modo==="editar" && d.consolida ? {tipo:d.tipo, docs:d.consolida} : null; pintarEmisor(d.emisor || null);
+  FCONS = modo==="editar" && d.consolida ? {tipo:d.tipo, docs:d.consolida} : null; pintarEmisor(d.emisor || null); destinoNormal();
   $("fx-rows").innerHTML = ""; (its.length ? its : [{}]).forEach(it => { fAdd(it); if(it._auto) $("fx-rows").lastChild.dataset.auto = it._auto; });
   if(modo==="editar") [...$("fx-rows").children].forEach((r,i) => { r._fotos = (its[i]?.fotos||[]).map(id => ({id, subido:true})); pintarFotos(r, d.codigo); });
   if(enl) aplicarPedido(false); else fEnlazar(null, false);
@@ -2228,6 +2233,31 @@ function resumenEmisor(){ const e = emisorDef(); $("fx-em-res").textContent = $(
 function emisorForm(){ if($("fx-em-igual").checked) return emisorDef(); const o = {rucTipo:getRt()}; EM_CAMPOS.forEach(([k,id]) => o[k] = $(id).value.trim()); return o; }
 $("fx-em-igual").onchange = () => { const on = $("fx-em-igual").checked; $("fx-em-box").classList.toggle("hidden", on);
   if(on){ EM_CAMPOS.forEach(([k,id]) => $(id).value = emisorDef()[k] || ""); setRt(emisorDef().rucTipo); } else $("fx-em-nom").focus(); resumenEmisor(); };
+/* ----- destinatario de un consolidado: se toma de los documentos; si difieren, se abre para editar ----- */
+const DE_CAMPOS = [["cliente","fx-cliente","Cliente"],["ruc","fx-ruc","CIP / RUC"],["email","fx-email","Email"],["direccion","fx-dir","Dirección"],["telefono","fx-tel","Teléfono"]];
+let FDEST = null;   // datos del destinatario juntados de los documentos consolidados
+function destinoNormal(){ FDEST = null; $("fx-de-cons").classList.add("hidden"); $("fx-de-aviso").classList.add("hidden"); $("fx-de-box").classList.remove("hidden");
+  document.querySelectorAll(".de-alt").forEach(x => x.remove()); }
+const resumenDest = () => { $("fx-de-res").textContent = DE_CAMPOS.map(([,id]) => $(id).value.trim()).filter(Boolean).join(" · "); };
+function destinoCons(sel){   // sel = documentos (del más antiguo al más reciente)
+  destinoNormal();
+  const k = v => sinTilde(v).replace(/[^a-z0-9@]/g,""), difs = [], val = {};
+  DE_CAMPOS.forEach(([f,id,lab]) => {
+    const vs = [];   // valores distintos, primero el del documento más reciente; un campo vacío se llena con el de otro documento
+    [...sel].reverse().forEach(d => { const v = String(d[f]||"").trim(); if(!v) return; const o = vs.find(x => k(x.v)===k(v)); if(o) o.docs.push(d.numero); else vs.push({v, docs:[d.numero]}); });
+    val[id] = vs[0]?.v || ""; $(id).value = val[id]; if(vs.length > 1) difs.push({id, lab, vs});
+  });
+  FDEST = val;
+  if(!difs.length){ $("fx-de-cons").classList.remove("hidden"); $("fx-de-igual").checked = true; $("fx-de-box").classList.add("hidden"); resumenDest(); return; }
+  const aviso = $("fx-de-aviso"); aviso.classList.remove("hidden");
+  aviso.innerHTML = `<b>Los documentos tienen datos distintos del destinatario</b> (${esc(listaY(difs.map(x => x.lab)))}). Dejé los del más reciente; revisa y elige o escribe el que va en el consolidado.`;
+  difs.forEach(({id, vs}) => { const alt = document.createElement("div"); alt.className = "de-alt hint"; alt.style.cssText = "margin-top:4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center";
+    alt.innerHTML = "Usar: " + vs.map((x,i) => `<button type="button" class="b-ghost b-sm" data-i="${i}" title="${esc(x.v)}">${esc(x.v.length > 34 ? x.v.slice(0,33)+"…" : x.v)} <span class="hint">(${esc(listaY(x.docs))})</span></button>`).join("");
+    alt.querySelectorAll("button").forEach(b => b.onclick = () => { $(id).value = vs[+b.dataset.i].v; $(id).dispatchEvent(new Event("input", {bubbles:true})); });
+    $(id).parentElement.appendChild(alt); });
+}
+$("fx-de-igual").onchange = () => { const on = $("fx-de-igual").checked; $("fx-de-box").classList.toggle("hidden", on);
+  if(on && FDEST) Object.entries(FDEST).forEach(([id,v]) => $(id).value = v); else $("fx-cliente").focus(); resumenDest(); };
 /* ----- consolidar varios recibos o facturas en uno ----- */
 const todosFac = () => [...(FHIST?.docs||[]), ...(FHIST?.previos||[])];
 function marcarConsolidados(cons, on){   // marca (o libera) los documentos que junta un consolidado
@@ -2260,7 +2290,7 @@ $("h-cons").onclick = async () => {
     const sel = [...caja.querySelectorAll(".cs-d:checked")].map(c => todosFac().find(d => d.codigo===c.value)).sort((a,b) => a.n-b.n); if(sel.length < 2) return;
     cerrar(); fNueva(); show("fac"); const t = tipo();
     const r = document.querySelector(`input[name="fx-tipo"][value="${t}"]`); r.checked = true; r.dispatchEvent(new Event("change", {bubbles:true}));
-    const u = sel[sel.length-1]; $("fx-cliente").value = u.cliente; $("fx-ruc").value = u.ruc||""; $("fx-email").value = u.email||""; $("fx-dir").value = u.direccion||""; $("fx-tel").value = u.telefono||"";
+    destinoCons(sel);
     FCONS = {tipo:t, docs: sel.map(d => ({codigo:d.codigo, numero:d.numero, total:r2(d.total), saldo:saldoDe(d)}))};
     $("fx-rows").innerHTML = "";
     sel.forEach(d => { const sal = saldoDe(d); fAdd({desc:`${d.tipo} ${d.numero} · ${PDFFAC.dmy(d.fecha)}${sal < r2(d.total) - 0.004 ? ` · saldo pendiente (total ${money(d.total)}, abonado ${money(cobradoDe(d))})` : ""}`, total:sal});
