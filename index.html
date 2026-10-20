@@ -1564,11 +1564,12 @@ $("aj-cambiar").onclick = () => {
 function filasCot(){ return [...(HIST?.cotizaciones||[])].sort((a,b) => a.n-b.n).map(c => ({
   "N° cotización": c.numero, "Fecha": PDFFAC.dmy(c.fecha), "Válida hasta": PDFFAC.dmy(c.validoHasta), "Cliente": c.cliente, "CIP/RUC": c.ruc||"", "Email": c.email||"",
   "Materiales (con ITBMS)": c.incMat ? r2(c.tot.matTotal) : 0, "Mano de obra": c.incMO ? r2(c.tot.moSub) : 0, "Total": c.total,
-  "Estado": estadoCot(c).t, "Motivo anulación": c.anulado?.motivo||"", "En cuentas por cobrar": c.cxc ? "Sí" : "No", "Código": c.codigo })); }
+  "Estado": estadoCot(c).t, "Motivo anulación": c.anulado?.motivo||"", "En cuentas por cobrar": c.cxc ? "Sí" : "No", ...colsGasto(c), "Código": c.codigo })); }
+const colsGasto = o => ({"Gasto combustible": o.gasto?.comb ?? "", "Gasto víveres": o.gasto?.viv ?? "", "Gasto materiales": o.gasto?.mat ?? "", "Notas de gasto": o.gasto?.nota || ""});
 function filasFac(lista, etiqueta){ return [...lista].sort((a,b) => a.n-b.n).map(d => ({
   "N.º": d.numero, "Tipo": etiqueta || d.tipo, "Pedido / cotización": d.pedido && d.pedido!==d.numero ? d.pedido : "", "Fecha": PDFFAC.dmy(d.fecha), "Vencimiento": PDFFAC.dmy(d.vence),
   "Cliente": d.cliente, "CIP/RUC": d.ruc||"", "Email": d.email||"", "Teléfono": d.telefono||"", "Dirección": d.direccion||"", "Total": d.total,
-  "Cobrado": cobradoDe(d), "Saldo": d.anulado ? 0 : saldoDe(d), "Estado": d.anulado ? "Anulado" : d.consolidadoEn ? `En consolidado ${d.consolidadoEn.numero}` : etiquetaCxc(d).t, "En cuentas por cobrar": enCxc(d) ? "Sí" : "No", "Código": d.codigo })); }
+  "Cobrado": cobradoDe(d), "Saldo": d.anulado ? 0 : saldoDe(d), "Estado": d.anulado ? "Anulado" : d.consolidadoEn ? `En consolidado ${d.consolidadoEn.numero}` : etiquetaCxc(d).t, "En cuentas por cobrar": enCxc(d) ? "Sí" : "No", ...colsGasto(d), "Código": d.codigo })); }
 function clientesTodos(){
   const m = new Map();
   const add = (o, f) => { const k = String(o.cliente||"").trim().toLowerCase(); if(!k) return; const c = m.get(k) || {cliente:o.cliente.trim(), ruc:"", email:"", telefono:"", direccion:"", docs:0, ultimo:""};
@@ -1592,6 +1593,8 @@ $("aj-resp-xlsx").onclick = async () => {
     const cob = []; [...(FHIST?.docs||[]), ...(FHIST?.previos||[]), ...(HIST?.cotizaciones||[])].forEach(d => (d.cobro?.abonos||[]).forEach(a => cob.push({"Documento": d.numero, "Cliente": d.cliente, "Fecha": PDFFAC.dmy(a.fecha), "Monto": a.monto, "Método": a.metodo||"", "Nota": a.nota||""})));
     hoja("Cobros", cob);
     hoja("Control anterior", filasFac(FHIST?.previos||[], "Recibo (control anterior)"));
+    hoja("Control de gasto", opsGasto().map(o => ({"Tipo": o.tipo, "N.º": o.numero, "Fecha": PDFFAC.dmy(o.fecha), "Cliente": o.cliente, "Comparado con": o.base, "Ingreso": o.ingreso,
+      "Combustible": o.g.comb ?? "", "Víveres": o.g.viv ?? "", "Materiales (real)": o.g.mat ?? "", "Gasto total": o.total, "Libre": o.libre, "Materiales cotizados": o.matCot || "", "Diferencia materiales": o.dif ?? "", "Notas": o.notas.join(" · ")})));
     hoja("Clientes", clientesTodos().map(c => ({"Cliente": c.cliente, "CIP/RUC": c.ruc, "Email": c.email, "Teléfono": c.telefono, "Dirección": c.direccion, "Documentos": c.docs, "Último documento": c.ultimo ? PDFFAC.dmy(c.ultimo) : ""})));
     XLSX.writeFile(wb, `Respaldo_Cotizador_GrupoLEAN_${hoyISO()}.xlsx`);
     st.className = "status ok"; st.textContent = "✓ Respaldo descargado. Guárdalo en un lugar seguro."; marcarRespaldo();
