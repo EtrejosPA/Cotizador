@@ -64,7 +64,11 @@
   .rp-col{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:2px}.rp-col i{flex:1;max-width:14px;border-radius:3px 3px 0 0;min-height:0}
   .rb-cot{background:#9DB3CC}.rb-fac{background:var(--navy)}.rb-cob{background:var(--orange)}
   .rp-mini{height:4px;background:var(--panel);border-radius:3px;margin-top:4px;overflow:hidden}.rp-mini i{display:block;height:100%;background:var(--orange);border-radius:3px}
-  @media (max-width:720px){ .rp-bars{gap:2px;height:160px}.rp-col{gap:1px}.rp-mes small{font-size:9px} }
+  .rp-n3 .rp-col i{max-width:52px}.rp-n6 .rp-col i{max-width:30px}.rp-n3,.rp-n6{gap:14px}.rp-n3 .rp-col,.rp-n6 .rp-col{gap:4px}
+  .rp-m span{margin-left:3px;opacity:.75}
+  @media (max-width:720px){ .rp-n12 .rp-m span{display:block;margin:0;font-size:8.5px} }
+  .rp-mes small.rp-v{padding-top:1px;font-weight:700;color:var(--navy)}
+  @media (max-width:720px){ .rp-bars{gap:2px;height:160px}.rp-col{gap:1px}.rp-mes small{font-size:9px} .rp-n3,.rp-n6{gap:8px} .rp-n3 .rp-col i{max-width:36px}.rp-n6 .rp-col i{max-width:18px}.rp-n3 .rp-mes small,.rp-n6 .rp-mes small{font-size:11px} }
   #offline{display:none}#offline.on{display:block;position:fixed;z-index:70;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top));width:min(680px,calc(100vw - 24px));background:#3F2D00;color:#FFF3D6;border:1px solid var(--orange);border-radius:12px;padding:10px 14px;font-size:13.5px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
   @media (max-width:720px){ .aj-txt{display:none} .seg:has(.seg-aj){display:flex;flex-wrap:nowrap;width:100%}
     .seg:has(.seg-aj) .segbtn{flex:1 1 auto;min-width:0;justify-content:center;padding:8px 6px;white-space:nowrap;font-size:clamp(12.5px,3.7vw,14px)}
@@ -91,6 +95,8 @@
   .ff-drop{font-size:12.5px;color:var(--muted);border:1.5px dashed #CBD3DF;border-radius:8px;padding:7px 12px;flex:1;min-width:180px;text-align:center}
   .ffotos.ff-sobre{background:#FFF8E8;outline:2px dashed var(--orange);outline-offset:4px;border-radius:8px}
   @media (hover:none), (pointer:coarse){ .ff-drop{display:none} }
+  #tirar{position:fixed;top:0;left:0;right:0;height:0;background:#fff;z-index:31;display:flex;align-items:center;justify-content:center;overflow:hidden;pointer-events:none}
+  #tirar img{height:0;width:auto;opacity:0;will-change:height,opacity}
   .fx-op-b{display:flex;flex-direction:column;align-items:center;gap:4px;padding:18px 12px;border-radius:14px;background:var(--panel);border:1.5px solid #CBD3DF;color:var(--navy);white-space:normal;text-align:center}
   .fx-op-b span{font-size:28px}.fx-op-b b{font-size:16px}.fx-op-b small{font-size:12px;color:var(--muted);font-weight:500}
   .fx-op-b:hover,.fx-op-b:focus{border-color:var(--orange);background:#FFF8E8;outline:none}
@@ -466,7 +472,7 @@
       <div class="seg" style="margin-bottom:14px"><button class="segbtn" id="rp-v-cxc">Cuentas por cobrar</button><button class="segbtn on">📊 Reportes</button></div>
       <h2>Reportes</h2>
       <div class="htools" style="margin-bottom:14px">
-        <select id="rp-anio" style="flex:1;min-width:180px;max-width:280px"><option value="12m">Últimos 12 meses</option></select>
+        <select id="rp-anio" style="flex:1;min-width:180px;max-width:280px"><option value="12m" selected>Últimos 12 meses</option></select>
         <button class="b-navy" id="rp-export">Exportar a Excel</button>
       </div>
       <div class="kpis" id="rp-kpis"></div>
@@ -1127,6 +1133,20 @@ async function entrar(){
 }
 
 /* ==================== navegación ==================== */
+/* ==================== iPhone: estirar hacia abajo muestra la marca ==================== */
+(() => {   // en el rebote del iPhone, en vez de un hueco gris aparece el logo en grande sobre blanco; al soltar vuelve a su lugar
+  const z = document.createElement("div"); z.id = "tirar"; z.setAttribute("aria-hidden", "true");
+  const src = document.querySelector("header img")?.src; if(!src) return;
+  z.innerHTML = `<img alt="" src="${src}">`; document.body.prepend(z);
+  const img = z.firstChild; let raf = 0, visto = false;
+  const pinta = () => { raf = 0; const y = Math.max(0, -window.scrollY);
+    if(!y){ if(visto){ z.style.height = "0px"; img.style.height = "0px"; visto = false; } return; }
+    visto = true; z.style.height = y + "px";
+    img.style.height = Math.min(y * 0.72, 190) + "px"; img.style.opacity = Math.min(1, y / 70); img.style.transform = `translateY(${Math.min(8, y/20)}px)`; };
+  addEventListener("scroll", () => { if(!raf) raf = requestAnimationFrame(pinta); }, {passive:true});
+  window.__tirar = pinta;
+})();
+
 /* ==================== sin conexión ==================== */
 if("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "127.0.0.1")){
   try{ navigator.serviceWorker.register("sw.js").catch(e => console.warn("sw", e)); }catch(e){}
@@ -3003,10 +3023,10 @@ const nomMes = k => MES_C[Number(k.slice(5,7))-1] + " " + k.slice(2,4);
 const mesMas = (k, n) => { let y = Number(k.slice(0,4)), m = Number(k.slice(5,7)) - 1 + n; y += Math.floor(m/12); m = ((m % 12) + 12) % 12; return `${y}-${String(m+1).padStart(2,"0")}`; };
 function repMeses(sel, primero){
   if(sel && /^\d{4}$/.test(sel)) return Array.from({length:12}, (_,i) => `${sel}-${String(i+1).padStart(2,"0")}`);
-  // 12 meses: empieza en el primer mes con datos (o el actual) y avanza; cuando ya hay más de un año, muestra los últimos 12
-  const actual = mesDe(hoyISO()), hace11 = mesMas(actual, -11);
-  let ini = primero && primero > hace11 ? primero : hace11; if(ini > actual) ini = actual;
-  return Array.from({length:12}, (_,i) => mesMas(ini, i));
+  // 3, 6 o 12 meses: empieza en el primer mes con datos (o el actual) y avanza; cuando ya hay más historia, muestra los últimos N
+  const N = Number(String(sel||"12m").replace("m","")) || 12, actual = mesDe(hoyISO()), atras = mesMas(actual, -(N-1));
+  let ini = N === 12 && primero && primero > atras ? primero : atras; if(ini > actual) ini = actual;   // 3 y 6 meses: siempre terminan en el mes actual
+  return Array.from({length:N}, (_,i) => mesMas(ini, i));
 }
 function repDatos(){
   const cots = (HIST?.cotizaciones||[]).filter(c => !c.anulado);
@@ -3028,8 +3048,9 @@ function pintarRep(){
   if(!HIST || !FHIST) return;
   const D = repDatos(), sel = $("rp-anio"), cur = sel.value || "12m";
   const anios = [...new Set([...D.cots.map(c => c.fecha), ...D.fact.map(d => d.fecha), ...D.cobros.map(c => c.fecha)].filter(Boolean).map(f => f.slice(0,4)))].sort().reverse();
-  sel.innerHTML = `<option value="12m">Últimos 12 meses</option>` + anios.map(a => `<option value="${a}"${a===cur?" selected":""}>${a}</option>`).join("");
-  if(cur!=="12m" && !anios.includes(cur)) sel.value = "12m";
+  sel.innerHTML = `<optgroup label="Período">${[3,6,12].map(n => `<option value="${n}m"${cur===n+"m"?" selected":""}>Últimos ${n} meses</option>`).join("")}</optgroup>`
+    + (anios.length ? `<optgroup label="Por año">${anios.map(a => `<option value="${a}"${a===cur?" selected":""}>Año ${a}</option>`).join("")}</optgroup>` : "");
+  if(!/^(3|6|12)m$/.test(cur) && !anios.includes(cur)) sel.value = "12m";
   const fechas = [...D.cots, ...D.fact, ...D.anCots, ...D.anFact].map(x => x.fecha).concat(D.cobros.map(c => c.fecha)).filter(Boolean).map(mesDe).sort();
   const meses = repMeses(sel.value, fechas[0]), enRango = f => meses.includes(mesDe(f));
   const M = Object.fromEntries(meses.map(k => [k, {cot:0, nCot:0, fac:0, nFac:0, cob:0, conv:0}]));
@@ -3057,9 +3078,9 @@ function pintarRep(){
   // gráfico de barras por mes
   const max = Math.max(1, ...meses.flatMap(m => [M[m].cot, M[m].fac, M[m].cob]));
   $("rp-graf").innerHTML = `<div class="rp-leg"><span><i class="rb-cot"></i>Cotizado</span><span><i class="rb-fac"></i>Facturado</span><span><i class="rb-cob"></i>Cobrado</span></div>
-    <div class="rp-bars">${meses.map(m => `<div class="rp-mes" title="${nomMes(m)}&#10;Cotizado ${money(M[m].cot)}&#10;Facturado ${money(M[m].fac)}&#10;Cobrado ${money(M[m].cob)}">
+    <div class="rp-bars rp-n${meses.length}" style="grid-template-columns:repeat(${meses.length},1fr)">${meses.map(m => `<div class="rp-mes" title="${nomMes(m)}&#10;Cotizado ${money(M[m].cot)}&#10;Facturado ${money(M[m].fac)}&#10;Cobrado ${money(M[m].cob)}">
       <div class="rp-col">${[["cot",M[m].cot],["fac",M[m].fac],["cob",M[m].cob]].map(([k,v]) => `<i class="rb-${k}" style="height:${(v/max*100).toFixed(1)}%"></i>`).join("")}</div>
-      <small>${nomMes(m)}</small></div>`).join("")}</div>`;
+      <small class="rp-m">${meses.length > 6 ? `${MES_C[Number(m.slice(5,7))-1]}<span>${m.slice(2,4)}</span>` : nomMes(m)}</small>${meses.length <= 6 ? `<small class="rp-v">${M[m].fac ? money(M[m].fac) : "—"}</small>` : ""}</div>`).join("")}</div>`;
   // tabla por mes
   $("rp-meses").innerHTML = meses.slice().reverse().filter(m => M[m].nCot || M[m].nFac || M[m].cob).map(m => `<tr><td>${nomMes(m)}</td>
     <td class="r">${M[m].nCot}</td><td class="r">${money(M[m].cot)}</td><td class="r">${M[m].nFac}</td><td class="r">${money(M[m].fac)}</td><td class="r">${money(M[m].cob)}</td>
@@ -3093,7 +3114,7 @@ function exportarRep(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sinF.map(c => ({"N.º": c.numero, "Fecha": PDFFAC.dmy(c.fecha), "Cliente": c.cliente, "Estado": estadoCot(c).t, "Total": c.total}))), "Sin facturar");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(anTodos.length ? anTodos.map(d => ({"Tipo": d.tipo, "N.º": d.numero, "Cliente": d.cliente, "Fecha": PDFFAC.dmy(d.fecha),
     "Fecha de anulación": PDFFAC.dmy(d.anulado?.fecha || d.cxcAnulada?.fecha || ""), "Motivo": d.anulado?.motivo || "", "Monto": r2(Number(d.total||0))})) : [{"Tipo": "Sin anulados en el período"}]), "Anulados");
-  XLSX.writeFile(wb, `Reporte_${$("rp-anio").value==="12m" ? "12_meses" : $("rp-anio").value}_${hoyISO()}.xlsx`);
+  const v = $("rp-anio").value; XLSX.writeFile(wb, `Reporte_${/m$/.test(v) ? v.replace("m","_meses") : v}_${hoyISO()}.xlsx`);
 }
 $("rp-anio").onchange = () => { pintarRep(); animarRep(); };
 $("rp-export").onclick = exportarRep;
