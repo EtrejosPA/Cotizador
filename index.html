@@ -1139,9 +1139,10 @@ async function entrar(){
   const src = document.querySelector("header img")?.src; if(!src) return;
   z.innerHTML = `<img alt="" src="${src}">`; document.body.prepend(z);
   const img = z.firstChild; let raf = 0, visto = false;
+  const marca = [document.querySelector("header > img"), document.querySelector("header > .t")].filter(Boolean);   // el encabezado chico se oculta mientras se ve el logo grande
   const pinta = () => { raf = 0; const y = Math.max(0, -window.scrollY);
-    if(!y){ if(visto){ z.style.height = "0px"; img.style.height = "0px"; visto = false; } return; }
-    visto = true; z.style.height = y + "px";
+    if(!y){ if(visto){ z.style.height = "0px"; img.style.height = "0px"; marca.forEach(e => { e.style.opacity = ""; e.style.transition = "opacity .25s ease"; }); visto = false; } return; }
+    visto = true; z.style.height = y + "px"; marca.forEach(e => { e.style.transition = "none"; e.style.opacity = Math.max(0, 1 - y / 45); });
     img.style.height = Math.min(y * 0.72, 190) + "px"; img.style.opacity = Math.min(1, y / 70); img.style.transform = `translateY(${Math.min(8, y/20)}px)`; };
   addEventListener("scroll", () => { if(!raf) raf = requestAnimationFrame(pinta); }, {passive:true});
   window.__tirar = pinta;
