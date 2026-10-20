@@ -2093,7 +2093,7 @@ $("fx-emit").onclick = async () => {
       catch(e){ if(e.status!==409 || i===2) throw e; }
     }
     if(!$("fx-em-igual").checked && $("fx-em-fijar").checked && !mismoEmisor(d.emisor, emisorDef())){
-      try{ await guardarAjustes(a => { a.emisor = {...d.emisor}; }, "Ajustes: datos del emisor"); pintarEmisor(null); }catch(e){ console.warn(e); } }
+      try{ await guardarAjustes(a => { a.emisor = sinCIP({...d.emisor}); }, "Ajustes: datos del emisor"); pintarEmisor(null); }catch(e){ console.warn(e); } }
     const fem = d.tipo==="Factura"; st.className="status ok"; st.textContent = `✓ ${d.tipo} ${d.numero} ${FEDIT?(fem?"corregida":"corregido"):(fem?"emitida":"emitido")} y ${fem?"publicada":"publicado"}`;
     const url = fUrl(d);
     msg.innerHTML = `<div class="box okb"><b>${esc(d.tipo)} ${esc(d.numero)} · ${esc(d.cliente)} · ${money(d.total)}</b><br>
@@ -2231,7 +2231,8 @@ function setHView(v){
 /* ----- datos del emisor (editables; ocultos por defecto) ----- */
 const EMISOR_DEF = {nombre:"Grupo Σ LEAN", rucTipo:"RUC", ruc:"", direccion:"Tocumen, Nuevo Belen, calle agua buena, ofi: A-01", email:"etrejos24@gmail.com", telefono:"+507 310-4763"};
 const EM_CAMPOS = [["nombre","fx-em-nom"],["ruc","fx-em-ruc"],["direccion","fx-em-dir"],["email","fx-em-email"],["telefono","fx-em-tel"]];
-const emisorDef = () => ({...EMISOR_DEF, ...(AJ().emisor || {})});
+const sinCIP = e => e?.rucTipo==="CIP" ? {...e, rucTipo:"RUC", ruc:""} : e;   // los datos de siempre van con RUC: un CIP solo vale para el documento donde se escribe
+const emisorDef = () => sinCIP({...EMISOR_DEF, ...(AJ().emisor || {})});
 const mismoEmisor = (a, b) => EM_CAMPOS.every(([k]) => String(a?.[k]||"").trim() === String(b?.[k]||"").trim()) && (a?.rucTipo||"RUC") === (b?.rucTipo||"RUC");
 const idEmisor = e => e?.ruc ? (/^(ruc|cip)\b/i.test(e.ruc.trim()) ? e.ruc.trim() : `${e.rucTipo||"RUC"}: ${e.ruc.trim()}`) : "";
 function pintarEmisor(em){   // em = datos del documento (o null = los de siempre)
