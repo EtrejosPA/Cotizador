@@ -97,6 +97,7 @@
   @media (hover:none), (pointer:coarse){ .ff-drop{display:none} }
   #tirar{position:fixed;top:0;left:0;right:0;height:0;background:#fff;z-index:31;display:flex;align-items:center;justify-content:center;overflow:hidden;pointer-events:none}
   #tirar img{height:0;width:auto;opacity:0;will-change:height,opacity}
+  .seg-mini{padding:2px;gap:2px;border-radius:8px}.seg-mini .segopt{padding:3px 12px;font-size:12.5px;border-radius:6px;text-transform:none;letter-spacing:0}
   .fx-op-b{display:flex;flex-direction:column;align-items:center;gap:4px;padding:18px 12px;border-radius:14px;background:var(--panel);border:1.5px solid #CBD3DF;color:var(--navy);white-space:normal;text-align:center}
   .fx-op-b span{font-size:28px}.fx-op-b b{font-size:16px}.fx-op-b small{font-size:12px;color:var(--muted);font-weight:500}
   .fx-op-b:hover,.fx-op-b:focus{border-color:var(--orange);background:#FFF8E8;outline:none}
@@ -438,7 +439,9 @@
       <div id="fx-em-box" class="hidden" style="margin-top:10px">
         <div class="grid g2">
           <div><label>Nombre de la empresa</label><input type="text" id="fx-em-nom" class="in" maxlength="80"></div>
-          <div><label>RUC / CIP</label><input type="text" id="fx-em-ruc" class="in" maxlength="60" placeholder="Opcional (ej. RUC: 155xxxxxx-2-2026 DV 00)"></div>
+          <div><label style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">Identificación
+              <span class="seg seg-mini"><label class="segopt"><input type="radio" name="fx-em-rt" value="RUC" checked hidden> RUC</label><label class="segopt"><input type="radio" name="fx-em-rt" value="CIP" hidden> CIP</label></span></label>
+            <input type="text" id="fx-em-ruc" class="in" maxlength="60" placeholder="Opcional (ej. 155xxxxxx-2-2026 DV 00)"></div>
           <div><label>Dirección</label><input type="text" id="fx-em-dir" class="in" maxlength="120"></div>
           <div><label>Email</label><input type="email" id="fx-em-email" class="in" maxlength="80" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
           <div><label>Teléfono</label><input type="text" id="fx-em-tel" class="in" maxlength="40" inputmode="tel"></div>
@@ -896,7 +899,7 @@ const PDFFAC = (() => {
     // emisor / destinatario
     T(doc, "EMISOR", 36.5, 176.2, {st:"bold", c:C.label});
     const em = d.emisor || {nombre:"Grupo Σ LEAN", direccion:"Tocumen, Nuevo Belen, calle agua buena, ofi: A-01", email:"etrejos24@gmail.com", telefono:"+507 310-4763"};
-    const rucE = em.ruc ? (/^(ruc|cip|c[ée]dula)/i.test(em.ruc.trim()) ? em.ruc.trim() : "RUC/CIP: " + em.ruc.trim()) : "";
+    const rucE = em.ruc ? (/^(ruc|cip|c[ée]dula)\b/i.test(em.ruc.trim()) ? em.ruc.trim() : `${em.rucTipo==="CIP" ? "CIP" : "RUC"}: ${em.ruc.trim()}`) : "";   // solo se imprime si está lleno
     let ye = 193.7;
     [em.nombre, rucE, em.direccion, em.email, em.telefono].filter(Boolean).forEach(t => {
       doc.setFont("Serif","normal"); doc.setFontSize(10.1);
@@ -2110,7 +2113,7 @@ function xmlDe(d){
 ${tag("Numero", d.numero)}${tag("PedidoNumero", d.pedido)}${tag("FechaEmision", d.fecha)}${tag("FechaVencimiento", d.vence)}    <Moneda>USD</Moneda>
 ${tag("CodigoValidacion", d.codigo)}${tag("UrlValidacion", fUrl(d))}${d.anulado ? tag("Anulado", d.anulado.fecha) : ""}  </Encabezado>
   <Emisor>
-${(e => tag("Nombre", e.nombre) + tag("CIP_RUC", e.ruc) + tag("Direccion", e.direccion) + tag("Correo", e.email) + tag("Telefono", e.telefono))(d.emisor || EMISOR_DEF)}  </Emisor>
+${(e => tag("Nombre", e.nombre) + tag("CIP_RUC", idEmisor(e)) + tag("Direccion", e.direccion) + tag("Correo", e.email) + tag("Telefono", e.telefono))(d.emisor || EMISOR_DEF)}  </Emisor>
   <Receptor>
 ${tag("Nombre", d.cliente)}${tag("CIP_RUC", d.ruc)}${tag("Direccion", d.direccion)}${tag("Telefono", d.telefono)}  </Receptor>
   <Detalle>
@@ -2209,19 +2212,22 @@ function setHView(v){
   v==="cot" ? pintarHist() : pintarFac();
 }
 /* ----- datos del emisor (editables; ocultos por defecto) ----- */
-const EMISOR_DEF = {nombre:"Grupo Σ LEAN", ruc:"", direccion:"Tocumen, Nuevo Belen, calle agua buena, ofi: A-01", email:"etrejos24@gmail.com", telefono:"+507 310-4763"};
+const EMISOR_DEF = {nombre:"Grupo Σ LEAN", rucTipo:"RUC", ruc:"", direccion:"Tocumen, Nuevo Belen, calle agua buena, ofi: A-01", email:"etrejos24@gmail.com", telefono:"+507 310-4763"};
 const EM_CAMPOS = [["nombre","fx-em-nom"],["ruc","fx-em-ruc"],["direccion","fx-em-dir"],["email","fx-em-email"],["telefono","fx-em-tel"]];
 const emisorDef = () => ({...EMISOR_DEF, ...(AJ().emisor || {})});
-const mismoEmisor = (a, b) => EM_CAMPOS.every(([k]) => String(a?.[k]||"").trim() === String(b?.[k]||"").trim());
+const mismoEmisor = (a, b) => EM_CAMPOS.every(([k]) => String(a?.[k]||"").trim() === String(b?.[k]||"").trim()) && (a?.rucTipo||"RUC") === (b?.rucTipo||"RUC");
+const idEmisor = e => e?.ruc ? (/^(ruc|cip)\b/i.test(e.ruc.trim()) ? e.ruc.trim() : `${e.rucTipo||"RUC"}: ${e.ruc.trim()}`) : "";
 function pintarEmisor(em){   // em = datos del documento (o null = los de siempre)
   const igual = !em || mismoEmisor(em, emisorDef()), v = em || emisorDef();
   $("fx-em-igual").checked = igual; $("fx-em-box").classList.toggle("hidden", igual);
-  EM_CAMPOS.forEach(([k,id]) => $(id).value = v[k] || ""); $("fx-em-fijar").checked = true; resumenEmisor();
+  EM_CAMPOS.forEach(([k,id]) => $(id).value = v[k] || ""); setRt(v.rucTipo); $("fx-em-fijar").checked = true; resumenEmisor();
 }
-function resumenEmisor(){ const e = emisorDef(); $("fx-em-res").textContent = $("fx-em-igual").checked ? `${e.nombre}${e.ruc ? " · " + e.ruc : ""}. Quítalo para editar el nombre o agregar tu RUC / CIP.` : ""; }
-function emisorForm(){ if($("fx-em-igual").checked) return emisorDef(); const o = {}; EM_CAMPOS.forEach(([k,id]) => o[k] = $(id).value.trim()); return o; }
+const setRt = t => { const r = document.querySelector(`input[name="fx-em-rt"][value="${t==="CIP" ? "CIP" : "RUC"}"]`); if(r) r.checked = true; };
+const getRt = () => document.querySelector('input[name="fx-em-rt"]:checked')?.value || "RUC";
+function resumenEmisor(){ const e = emisorDef(); $("fx-em-res").textContent = $("fx-em-igual").checked ? `${e.nombre}${e.ruc ? " · " + idEmisor(e) : ""}. Quítalo para editar el nombre o agregar tu RUC o CIP.` : ""; }
+function emisorForm(){ if($("fx-em-igual").checked) return emisorDef(); const o = {rucTipo:getRt()}; EM_CAMPOS.forEach(([k,id]) => o[k] = $(id).value.trim()); return o; }
 $("fx-em-igual").onchange = () => { const on = $("fx-em-igual").checked; $("fx-em-box").classList.toggle("hidden", on);
-  if(on) EM_CAMPOS.forEach(([k,id]) => $(id).value = emisorDef()[k] || ""); else $("fx-em-nom").focus(); resumenEmisor(); };
+  if(on){ EM_CAMPOS.forEach(([k,id]) => $(id).value = emisorDef()[k] || ""); setRt(emisorDef().rucTipo); } else $("fx-em-nom").focus(); resumenEmisor(); };
 /* ----- consolidar varios recibos o facturas en uno ----- */
 const todosFac = () => [...(FHIST?.docs||[]), ...(FHIST?.previos||[])];
 function marcarConsolidados(cons, on){   // marca (o libera) los documentos que junta un consolidado
