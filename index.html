@@ -537,7 +537,7 @@
       <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Vencimiento</th><th class="r">Días de atraso</th><th class="r">Saldo</th><th class="r"></th></tr></thead><tbody id="cx-ven"></tbody></table></div></div>
 
     <div class="card"><h2><span class="dot d-warn"></span>Vigentes y por vencer <span class="pill p-warn" id="cx-n-por"></span></h2>
-      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Vencimiento</th><th class="r">Días hábiles para vencer</th><th class="r">Saldo</th><th class="r"></th></tr></thead><tbody id="cx-por"></tbody></table></div></div>
+      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Vencimiento</th><th class="r">Días para vencer</th><th class="r">Saldo</th><th class="r"></th></tr></thead><tbody id="cx-por"></tbody></table></div></div>
 
     <div class="card"><h2><span class="dot d-ok"></span>Cobrados <span class="pill p-ok" id="cx-n-cob"></span></h2>
       <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Fecha de cobro</th><th>Método</th><th class="r">Monto</th><th class="r"></th></tr></thead><tbody id="cx-cob"></tbody></table></div></div>
@@ -3097,7 +3097,7 @@ $("cx-export").onclick = () => {
   const cuentas = L.map((d,i) => { const u = ultimoCobro(d); return {"N.º": d.numero, "Tipo": d.origen==="control" ? "Recibo (control anterior)" : d.tipo, "Cliente": d.cliente,
     "Descripción": descDe(d), "Cotización": cotsDeDoc(d).join(", "), "Fecha emisión": PDFFAC.dmy(d.fecha), "Vencimiento": PDFFAC.dmy(d.vence),
     "Monto": d.total, "Cobrado": cobradoDe(d), "Saldo": saldoDe(d), "Estado": etiquetaCxc(d).t + (est[i]!=="Cobrado" && cobradoDe(d) > 0 ? " (abono parcial)" : ""),
-    "Días de atraso": est[i]==="Vencido" ? diasEntre(d.vence, hoyISO()) : "", "Días hábiles para vencer": est[i]==="Por vencer" ? habilesEntre(hoyISO(), d.vence) : "",
+    "Días de atraso": est[i]==="Vencido" ? diasEntre(d.vence, hoyISO()) : "", "Días para vencer": est[i]==="Por vencer" ? habilesEntre(hoyISO(), d.vence) : "",
     "Fecha de cobro": est[i]==="Cobrado" && u?.fecha ? PDFFAC.dmy(u.fecha) : "", "Método": u?.metodo || ""}; });
   const abonos = []; L.forEach(d => (d.cobro?.abonos||[]).forEach(a => abonos.push({"N.º": d.numero, "Cliente": d.cliente, "Fecha": PDFFAC.dmy(a.fecha), "Monto": a.monto, "Método": a.metodo||"", "Nota": a.nota||""})));
   const wb = XLSX.utils.book_new(), s1 = XLSX.utils.json_to_sheet(res), s2 = XLSX.utils.json_to_sheet(cuentas), s3 = XLSX.utils.json_to_sheet(abonos.length ? abonos : [{"N.º":"", "Cliente":"", "Fecha":"", "Monto":"", "Método":"", "Nota":""}]);
