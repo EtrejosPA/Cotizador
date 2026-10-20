@@ -432,6 +432,22 @@
     </div>
 
     <div class="card">
+      <h2>Emisor</h2>
+      <label class="chk"><input type="checkbox" id="fx-em-igual" checked> Usar mis datos de siempre</label>
+      <div class="hint" id="fx-em-res" style="margin-top:2px"></div>
+      <div id="fx-em-box" class="hidden" style="margin-top:10px">
+        <div class="grid g2">
+          <div><label>Nombre de la empresa</label><input type="text" id="fx-em-nom" class="in" maxlength="80"></div>
+          <div><label>RUC / CIP</label><input type="text" id="fx-em-ruc" class="in" maxlength="60" placeholder="Opcional (ej. RUC: 155xxxxxx-2-2026 DV 00)"></div>
+          <div><label>Dirección</label><input type="text" id="fx-em-dir" class="in" maxlength="120"></div>
+          <div><label>Email</label><input type="email" id="fx-em-email" class="in" maxlength="80" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+          <div><label>Teléfono</label><input type="text" id="fx-em-tel" class="in" maxlength="40" inputmode="tel"></div>
+        </div>
+        <label class="chk" style="margin-top:8px"><input type="checkbox" id="fx-em-fijar" checked> Guardar como mis datos de siempre (para los próximos documentos)</label>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>Destinatario</h2>
       <div class="grid g2">
         <div><label>Cliente</label><input type="text" id="fx-cliente" class="in" placeholder="Nombre del cliente o empresa"></div>
@@ -879,7 +895,12 @@ const PDFFAC = (() => {
     fil.forEach(([k,v],i) => { T(doc, k, 306, 72.5 + i*15.45, {c:C.label}); T(doc, v, 577.5, 72.5 + i*15.45, {al:"right"}); });
     // emisor / destinatario
     T(doc, "EMISOR", 36.5, 176.2, {st:"bold", c:C.label});
-    ["Grupo Σ LEAN","Tocumen, Nuevo Belen, calle agua buena, ofi: A-01","etrejos24@gmail.com","+507 310-4763"].forEach((t,i) => T(doc, t, 36.5, 193.7 + i*13.5));
+    const em = d.emisor || {nombre:"Grupo Σ LEAN", direccion:"Tocumen, Nuevo Belen, calle agua buena, ofi: A-01", email:"etrejos24@gmail.com", telefono:"+507 310-4763"};
+    const rucE = em.ruc ? (/^(ruc|cip|c[ée]dula)/i.test(em.ruc.trim()) ? em.ruc.trim() : "RUC/CIP: " + em.ruc.trim()) : "";
+    let ye = 193.7;
+    [em.nombre, rucE, em.direccion, em.email, em.telefono].filter(Boolean).forEach(t => {
+      doc.setFont("Serif","normal"); doc.setFontSize(10.1);
+      doc.splitTextToSize(String(t), 255).forEach(ln => { T(doc, ln, 36.5, ye); ye += 13.5; }); });
     T(doc, "DESTINATARIO", 306.5, 176.2, {st:"bold", c:C.label});
     const anchoDest = d.url ? 178 : 265;
     let yy = 193.7;
@@ -887,7 +908,7 @@ const PDFFAC = (() => {
       doc.setFont("Serif","normal"); doc.setFontSize(10.1);
       doc.splitTextToSize(String(t), anchoDest).forEach(ln => { T(doc, ln, 306.5, yy); yy += 13.5; });
     });
-    let yEnd = Math.max(247.7, yy);
+    let yEnd = Math.max(247.7, yy, ye);
     if(d.url){
       qr(doc, d.url, 498, 170, 74);
       if(d.validado !== false){
@@ -1167,7 +1188,7 @@ function show(v){
 }
 $("tab-nueva").onclick = () => { if(EDIT) nueva(); show("nueva"); };
 $("tab-hist").onclick = () => show("hist");
-$("tab-fac").onclick = () => { if(FEDIT) fNueva(); show("fac"); };
+$("tab-fac").onclick = () => { if(FEDIT) fNueva(); else if($("fx-em-igual").checked) pintarEmisor(null); show("fac"); };
 $("tab-cxc").onclick = async () => { CXANIM = true; show("cxc"); CXANIM = false; try{ await Promise.all([cargarFac(), recargarHist()]); CXANIM = true; pintarCxc(); animarCxc(); }catch(e){ console.error(e); CXANIM = false; pintarCxc(); } finally{ CXANIM = false; } };
 
 /* ==================== formulario ==================== */
@@ -1968,7 +1989,7 @@ function fNueva(){
   document.querySelector('input[name="fx-tipo"][value="Recibo"]').checked = true;
   document.querySelectorAll('input[name="fx-tipo"]').forEach(r => r.disabled = false);
   $("fx-pago").checked = true; $("fx-pie").checked = true; $("fx-xml").checked = false;
-  FCOLS = colsFac(); FCONS = null; $("fx-rows").innerHTML = ""; fAdd(); $("fx-status").textContent = ""; $("fx-msg").innerHTML = ""; fCalc();
+  FCOLS = colsFac(); FCONS = null; pintarEmisor(null); $("fx-rows").innerHTML = ""; fAdd(); $("fx-status").textContent = ""; $("fx-msg").innerHTML = ""; fCalc();
 }
 function fCargar(d, modo){
   FEDIT = modo==="editar" ? d : null;
@@ -1982,7 +2003,7 @@ function fCargar(d, modo){
   $("fx-pago").checked = !!d.conPago; $("fx-pie").checked = !!d.conPie; $("fx-xml").checked = !!d.conXml;
   const its = modo==="editar" ? d.items : d.items.map(({fotos, ...x}) => x);   // una copia no se lleva las fotos (son del documento original)
   FCOLS = colsDe(its, d.cols ? colsDe([], d.cols).concat(colsFac().filter(c => !d.cols.some(x => x.k===c.k))) : colsFac());
-  FCONS = modo==="editar" && d.consolida ? {tipo:d.tipo, docs:d.consolida} : null;
+  FCONS = modo==="editar" && d.consolida ? {tipo:d.tipo, docs:d.consolida} : null; pintarEmisor(d.emisor || null);
   $("fx-rows").innerHTML = ""; (its.length ? its : [{}]).forEach(it => { fAdd(it); if(it._auto) $("fx-rows").lastChild.dataset.auto = it._auto; });
   if(modo==="editar") [...$("fx-rows").children].forEach((r,i) => { r._fotos = (its[i]?.fotos||[]).map(id => ({id, subido:true})); pintarFotos(r, d.codigo); });
   if(enl) aplicarPedido(false); else fEnlazar(null, false);
@@ -1997,6 +2018,8 @@ function fArmar(){
   const igual = $("fx-ped-igual").checked, pedTxt = $("fx-pedido").value.trim();
   if(!igual && !pedTxt) errs.push("el N.º de la cotización en «Pedido N.º» (o marca «Igual al N.º del documento»)");
   if(!cliente) errs.push("el cliente");
+  if(!$("fx-em-igual").checked && !$("fx-em-nom").value.trim()) errs.push("el nombre del emisor");
+  if(!$("fx-em-igual").checked && $("fx-em-email").value.trim() && !EMAIL_OK($("fx-em-email").value.trim())) errs.push("un email válido del emisor");
   if($("fx-email").value.trim() && !EMAIL_OK($("fx-email").value.trim())) errs.push("un email válido (o dejarlo vacío)");
   if(!items.length) errs.push("al menos una fila en el detalle");
   items.forEach((it,i) => { if(it.total==null) errs.push(`el total (o el precio) de la fila ${i+1}`); if(!it.desc && !fcols().some(c => it[c.k])) errs.push(`la descripción de la fila ${i+1}`); });
@@ -2013,6 +2036,7 @@ function fArmar(){
   return { tipo, n, numero, pedido, cotRef: !igual && FPED ? FPED.numero : null, ...(!igual && FPEDS.length > 1 ? {cotRefs: FPEDS.map(c => c.numero)} : {}), pedOpts: !igual && FPED ? {mo:$("fx-ped-mo").checked, mat:$("fx-ped-mat").checked} : null, codigo, fecha, vence, dias, cliente,
            ruc:$("fx-ruc").value.trim(), email:$("fx-email").value.trim(), direccion:$("fx-dir").value.trim(), telefono:$("fx-tel").value.trim(),
            items, subtotal: total, total, conPago:$("fx-pago").checked, conPie:$("fx-pie").checked, conXml:$("fx-xml").checked,
+           emisor: emisorForm(),
            cols: fcols().filter(c => items.some(it => it[c.k]!=null && String(it[c.k]).trim()!=="")).map(({k,t,tipo}) => ({k,t,...(tipo?{tipo}:{})})),
            ...(FCONS ? {consolida: FCONS.docs, tituloDesc: `Consolidado de ${FCONS.tipo==="Factura" ? "facturas" : "recibos"}`, ...(FEDIT ? {} : {cxc:{desde:hoyISO()}})} : {}),
            cobro: FEDIT?.cobro || {estado:"Pendiente"}, creado: FEDIT ? FEDIT.creado : new Date().toISOString(), actualizado: new Date().toISOString() };
@@ -2048,6 +2072,8 @@ $("fx-emit").onclick = async () => {
            await guardarFac(`${FEDIT?"Corregir":"Emitir"} ${d.tipo.toLowerCase()} ${d.numero}`); break; }
       catch(e){ if(e.status!==409 || i===2) throw e; }
     }
+    if(!$("fx-em-igual").checked && $("fx-em-fijar").checked && !mismoEmisor(d.emisor, emisorDef())){
+      try{ await guardarAjustes(a => { a.emisor = {...d.emisor}; }, "Ajustes: datos del emisor"); pintarEmisor(null); }catch(e){ console.warn(e); } }
     const fem = d.tipo==="Factura"; st.className="status ok"; st.textContent = `✓ ${d.tipo} ${d.numero} ${FEDIT?(fem?"corregida":"corregido"):(fem?"emitida":"emitido")} y ${fem?"publicada":"publicado"}`;
     const url = fUrl(d);
     msg.innerHTML = `<div class="box okb"><b>${esc(d.tipo)} ${esc(d.numero)} · ${esc(d.cliente)} · ${money(d.total)}</b><br>
@@ -2084,11 +2110,7 @@ function xmlDe(d){
 ${tag("Numero", d.numero)}${tag("PedidoNumero", d.pedido)}${tag("FechaEmision", d.fecha)}${tag("FechaVencimiento", d.vence)}    <Moneda>USD</Moneda>
 ${tag("CodigoValidacion", d.codigo)}${tag("UrlValidacion", fUrl(d))}${d.anulado ? tag("Anulado", d.anulado.fecha) : ""}  </Encabezado>
   <Emisor>
-    <Nombre>Grupo Σ LEAN — Ingeniería &amp; Proyectos</Nombre>
-    <Direccion>Tocumen, Nuevo Belén, calle agua buena, ofi: A-01</Direccion>
-    <Correo>etrejos24@gmail.com</Correo>
-    <Telefono>+507 310-4763</Telefono>
-  </Emisor>
+${(e => tag("Nombre", e.nombre) + tag("CIP_RUC", e.ruc) + tag("Direccion", e.direccion) + tag("Correo", e.email) + tag("Telefono", e.telefono))(d.emisor || EMISOR_DEF)}  </Emisor>
   <Receptor>
 ${tag("Nombre", d.cliente)}${tag("CIP_RUC", d.ruc)}${tag("Direccion", d.direccion)}${tag("Telefono", d.telefono)}  </Receptor>
   <Detalle>
@@ -2186,6 +2208,20 @@ function setHView(v){
   $("h-status").textContent = ""; $("h-imp").innerHTML = "";
   v==="cot" ? pintarHist() : pintarFac();
 }
+/* ----- datos del emisor (editables; ocultos por defecto) ----- */
+const EMISOR_DEF = {nombre:"Grupo Σ LEAN", ruc:"", direccion:"Tocumen, Nuevo Belen, calle agua buena, ofi: A-01", email:"etrejos24@gmail.com", telefono:"+507 310-4763"};
+const EM_CAMPOS = [["nombre","fx-em-nom"],["ruc","fx-em-ruc"],["direccion","fx-em-dir"],["email","fx-em-email"],["telefono","fx-em-tel"]];
+const emisorDef = () => ({...EMISOR_DEF, ...(AJ().emisor || {})});
+const mismoEmisor = (a, b) => EM_CAMPOS.every(([k]) => String(a?.[k]||"").trim() === String(b?.[k]||"").trim());
+function pintarEmisor(em){   // em = datos del documento (o null = los de siempre)
+  const igual = !em || mismoEmisor(em, emisorDef()), v = em || emisorDef();
+  $("fx-em-igual").checked = igual; $("fx-em-box").classList.toggle("hidden", igual);
+  EM_CAMPOS.forEach(([k,id]) => $(id).value = v[k] || ""); $("fx-em-fijar").checked = true; resumenEmisor();
+}
+function resumenEmisor(){ const e = emisorDef(); $("fx-em-res").textContent = $("fx-em-igual").checked ? `${e.nombre}${e.ruc ? " · " + e.ruc : ""}. Quítalo para editar el nombre o agregar tu RUC / CIP.` : ""; }
+function emisorForm(){ if($("fx-em-igual").checked) return emisorDef(); const o = {}; EM_CAMPOS.forEach(([k,id]) => o[k] = $(id).value.trim()); return o; }
+$("fx-em-igual").onchange = () => { const on = $("fx-em-igual").checked; $("fx-em-box").classList.toggle("hidden", on);
+  if(on) EM_CAMPOS.forEach(([k,id]) => $(id).value = emisorDef()[k] || ""); else $("fx-em-nom").focus(); resumenEmisor(); };
 /* ----- consolidar varios recibos o facturas en uno ----- */
 const todosFac = () => [...(FHIST?.docs||[]), ...(FHIST?.previos||[])];
 function marcarConsolidados(cons, on){   // marca (o libera) los documentos que junta un consolidado
