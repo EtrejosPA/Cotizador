@@ -83,6 +83,14 @@
   .pw{position:relative;max-width:420px}.pw input{width:100%;padding-right:46px}
   .pw .ojo{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:38px;height:38px;padding:0;margin:0;border:0;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
   .pw .ojo svg{width:20px;height:20px}.pw .ojo .o-a{display:none}.pw .ojo.on .o-a{display:inline}.pw .ojo.on .o-c{display:none}.pw .ojo:hover,.pw .ojo.on{color:var(--navy);background:var(--panel)}
+  .dif{display:inline-block;padding:3px 10px;border-radius:999px;font-weight:800;font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .dif.pos{background:var(--green-bg);color:var(--green)}.dif.neg{background:var(--red-bg);color:#B42318}
+  .rb-comb{background:#E8A33D}.rb-viv{background:#5FA8D3}.rb-mat{background:#1F3A5F}.rb-cq{background:#C9D6E3}
+  .g-cmp{display:grid;grid-template-columns:minmax(120px,190px) 1fr auto;gap:12px;align-items:center;margin:10px 0}
+  .g-cmp .bars{display:flex;flex-direction:column;gap:4px;min-width:0}.g-cmp .bars i{display:block;height:11px;border-radius:3px;min-width:2px}
+  .g-cmp small{color:var(--muted);font-size:11.5px}
+  .g-h{margin:22px 0 8px;font-size:15px}
+  @media (max-width:560px){ .g-cmp{grid-template-columns:1fr auto}.g-cmp .bars{grid-column:1 / -1;grid-row:2} }
   .rp-anul{display:block;margin-top:4px;color:#D46A6A;font-weight:600;font-style:normal}
   .an-lig{margin-top:10px;padding:10px 12px;background:#fff;border:1px solid #F5C2C2;border-radius:10px;display:flex;flex-direction:column;gap:6px}
   .ffotos{border-top:1px dashed #CBD3DF;padding-top:8px}.ff-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}.ff-list:empty{display:none}
@@ -271,6 +279,8 @@
     table.cx td:last-child[data-l=""]::before{display:none}
     table.cx tr.cx-sub{display:flex;justify-content:space-between}
     table.cx tr.cx-sub td:empty{display:none}
+    table.cx td.g-cli{grid-column:1/-1}
+    table.cx tr.cx-sub.g-tot{display:grid;grid-template-columns:1fr 1fr}
   }
 </style>
 </head>
@@ -373,6 +383,20 @@
     </div>
 
     <div class="grand"><span>TOTAL DE LA COTIZACIÓN</span><b id="g-total">$0.00</b></div>
+
+    <div class="card gasto-card">
+      <h2>Control de gasto <span class="pill p-blue" style="font-size:11px">Interno · no sale en el PDF</span></h2>
+      <label class="chk"><input type="checkbox" id="f-g-no" checked> No reportar gastos</label>
+      <div class="hint" id="f-g-res" style="margin-top:2px">Quítalo para anotar combustible, víveres y materiales de este trabajo.</div>
+      <div id="f-g-box" class="hidden" style="margin-top:10px">
+        <div class="grid g3">
+          <div><label>Combustible</label><input type="text" id="f-g-comb" class="in g-monto" inputmode="decimal" placeholder="0.00"></div>
+          <div><label>Víveres</label><input type="text" id="f-g-viv" class="in g-monto" inputmode="decimal" placeholder="0.00"></div>
+          <div><label>Materiales (gasto real)</label><input type="text" id="f-g-mat" class="in g-monto" inputmode="decimal" placeholder="0.00"></div>
+        </div>
+        <div style="margin-top:8px"><label>Notas</label><input type="text" id="f-g-nota" class="in" maxlength="200" placeholder="Opcional (ej. compra extra de soldadura)"></div>
+      </div>
+    </div>
 
     <div class="card">
       <div class="actions">
@@ -479,6 +503,20 @@
       </div>
     </div>
 
+    <div class="card gasto-card">
+      <h2>Control de gasto <span class="pill p-blue" style="font-size:11px">Interno · no sale en el PDF</span></h2>
+      <label class="chk"><input type="checkbox" id="fx-g-no" checked> No reportar gastos</label>
+      <div class="hint" id="fx-g-res" style="margin-top:2px">Quítalo para anotar combustible, víveres y materiales de este trabajo.</div>
+      <div id="fx-g-box" class="hidden" style="margin-top:10px">
+        <div class="grid g3">
+          <div><label>Combustible</label><input type="text" id="fx-g-comb" class="in g-monto" inputmode="decimal" placeholder="0.00"></div>
+          <div><label>Víveres</label><input type="text" id="fx-g-viv" class="in g-monto" inputmode="decimal" placeholder="0.00"></div>
+          <div><label>Materiales (gasto real)</label><input type="text" id="fx-g-mat" class="in g-monto" inputmode="decimal" placeholder="0.00"></div>
+        </div>
+        <div style="margin-top:8px"><label>Notas</label><input type="text" id="fx-g-nota" class="in" maxlength="200" placeholder="Opcional (ej. compra extra de soldadura)"></div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="actions">
         <button class="b-ghost" id="fx-limpiar">Limpiar</button>
@@ -510,6 +548,9 @@
     <div class="card"><h2>Cotizaciones sin facturar <span class="pill p-warn" id="rp-n-sinf"></span></h2>
       <p class="hint" style="margin-bottom:8px">Oportunidades: cotizaciones del período que aún no tienen recibo ni factura.</p>
       <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Fecha</th><th>Cliente</th><th>Estado</th><th class="r">Total</th></tr></thead><tbody id="rp-sinf"></tbody></table></div></div>
+    <div class="card" id="rp-gasto"><h2>💸 Control de gasto <span class="pill p-blue">Operación interna</span></h2>
+      <p class="hint" style="margin-bottom:12px">Gasto de cada trabajo contra lo que cobras: el total de su recibo o factura; si la cotización pasó directo a Cuentas por cobrar, contra el total de la cotización.</p>
+      <div id="rp-g-cont"></div></div>
   </section>
 
   <section id="sec-cxc" class="hidden" style="display:flex;flex-direction:column;gap:16px">
@@ -1281,7 +1322,7 @@ function nueva(){
   $("inc-mat").checked = true; $("inc-mo").checked = true;
   $("rows-mat").innerHTML=""; $("rows-mo").innerHTML=""; addRow("mat"); addRow("mo");
   $("f-fecha-opt").classList.add("hidden"); $("f-hoy").checked=false;
-  $("emit-status").textContent=""; $("emit-msg").innerHTML=""; fechas(); calc();
+  $("emit-status").textContent=""; $("emit-msg").innerHTML=""; fechas(); calc(); gastoPintar("f-g", null);
 }
 function cargar(c, modo){   // modo: "editar" | "duplicar"
   EDIT = modo==="editar" ? c : null;
@@ -1293,7 +1334,7 @@ function cargar(c, modo){   // modo: "editar" | "duplicar"
   $("f-fecha-opt").classList.toggle("hidden", modo!=="editar"); $("f-hoy").checked=false;
   $("form-title").firstChild.textContent = modo==="editar" ? "Corregir cotización " : "Nueva cotización (copia) ";
   $("form-badge").textContent = modo==="editar" ? c.numero : "copia de " + c.numero;
-  $("emit-status").textContent=""; $("emit-msg").innerHTML=""; fechas(); calc(); show("nueva");
+  $("emit-status").textContent=""; $("emit-msg").innerHTML=""; fechas(); calc(); gastoPintar("f-g", modo==="editar" ? c.gasto||null : null); show("nueva");
 }
 $("btn-limpiar").onclick = () => { nueva(); };
 
@@ -1313,10 +1354,11 @@ function armar(){   // valida y arma el registro
   const dup = (HIST.cotizaciones||[]).find(c => c.n===n && (!EDIT || c.codigo!==EDIT.codigo));
   if(dup) errs.push(`actualizar: el número ${pad3(n)} ya existe (${dup.numero}). Recarga la página`);
   if(errs.length) throw new Error("Falta " + errs.join(", ") + ".");
+  const gasto = gastoLeer("f-g");
   const fecha = fechas(), tot = totales(mat, mo, incMat, incMO);
   const numero = numeroDe(L, n);
   const codigo = EDIT ? EDIT.codigo : (numero.replace(/-/g,"") + "-" + [...crypto.getRandomValues(new Uint8Array(8))].map(b=>ALF[b%ALF.length]).join("").replace(/^(.{4})/,"$1-"));
-  return { numero, letra:L.toUpperCase(), n, codigo, cliente, ruc:$("f-ruc").value.trim(), email:$("f-email").value.trim(), fecha, validoHasta:masDias(fecha,30),
+  return { ...guardaEstado(EDIT, ["cxc","cxcAnulada","origen"]), ...(gasto ? {gasto} : {}), numero, letra:L.toUpperCase(), n, codigo, cliente, ruc:$("f-ruc").value.trim(), email:$("f-email").value.trim(), fecha, validoHasta:masDias(fecha,30),
            incMat, incMO, materiales: incMat?mat:[], manoObra: incMO?mo:[], duracion:$("f-dur").value.trim(),
            tot:{matSub:tot.matSub, matItbms:tot.matItbms, matTotal:tot.matTotal, moSub:tot.moSub}, total: tot.general,
            creado: EDIT ? EDIT.creado : new Date().toISOString(), actualizado: new Date().toISOString() };
@@ -2014,7 +2056,7 @@ function fNueva(){
   document.querySelector('input[name="fx-tipo"][value="Recibo"]').checked = true;
   document.querySelectorAll('input[name="fx-tipo"]').forEach(r => r.disabled = false);
   $("fx-pago").checked = true; $("fx-pie").checked = true; $("fx-xml").checked = false;
-  FCOLS = colsFac(); FCONS = null; pintarEmisor(null); destinoNormal(); $("fx-rows").innerHTML = ""; fAdd(); $("fx-status").textContent = ""; $("fx-msg").innerHTML = ""; fCalc();
+  FCOLS = colsFac(); FCONS = null; pintarEmisor(null); destinoNormal(); gastoPintar("fx-g", null); $("fx-rows").innerHTML = ""; fAdd(); $("fx-status").textContent = ""; $("fx-msg").innerHTML = ""; fCalc();
 }
 function fCargar(d, modo){
   FEDIT = modo==="editar" ? d : null;
@@ -2028,7 +2070,7 @@ function fCargar(d, modo){
   $("fx-pago").checked = !!d.conPago; $("fx-pie").checked = !!d.conPie; $("fx-xml").checked = !!d.conXml;
   const its = modo==="editar" ? d.items : d.items.map(({fotos, ...x}) => x);   // una copia no se lleva las fotos (son del documento original)
   FCOLS = colsDe(its, d.cols ? colsDe([], d.cols).concat(colsFac().filter(c => !d.cols.some(x => x.k===c.k))) : colsFac());
-  FCONS = modo==="editar" && d.consolida ? {tipo:d.tipo, docs:d.consolida} : null; pintarEmisor(d.emisor || null); destinoNormal();
+  FCONS = modo==="editar" && d.consolida ? {tipo:d.tipo, docs:d.consolida} : null; pintarEmisor(d.emisor || null); destinoNormal(); gastoPintar("fx-g", modo==="editar" ? d.gasto||null : null);
   $("fx-rows").innerHTML = ""; (its.length ? its : [{}]).forEach(it => { fAdd(it); if(it._auto) $("fx-rows").lastChild.dataset.auto = it._auto; });
   if(modo==="editar") [...$("fx-rows").children].forEach((r,i) => { r._fotos = (its[i]?.fotos||[]).map(id => ({id, subido:true})); pintarFotos(r, d.codigo); });
   if(enl) aplicarPedido(false); else fEnlazar(null, false);
@@ -2057,8 +2099,9 @@ function fArmar(){
   const codigo = FEDIT ? FEDIT.codigo : (pref + numero + "-" + [...crypto.getRandomValues(new Uint8Array(8))].map(b=>ALF[b%ALF.length]).join("").replace(/^(.{4})/,"$1-"));
   const total = r2(items.reduce((a,it) => a + it.total, 0));
   if(!igual && FPED_ERR) throw new Error(FPED_ERR);
+  const gasto = gastoLeer("fx-g");
   const pedido = igual ? numero : FPEDS.length ? FPEDS.map(c => c.numero).join(", ") : (codsCot(pedTxt).join(", ") || pedTxt);
-  return { tipo, n, numero, pedido, cotRef: !igual && FPED ? FPED.numero : null, ...(!igual && FPEDS.length > 1 ? {cotRefs: FPEDS.map(c => c.numero)} : {}), pedOpts: !igual && FPED ? {mo:$("fx-ped-mo").checked, mat:$("fx-ped-mat").checked} : null, codigo, fecha, vence, dias, ...(habiles ? {habiles:true} : {}), cliente,
+  return { ...guardaEstado(FEDIT, ["cxc","consolidadoEn","cxcAnulada","origen"]), ...(gasto ? {gasto} : {}), tipo, n, numero, pedido, cotRef: !igual && FPED ? FPED.numero : null, ...(!igual && FPEDS.length > 1 ? {cotRefs: FPEDS.map(c => c.numero)} : {}), pedOpts: !igual && FPED ? {mo:$("fx-ped-mo").checked, mat:$("fx-ped-mat").checked} : null, codigo, fecha, vence, dias, ...(habiles ? {habiles:true} : {}), cliente,
            ruc:$("fx-ruc").value.trim(), email:$("fx-email").value.trim(), direccion:$("fx-dir").value.trim(), telefono:$("fx-tel").value.trim(),
            items, subtotal: total, total, conPago:$("fx-pago").checked, conPie:$("fx-pie").checked, conXml:$("fx-xml").checked,
            emisor: emisorForm(),
@@ -2251,6 +2294,30 @@ function resumenEmisor(){ const e = emisorDef(); $("fx-em-res").textContent = $(
 function emisorForm(){ if($("fx-em-igual").checked) return emisorDef(); const o = {rucTipo:getRt()}; EM_CAMPOS.forEach(([k,id]) => o[k] = $(id).value.trim()); return o; }
 $("fx-em-igual").onchange = () => { const on = $("fx-em-igual").checked; $("fx-em-box").classList.toggle("hidden", on);
   if(on){ EM_CAMPOS.forEach(([k,id]) => $(id).value = emisorDef()[k] || ""); setRt(emisorDef().rucTipo); } else $("fx-em-nom").focus(); resumenEmisor(); };
+/* ----- control de gasto (interno: se guarda en el historial; no va al PDF ni al portal) ----- */
+const GASTO_C = [["comb","Combustible"],["viv","Víveres"],["mat","Materiales"]];
+const guardaEstado = (o, ks) => o ? Object.fromEntries(ks.filter(k => o[k]!==undefined).map(k => [k, o[k]])) : {};   // al corregir, el documento sigue donde estaba (p. ej. en cuentas por cobrar)
+const totalGasto = g => g ? r2(GASTO_C.reduce((a,[k]) => a + Number(g[k]||0), 0)) : 0;
+function gastoLeer(px){
+  if($(px+"-no").checked) return null;
+  const g = {};
+  GASTO_C.forEach(([k,t]) => { const v = $(px+"-"+k).value.trim().replace(/[$\s]/g,"").replace(",", ".");
+    if(v==="") return; const n = Number(v); if(!isFinite(n) || n < 0) throw new Error(`Revisa el monto de ${t} en «Control de gasto».`); g[k] = r2(n); });
+  const nota = $(px+"-nota").value.trim(); if(nota) g.nota = nota;
+  return Object.keys(g).length ? g : null;
+}
+function gastoResumen(px){ const no = $(px+"-no").checked, r = $(px+"-res");
+  if(no){ r.textContent = "Quítalo para anotar combustible, víveres y materiales de este trabajo."; r.classList.remove("hidden"); return; }
+  let g = null; try{ g = gastoLeer(px); }catch(e){}
+  r.classList.toggle("hidden", !g); if(g) r.textContent = "Gasto total: " + money(totalGasto(g)); }
+function gastoPintar(px, g){
+  $(px+"-no").checked = !g; $(px+"-box").classList.toggle("hidden", !g);
+  GASTO_C.forEach(([k]) => $(px+"-"+k).value = g && g[k]!=null ? Number(g[k]).toFixed(2) : ""); $(px+"-nota").value = g?.nota || ""; gastoResumen(px);
+}
+["f-g","fx-g"].forEach(px => {
+  $(px+"-no").onchange = () => { const no = $(px+"-no").checked; $(px+"-box").classList.toggle("hidden", no); if(!no) $(px+"-comb").focus(); gastoResumen(px); };
+  $(px+"-box").addEventListener("input", () => gastoResumen(px));
+});
 /* ----- destinatario de un consolidado: se toma de los documentos; si difieren, se abre para editar ----- */
 const DE_CAMPOS = [["cliente","fx-cliente","Cliente"],["ruc","fx-ruc","CIP / RUC"],["email","fx-email","Email"],["direccion","fx-dir","Dirección"],["telefono","fx-tel","Teléfono"]];
 let FDEST = null;   // datos del destinatario juntados de los documentos consolidados
@@ -3203,9 +3270,60 @@ function pintarRep(){
     <td>${(e => `<span class="pill ${e.cls}">${e.t}</span>`)(estadoCot(c))}</td><td class="r">${money(c.total)}</td></tr>`).join("")
     + (sinF.length > 15 ? `<tr><td colspan="5" class="hint">… y ${sinF.length - 15} más</td></tr>` : "")
     : `<tr><td colspan="5" class="empty">Todas las cotizaciones del período tienen recibo o factura.</td></tr>`;
-  REPCACHE = {meses, M, top, sinF, anTodos};
+  const G = pintarGasto(meses, enRango);
+  REPCACHE = {meses, M, top, sinF, anTodos, G};
 }
 let REPCACHE = null;
+/* ----- control de gasto: cada trabajo se compara con su recibo/factura; si no tiene, con la cotización ----- */
+function opsGasto(){
+  const cots = (HIST?.cotizaciones||[]).filter(c => !c.anulado), porNum = new Map(cots.map(c => [c.numero, c]));
+  const docs = [...(FHIST?.docs||[]), ...(FHIST?.previos||[])].filter(d => !d.anulado && !d.consolida)
+    .sort((a,b) => (a.fecha||"").localeCompare(b.fecha||"") || (a.n||0) - (b.n||0));
+  const usada = new Set(), ops = [];
+  const suma = gs => { const g = {}; GASTO_C.forEach(([k]) => { const v = gs.filter(x => x[k]!=null); if(v.length) g[k] = r2(v.reduce((a,x) => a + Number(x[k]), 0)); }); return g; };
+  docs.forEach(d => {
+    const cs = cotsDeDoc(d).map(n => porNum.get(n)).filter(Boolean), nuevas = cs.filter(c => !usada.has(c.numero));
+    cs.forEach(c => usada.add(c.numero));   // el gasto y los materiales de una cotización cuentan una sola vez (en su primer recibo/factura)
+    const gs = [d.gasto, ...nuevas.map(c => c.gasto)].filter(Boolean); if(!gs.length) return;
+    ops.push({tipo:d.tipo, numero:d.numero, cliente:d.cliente, fecha:d.fecha, ingreso:r2(Number(d.total||0)), g:suma(gs),
+      base: cs.length ? `Su ${d.tipo.toLowerCase()} ${d.numero} (cot. ${listaY(cs.map(c => c.numero))})` : "Sin cotización",
+      matCot: r2(nuevas.reduce((a,c) => a + (c.incMat ? Number(c.tot?.matTotal||0) : 0), 0)), notas: gs.map(x => x.nota).filter(Boolean)});
+  });
+  cots.filter(c => c.gasto && !usada.has(c.numero)).forEach(c => ops.push({tipo:"Cotización", numero:c.numero, cliente:c.cliente, fecha:c.fecha,
+    ingreso:r2(Number(c.total||0)), g:suma([c.gasto]), base: c.cxc ? "Directo a Cuentas por cobrar" : "Sin recibo ni factura",
+    matCot: c.incMat ? r2(Number(c.tot?.matTotal||0)) : 0, notas:[c.gasto.nota].filter(Boolean)}));
+  ops.forEach(o => { o.total = totalGasto(o.g); o.libre = r2(o.ingreso - o.total); o.dif = o.matCot > 0 && o.g.mat!=null ? r2(o.matCot - o.g.mat) : null; });
+  return ops.sort((a,b) => (b.fecha||"").localeCompare(a.fecha||""));
+}
+const difPill = v => v==null ? '<span class="hint">—</span>' : `<span class="dif ${v >= 0 ? "pos" : "neg"}">${v >= 0 ? "+" : "-"}${Math.abs(v).toFixed(2)}</span>`;
+function pintarGasto(meses, enRango){
+  const ops = opsGasto().filter(o => enRango(o.fecha)), cont = $("rp-g-cont");
+  if(!ops.length){ cont.innerHTML = `<p class="empty" style="padding:14px 0">Aún no hay gastos reportados en este período. En un recibo, factura o cotización, quita «No reportar gastos» para anotarlos.</p>`; return {ops}; }
+  const T = k => r2(ops.reduce((a,o) => a + Number(o.g[k]||0), 0)), tG = r2(ops.reduce((a,o) => a + o.total, 0)), tI = r2(ops.reduce((a,o) => a + o.ingreso, 0)), tL = r2(tI - tG);
+  const pct = (a,b) => b ? Math.round(a/b*100) : 0;
+  const kp = (t, v, s, cls="") => `<div class="kpi ${cls}"><span>${t}</span><b>${v}</b><small>${s}</small></div>`;
+  const GM = Object.fromEntries(meses.map(m => [m, {comb:0, viv:0, mat:0}])); ops.forEach(o => GASTO_C.forEach(([k]) => GM[mesDe(o.fecha)][k] += Number(o.g[k]||0)));
+  const max = Math.max(1, ...meses.flatMap(m => GASTO_C.map(([k]) => GM[m][k]))), tm = m => GASTO_C.reduce((a,[k]) => a + GM[m][k], 0);
+  const cmp = ops.filter(o => o.dif!=null).slice(0, 12);
+  cont.innerHTML = `<div class="kpis">${kp("Combustible", money(T("comb")), `${pct(T("comb"), tG)}% del gasto`)}${kp("Víveres", money(T("viv")), `${pct(T("viv"), tG)}% del gasto`)}${kp("Materiales", money(T("mat")), `${pct(T("mat"), tG)}% del gasto`)}`
+    + kp("Gasto total", money(tG), `${ops.length} trabajo${ops.length===1?"":"s"}`, "k-navy") + kp("Ingreso comparado", money(tI), "recibos, facturas y cotizaciones", "k-blue")
+    + kp(tL >= 0 ? "Te quedó libre" : "Pérdida", money(tL), `${pct(tL, tI)}% del ingreso`, tL >= 0 ? "k-ok" : "k-bad") + `</div>
+    <div class="rp-graf"><div class="rp-leg"><span><i class="rb-comb"></i>Combustible</span><span><i class="rb-viv"></i>Víveres</span><span><i class="rb-mat"></i>Materiales</span></div>
+    <div class="rp-bars rp-n${meses.length}" style="grid-template-columns:repeat(${meses.length},1fr)">${meses.map(m => `<div class="rp-mes" title="${nomMes(m)}&#10;Combustible ${money(GM[m].comb)}&#10;Víveres ${money(GM[m].viv)}&#10;Materiales ${money(GM[m].mat)}">
+      <div class="rp-col">${GASTO_C.map(([k]) => `<i class="rb-${k}" style="height:${(GM[m][k]/max*100).toFixed(1)}%"></i>`).join("")}</div>
+      <small class="rp-m">${meses.length > 6 ? `${MES_C[Number(m.slice(5,7))-1]}<span>${m.slice(2,4)}</span>` : nomMes(m)}</small>${meses.length <= 6 ? `<small class="rp-v">${tm(m) ? money(tm(m)) : "—"}</small>` : ""}</div>`).join("")}</div></div>
+    ${cmp.length ? `<h2 class="g-h">Materiales: cotizado vs. real</h2><div class="rp-leg"><span><i class="rb-cq"></i>Cotizado</span><span><i class="rb-mat"></i>Gasto real</span></div>
+      ${cmp.map(o => { const w = Math.max(o.matCot, o.g.mat, 0.01); return `<div class="g-cmp"><div><b>${esc(o.numero)}</b> · ${esc(o.cliente)}</div>
+        <div class="bars"><i class="rb-cq" style="width:${(o.matCot/w*100).toFixed(0)}%"></i><i class="rb-mat" style="width:${(o.g.mat/w*100).toFixed(0)}%"></i><small>Cotizado ${money(o.matCot)} · Real ${money(o.g.mat)}</small></div>
+        <div>${difPill(o.dif)}</div></div>`; }).join("")}` : ""}
+    <h2 class="g-h">Por trabajo</h2>
+    <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th class="r">Ingreso</th><th class="r">Combustible</th><th class="r">Víveres</th><th class="r">Materiales</th><th class="r">Gasto total</th><th class="r">Libre</th><th class="r">Materiales vs. cotizado</th></tr></thead><tbody>
+    ${ops.map(o => `<tr><td><b>${esc(o.numero)}</b><div class="hint">${esc(o.tipo)} · ${esc(PDFFAC.dmy(o.fecha))}</div></td><td class="g-cli">${esc(o.cliente)}<div class="hint">${esc(o.base)}</div>${o.notas.length ? `<div class="hint" style="font-style:italic">📝 ${esc(o.notas.join(" · "))}</div>` : ""}</td>
+      <td class="r" data-l="Ingreso">${money(o.ingreso)}</td>${GASTO_C.map(([k,t]) => `<td class="r" data-l="${t}">${o.g[k]!=null ? money(o.g[k]) : "—"}</td>`).join("")}<td class="r" data-l="Gasto total"><b>${money(o.total)}</b></td>
+      <td class="r" data-l="Libre"><b${o.libre < 0 ? ' style="color:#B42318"' : ""}>${money(o.libre)}</b> <span class="hint">${pct(o.libre, o.ingreso)}%</span></td><td class="r" data-l="Materiales vs. cotizado">${difPill(o.dif)}</td></tr>`).join("")}
+    <tr class="cx-sub g-tot"><td colspan="2" class="g-cli">Total</td><td class="r" data-l="Ingreso"><b>${money(tI)}</b></td>${GASTO_C.map(([k,t]) => `<td class="r" data-l="${t}"><b>${money(T(k))}</b></td>`).join("")}<td class="r" data-l="Gasto total"><b>${money(tG)}</b></td><td class="r" data-l="Libre"><b>${money(tL)}</b></td><td></td></tr></tbody></table></div>`;
+  return {ops};
+}
 function exportarRep(){
   if(!REPCACHE) return; const {meses, M, top, sinF, anTodos} = REPCACHE, wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(meses.map(m => ({"Mes": nomMes(m), "Cotizaciones": M[m].nCot, "Cotizado": r2(M[m].cot), "Recibos/facturas": M[m].nFac,
@@ -3214,13 +3332,17 @@ function exportarRep(){
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sinF.map(c => ({"N.º": c.numero, "Fecha": PDFFAC.dmy(c.fecha), "Cliente": c.cliente, "Estado": estadoCot(c).t, "Total": c.total}))), "Sin facturar");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(anTodos.length ? anTodos.map(d => ({"Tipo": d.tipo, "N.º": d.numero, "Cliente": d.cliente, "Fecha": PDFFAC.dmy(d.fecha),
     "Fecha de anulación": PDFFAC.dmy(d.anulado?.fecha || d.cxcAnulada?.fecha || ""), "Motivo": d.anulado?.motivo || "", "Monto": r2(Number(d.total||0))})) : [{"Tipo": "Sin anulados en el período"}]), "Anulados");
+  const gops = REPCACHE.G?.ops || [];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(gops.length ? gops.map(o => ({"Tipo": o.tipo, "N.º": o.numero, "Fecha": PDFFAC.dmy(o.fecha), "Cliente": o.cliente, "Comparado con": o.base,
+    "Ingreso": o.ingreso, "Combustible": o.g.comb ?? "", "Víveres": o.g.viv ?? "", "Materiales (real)": o.g.mat ?? "", "Gasto total": o.total, "Libre": o.libre,
+    "Materiales cotizados": o.matCot || "", "Diferencia materiales": o.dif ?? "", "Notas": o.notas.join(" · ")})) : [{"Tipo": "Sin gastos reportados en el período"}]), "Control de gasto");
   const v = $("rp-anio").value; XLSX.writeFile(wb, `Reporte_${/m$/.test(v) ? v.replace("m","_meses") : v}_${hoyISO()}.xlsx`);
 }
 $("rp-anio").onchange = () => { pintarRep(); animarRep(); };
 $("rp-export").onclick = exportarRep;
 function animarRep(){
   if(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const bars = [...document.querySelectorAll("#rp-graf .rp-col i")]; bars.forEach(b => { b.dataset.h = b.style.height; b.style.transition = "none"; b.style.height = "0"; });
+  const bars = [...document.querySelectorAll("#rp-graf .rp-col i, #rp-g-cont .rp-col i")]; bars.forEach(b => { b.dataset.h = b.style.height; b.style.transition = "none"; b.style.height = "0"; });
   requestAnimationFrame(() => requestAnimationFrame(() => bars.forEach((b, i) => { b.style.transition = `height 1.1s cubic-bezier(.2,.7,.2,1) ${Math.floor(i/3)*60}ms`; b.style.height = b.dataset.h; })));
 }
 async function abrirRep(){
