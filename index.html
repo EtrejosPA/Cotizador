@@ -919,11 +919,10 @@ const PDFFAC = (() => {
         if(g.k==="desc" && it.fotos?.length && d.url){
           const lab = "Evidencia fotográfica:", fila = d.items.indexOf(it) + 1;
           doc.setFont("Serif","bold"); const wl = doc.getTextWidth(lab + " "); doc.setFont("Serif","normal");
-          const segs = []; let fx = g.x + 5 + wl, fl = 0;
-          it.fotos.forEach((id, j) => { const t = "img" + String(j+1).padStart(2,"0") + (j < it.fotos.length-1 ? "," : ""), tw = doc.getTextWidth(t);
-            if(fx + tw > g.x + g.w - 5 && fx > g.x + 5 + wl){ fl++; fx = g.x + 5; }
-            segs.push({t, x:fx, l:fl, w:doc.getTextWidth(t.replace(",","")), url: d.url + "&f=" + fila + "&i=" + (j+1)}); fx += tw + doc.getTextWidth(" "); });
-          fotos = {lab, ini: lines.length, segs, n: fl + 1};
+          // un solo enlace «imágenes» que abre el carrusel con todas las fotos de la fila, en el orden en que se subieron
+          const t = it.fotos.length === 1 ? "imagen" : "imágenes", tw = doc.getTextWidth(t);
+          const nl = g.x + 5 + wl + tw > g.x + g.w - 5;
+          fotos = {lab, ini: lines.length, segs: [{t, x: nl ? g.x + 5 : g.x + 5 + wl, l: nl ? 1 : 0, w: tw, url: d.url + "&f=" + fila + "&i=1"}], n: nl ? 2 : 1};
         }
         return {g, lines, fotos};
       });
@@ -1332,7 +1331,7 @@ const pdfBytes = doc => new Uint8Array(doc.output("arraybuffer"));
 function mensajeWA(tipo, rec, url){   // mensaje por defecto que acompaña al PDF
   const cli = String(rec.cliente||"").trim();
   const empresa = /\b(s\.?\s?a\.?|inc\.?|corp\.?|ltda\.?|s\.?r\.?l\.?|llc|group|grupo|company|cía|cia)(\b|$)/i.test(cli);
-  const doc = tipo==="Cotización" ? `cotización ${rec.numero}` : `${tipo==="Factura" ? "factura" : "recibo"} ${rec.numero}`;
+  const doc = tipo==="Cotización" ? `cotización N° ${rec.numero}` : `${tipo==="Factura" ? "factura" : "recibo"} N° ${rec.numero}`;
   const saludo = empresa || !cli ? `Buen día${cli ? ", " + cli : ""}` : `Hola ${(n => n.charAt(0).toUpperCase() + n.slice(1))(cli.split(/\s+/)[0])}`;
   return `${saludo}, le comparto su ${doc}. Puede verla y validarla aquí: ${url}\nSaludos,\n*Grupo Σ LEAN — Ingeniería & Proyectos*`   // *…* = negrita (solo para WhatsApp)
     .replace("verla y validarla", tipo==="Cotización" || tipo==="Factura" ? "verla y validarla" : "verlo y validarlo");
@@ -1877,7 +1876,7 @@ async function subirFotos(codigo, st){   // publica en el portal (cifradas) las 
     await ghPut(CFG.repoVal, `data/${k.id}-${f.id}.bin`, bin, null, `Evidencia fotográfica · ${codigo.split("-")[0]}`); f.subido = true; }
 }
 const fotosPortal = d => d.items.map((it,i) => it.fotos?.length ? {fila:i+1, desc:String(it.desc||"").split("\n")[0].slice(0,120), ids:it.fotos} : null).filter(Boolean);
-const enlacesFotos = (d, i) => (d.items[i]?.fotos||[]).map((id,j) => `${fUrl(d)}&f=${i+1}&i=${j+1}`);
+const enlacesFotos = (d, i) => (d.items[i]?.fotos||[]).length ? [`${fUrl(d)}&f=${i+1}&i=1`] : [];   // un enlace al carrusel de la fila
 function fRow(it={}){
   const div = document.createElement("div"); div.className = "frow";
   div.innerHTML = `<div class="frow-h"><b class="fn"></b><button class="b-x" title="Quitar fila">×</button></div>
@@ -2054,7 +2053,7 @@ function xmlDe(d){
     tag("Descripcion", it.desc, "      ") + colsDe([it], Array.isArray(d.cols) ? d.cols : []).filter(c => it[c.k]).map(c => {
       const nom = {empresa:"Empresa", recoge:"LugarRecoge", entrega:"LugarEntrega", km:"KM", vehiculo:"Vehiculo", obs:"Observaciones", fecha:"Fecha"}[c.k];
       return nom ? tag(nom, it[c.k], "      ") : `      <Campo nombre="${xesc(c.t)}">${xesc(it[c.k])}</Campo>\n`; }).join("") +
-    (it.fotos?.length ? `      <EvidenciaFotografica>${enlacesFotos(d, i).map(u => `<Foto url="${xesc(u)}"/>`).join("")}</EvidenciaFotografica>\n` : "") +
+    (it.fotos?.length ? `      <EvidenciaFotografica fotos="${it.fotos.length}" url="${xesc(enlacesFotos(d, i)[0])}"/>\n` : "") +
     (it.cant!=null ? `      <Cantidad>${it.cant}</Cantidad>\n` : "") + (it.precio!=null ? `      <PrecioUnitario>${xnum(it.precio)}</PrecioUnitario>\n` : "") +
     `      <Total>${xnum(it.total)}</Total>\n    </Item>\n`).join("");
   return `<?xml version="1.0" encoding="UTF-8"?>
