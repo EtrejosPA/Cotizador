@@ -534,10 +534,10 @@
     </div>
 
     <div class="card"><h2><span class="dot d-bad"></span>Vencidos <span class="pill p-bad" id="cx-n-ven"></span></h2>
-      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Vencimiento</th><th class="r">Días de atraso</th><th class="r">Saldo</th><th class="r"></th></tr></thead><tbody id="cx-ven"></tbody></table></div></div>
+      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Vencimiento</th><th class="r">Estado</th><th class="r">Saldo</th><th class="r"></th></tr></thead><tbody id="cx-ven"></tbody></table></div></div>
 
     <div class="card"><h2><span class="dot d-warn"></span>Vigentes y por vencer <span class="pill p-warn" id="cx-n-por"></span></h2>
-      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Vencimiento</th><th class="r">Días para vencer</th><th class="r">Saldo</th><th class="r"></th></tr></thead><tbody id="cx-por"></tbody></table></div></div>
+      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Vencimiento</th><th class="r">Estado</th><th class="r">Saldo</th><th class="r"></th></tr></thead><tbody id="cx-por"></tbody></table></div></div>
 
     <div class="card"><h2><span class="dot d-ok"></span>Cobrados <span class="pill p-ok" id="cx-n-cob"></span></h2>
       <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Fecha de cobro</th><th>Método</th><th class="r">Monto</th><th class="r"></th></tr></thead><tbody id="cx-cob"></tbody></table></div></div>
@@ -1777,7 +1777,7 @@ function pintarHist(){
     <td>${esc(fechaLarga(c.fecha))}</td>
     <td>${esc(c.cliente)}${c.ruc?`<div class="hint">${esc(c.ruc)}</div>`:""}</td>
     <td class="r"><b>${money(c.total)}</b></td>
-    <td>${(e => `<span class="pill ${e.cls}">${e.t}</span>${e.nota ? `<div class="hint">${e.nota}</div>` : ""}`)(estadoCot(c))}${c.anulado ? `<div class="hint">${esc(PDFFAC.dmy(c.anulado.fecha))}${c.anulado.motivo ? " · " + esc(c.anulado.motivo) : ""}</div>` : ""}${c.publicado===false ? ' <span class="pill p-bad" title="Este código aún no está en el portal">No publicada</span>' : ''}${c.origen==="excel" ? '<div class="hint">De Excel</div>' : ''}${c.cxc && !c.anulado ? '<div style="margin-top:3px"><span class="pill p-blue" style="padding:1px 8px;font-size:11px" title="Está en Cuentas por cobrar">En cobro</span></div>' : ''}</td>
+    <td>${(e => `<span class="pill ${e.cls}">${e.t}</span>`)(estadoCot(c))}${c.anulado ? `<div class="hint">${esc(PDFFAC.dmy(c.anulado.fecha))}${c.anulado.motivo ? " · " + esc(c.anulado.motivo) : ""}</div>` : ""}${c.publicado===false ? ' <span class="pill p-bad" title="Este código aún no está en el portal">No publicada</span>' : ''}${c.origen==="excel" ? '<div class="hint">De Excel</div>' : ''}${c.cxc && !c.anulado ? '<div style="margin-top:3px"><span class="pill p-blue" style="padding:1px 8px;font-size:11px" title="Está en Cuentas por cobrar">En cobro</span></div>' : ''}</td>
     <td class="acts-td"><div class="acts">
       <button class="b-navy b-sm" data-a="pdf" data-c="${esc(c.codigo)}" title="Descargar PDF">Descargar</button>
       ${menuHTML([
@@ -2735,7 +2735,7 @@ function etiquetaCxc(d){
   const h = habilesEntre(hoyISO(), d.vence);
   return h <= 1 ? {t:"Por vencer", cls:"p-warn", nota: h===0 ? "vence hoy" : "vence el próximo día hábil"} : {t:"Vigente", cls:"p-ok", nota:`${h} días hábiles`};
 }
-const pillCxc = (d, extra="") => { const e = etiquetaCxc(d); return `<span class="pill ${e.cls}"${e.nota ? ` title="${esc(e.nota)}"` : ""}${extra}>${e.t}</span>`; };
+const pillCxc = (d, extra="") => { const e = etiquetaCxc(d); return `<span class="pill ${e.cls}"${extra}>${e.t}</span>`; };   // solo la etiqueta
 function estadoCxc(d){   // Cobrado · Vencido · Por vencer (= aún no vence; la etiqueta distingue Vigente / Por vencer)
   if(d.anulado) return "Anulado";
   if(saldoDe(d) <= 0.004) return "Cobrado";
@@ -2840,7 +2840,7 @@ function pintarCxc(){
   $("cx-leg").innerHTML = segs.map(([t,v,c]) => `<span><i class="${c}"></i>${t} <b>${money(v)}</b> · ${pct(v)}</span>`).join("");
   const btnCobro = d => `<div class="acts"><button class="b-ghost b-sm b-cobro" data-x="cobrar" data-c="${esc(d.codigo)}">Registrar cobro</button>${menuCx(d)}</div>`;
   const fila = (d, dias) => `<tr><td><b>${esc(numCx(d))}</b>${tagCx(d)}</td><td>${esc(d.cliente)}</td><td class="cx-desc">${esc(descDe(d))}</td>
-    <td>${esc(PDFFAC.dmy(d.fecha))}</td><td>${esc(PDFFAC.dmy(d.vence))}</td><td class="r"><b>${dias===0 ? "Hoy" : dias}</b>${estadoCxc(d)==="Por vencer" ? `<div style="margin-top:3px">${pillCxc(d, ' style="padding:1px 8px"')}</div>` : ""}</td>
+    <td>${esc(PDFFAC.dmy(d.fecha))}</td><td>${esc(PDFFAC.dmy(d.vence))}</td><td class="r">${pillCxc(d)}</td>
     <td class="r"><b>${money(saldoDe(d))}</b>${cobradoDe(d) > 0 ? `<div class="hint">de ${money(d.total)} · abonado ${money(cobradoDe(d))}</div>` : ""}</td><td class="r">${btnCobro(d)}</td></tr>`;
   const vacio = (n, t) => `<tr><td colspan="${n}" class="empty">${t}</td></tr>`;
   $("cx-ven").innerHTML = ven.length ? ven.map(d => fila(d, diasEntre(d.vence, hoyISO()))).join("") + `<tr class="cx-sub"><td colspan="6">Subtotal vencidos</td><td class="r"><b>${money(venT)}</b></td><td></td></tr>` : vacio(8, "No hay documentos vencidos. 🎉");
