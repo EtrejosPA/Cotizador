@@ -398,8 +398,8 @@
           <div class="hint" id="fx-num-hint" style="margin-top:4px">Se asigna solo (consecutivo de recibos y facturas).</div></div>
         <div><label>Fecha</label><input type="text" id="fx-fecha" disabled></div>
         <div><label>Fecha de vencimiento</label>
-          <div style="display:grid;grid-template-columns:90px 1fr;gap:8px"><input type="number" inputmode="numeric" pattern="[0-9]*" id="fx-dias" class="in" min="0" value="4" title="Días para vencer"><input type="text" id="fx-vence" disabled></div>
-          <div class="hint" style="margin-top:4px">Días para vencer (desde la fecha)</div></div>
+          <div style="display:grid;grid-template-columns:90px 1fr;gap:8px"><input type="number" inputmode="numeric" pattern="[0-9]*" id="fx-dias" class="in" min="0" value="3" title="Días hábiles para vencer"><input type="text" id="fx-vence" disabled></div>
+          <div class="hint" style="margin-top:4px">Días hábiles para vencer (lunes a viernes)</div></div>
       </div>
       <div class="pedbox">
         <label>Pedido N.º</label>
@@ -536,8 +536,8 @@
     <div class="card"><h2><span class="dot d-bad"></span>Vencidos <span class="pill p-bad" id="cx-n-ven"></span></h2>
       <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Vencimiento</th><th class="r">Días de atraso</th><th class="r">Saldo</th><th class="r"></th></tr></thead><tbody id="cx-ven"></tbody></table></div></div>
 
-    <div class="card"><h2><span class="dot d-warn"></span>Por vencer <span class="pill p-warn" id="cx-n-por"></span></h2>
-      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Vencimiento</th><th class="r">Días para vencer</th><th class="r">Saldo</th><th class="r"></th></tr></thead><tbody id="cx-por"></tbody></table></div></div>
+    <div class="card"><h2><span class="dot d-warn"></span>Vigentes y por vencer <span class="pill p-warn" id="cx-n-por"></span></h2>
+      <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Vencimiento</th><th class="r">Días hábiles para vencer</th><th class="r">Saldo</th><th class="r"></th></tr></thead><tbody id="cx-por"></tbody></table></div></div>
 
     <div class="card"><h2><span class="dot d-ok"></span>Cobrados <span class="pill p-ok" id="cx-n-cob"></span></h2>
       <div style="overflow-x:auto"><table class="h cx"><thead><tr><th>N.º</th><th>Cliente</th><th>Descripción</th><th>Emisión</th><th>Fecha de cobro</th><th>Método</th><th class="r">Monto</th><th class="r"></th></tr></thead><tbody id="cx-cob"></tbody></table></div></div>
@@ -1021,6 +1021,10 @@ const money = PDFCOT.money, fechaLarga = PDFCOT.fechaLarga;
 const store = { get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }, del(k){ try{ localStorage.removeItem(k); }catch(e){} } };
 const hoyISO = () => new Intl.DateTimeFormat("en-CA",{timeZone:"America/Panama"}).format(new Date());
 const masDias = (iso,n) => { const d = new Date(iso+"T12:00:00Z"); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); };
+const esHabil = iso => { const w = new Date(iso+"T12:00:00Z").getUTCDay(); return w!==0 && w!==6; };   // lunes a viernes
+const masHabiles = (iso, n) => { let d = iso; for(let k = 0; k < n; ){ d = masDias(d, 1); if(esHabil(d)) k++; } return d; };
+function habilesEntre(a, b){   // días hábiles desde a (sin contar) hasta b (contando); negativo si b ya pasó
+  if(b < a) return -habilesEntre(b, a); let n = 0; for(let d = masDias(a, 1); d <= b; d = masDias(d, 1)) if(esHabil(d)) n++; return n; }
 const pad3 = n => String(n).padStart(3,"0");
 const EMAIL_OK = e => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 const numeroDe = (letra, n) => `${String(letra).toUpperCase()}-${pad3(n)}`;
@@ -1522,7 +1526,7 @@ function filasCot(){ return [...(HIST?.cotizaciones||[])].sort((a,b) => a.n-b.n)
 function filasFac(lista, etiqueta){ return [...lista].sort((a,b) => a.n-b.n).map(d => ({
   "N.º": d.numero, "Tipo": etiqueta || d.tipo, "Pedido / cotización": d.pedido && d.pedido!==d.numero ? d.pedido : "", "Fecha": PDFFAC.dmy(d.fecha), "Vencimiento": PDFFAC.dmy(d.vence),
   "Cliente": d.cliente, "CIP/RUC": d.ruc||"", "Email": d.email||"", "Teléfono": d.telefono||"", "Dirección": d.direccion||"", "Total": d.total,
-  "Cobrado": cobradoDe(d), "Saldo": d.anulado ? 0 : saldoDe(d), "Estado": d.anulado ? "Anulado" : d.consolidadoEn ? `En consolidado ${d.consolidadoEn.numero}` : estadoCxc(d), "En cuentas por cobrar": enCxc(d) ? "Sí" : "No", "Código": d.codigo })); }
+  "Cobrado": cobradoDe(d), "Saldo": d.anulado ? 0 : saldoDe(d), "Estado": d.anulado ? "Anulado" : d.consolidadoEn ? `En consolidado ${d.consolidadoEn.numero}` : etiquetaCxc(d).t, "En cuentas por cobrar": enCxc(d) ? "Sí" : "No", "Código": d.codigo })); }
 function clientesTodos(){
   const m = new Map();
   const add = (o, f) => { const k = String(o.cliente||"").trim().toLowerCase(); if(!k) return; const c = m.get(k) || {cliente:o.cliente.trim(), ruc:"", email:"", telefono:"", direccion:"", docs:0, ultimo:""};
@@ -1750,7 +1754,7 @@ let SORT_DESC = true;
 $("h-sort").onclick = () => { SORT_DESC = !SORT_DESC; FSORT_DESC = SORT_DESC; $("h-sort").textContent = SORT_DESC ? "Orden: más reciente primero ↓" : "Orden: más antigua primero ↑"; HVIEW==="cot" ? pintarHist() : pintarFac(); };
 $("h-q").addEventListener("input", () => HVIEW==="cot" ? pintarHist() : pintarFac());
 function vencida(c){ return new Date(c.validoHasta+"T23:59:59-05:00") < new Date(); }
-const DIAS_AVISO = 5;   // «Por vencer» cuando le quedan 5 días o menos
+const DIAS_AVISO = 3;   // cotización: «Por vencer» cuando le quedan 3 días o menos (calendario)
 const diasRestan = c => Math.round((new Date(c.validoHasta+"T12:00:00Z") - new Date(hoyISO()+"T12:00:00Z")) / 864e5);
 function estadoCot(c){   // Vigente (verde) · Por vencer (amarillo) · Vencida (rojo) · Anulada (gris)
   if(c.anulado) return {t:"Anulada", cls:"p-gray"};
@@ -1863,9 +1867,10 @@ function fSiguiente(){
 const fN = () => FEDIT ? FEDIT.n : fSiguiente();
 function fFechas(){
   const f = FEDIT && !$("fx-hoy")?.checked ? FEDIT.fecha : hoyISO();
-  const dias = Math.max(0, Number($("fx-dias").value||0));
-  $("fx-fecha").value = PDFFAC.dmy(f); $("fx-vence").value = PDFFAC.dmy(masDias(f, dias));
-  return {fecha:f, vence:masDias(f, dias), dias};
+  const dias = Math.max(0, Number($("fx-dias").value||0)), habiles = !FEDIT || !!FEDIT.habiles;   // los documentos anteriores conservan sus días corridos
+  const vence = habiles ? masHabiles(f, dias) : masDias(f, dias);
+  $("fx-fecha").value = PDFFAC.dmy(f); $("fx-vence").value = PDFFAC.dmy(vence);
+  return {fecha:f, vence, dias, habiles};
 }
 function fHint(){
   const n = fN(), t = FEDIT ? FEDIT.tipo : fTipo();
@@ -2004,7 +2009,7 @@ $("fx-btn-ultimo").onclick = async () => {
 };
 function fNueva(){
   FEDIT = null; $("fx-title").firstChild.textContent = "Nuevo recibo / factura "; $("fx-badge").textContent = "";
-  ["fx-cliente","fx-ruc","fx-email","fx-dir","fx-tel","fx-pedido"].forEach(id => { $(id).value = ""; delete $(id).dataset.auto; }); $("fx-dias").value = 4;
+  ["fx-cliente","fx-ruc","fx-email","fx-dir","fx-tel","fx-pedido"].forEach(id => { $(id).value = ""; delete $(id).dataset.auto; }); $("fx-dias").value = 3;
   $("fx-ped-igual").checked = true; $("fx-ped-box").classList.add("hidden"); $("fx-ped-mo").checked = true; $("fx-ped-mat").checked = false; FPED = null; FPEDS = []; FPED_ERR = null; FPED_VARIAS = false; $("fx-ped-info").textContent = ""; $("fx-ped-opts").classList.add("hidden"); $("fx-ped-old").classList.add("hidden"); $("fx-old-code").value = "";
   document.querySelector('input[name="fx-tipo"][value="Recibo"]').checked = true;
   document.querySelectorAll('input[name="fx-tipo"]').forEach(r => r.disabled = false);
@@ -2019,7 +2024,7 @@ function fCargar(d, modo){
   const enl = !!d.pedido && d.pedido!==d.numero;
   $("fx-ped-igual").checked = !enl; $("fx-ped-box").classList.toggle("hidden", !enl); $("fx-pedido").value = enl ? d.pedido : "";
   $("fx-ped-mo").checked = d.pedOpts ? !!d.pedOpts.mo : true; $("fx-ped-mat").checked = d.pedOpts ? !!d.pedOpts.mat : false;
-  ["fx-cliente","fx-ruc"].forEach(id => delete $(id).dataset.auto); $("fx-dias").value = d.dias ?? 4;
+  ["fx-cliente","fx-ruc"].forEach(id => delete $(id).dataset.auto); $("fx-dias").value = modo==="editar" || d.habiles ? (d.dias ?? 3) : 3;
   $("fx-pago").checked = !!d.conPago; $("fx-pie").checked = !!d.conPie; $("fx-xml").checked = !!d.conXml;
   const its = modo==="editar" ? d.items : d.items.map(({fotos, ...x}) => x);   // una copia no se lleva las fotos (son del documento original)
   FCOLS = colsDe(its, d.cols ? colsDe([], d.cols).concat(colsFac().filter(c => !d.cols.some(x => x.k===c.k))) : colsFac());
@@ -2047,13 +2052,13 @@ function fArmar(){
   const dup = (FHIST.docs||[]).find(x => x.n===n && (!FEDIT || x.codigo!==FEDIT.codigo));
   if(dup) errs.push(`actualizar: el número ${pad3(n)} ya existe (${dup.tipo} ${dup.numero}). Recarga la página`);
   if(errs.length) throw new Error("Falta " + errs.join(", ") + ".");
-  const {fecha, vence, dias} = fFechas(), numero = pad3(n);
+  const {fecha, vence, dias, habiles} = fFechas(), numero = pad3(n);
   const pref = tipo==="Factura" ? "F" : "R";
   const codigo = FEDIT ? FEDIT.codigo : (pref + numero + "-" + [...crypto.getRandomValues(new Uint8Array(8))].map(b=>ALF[b%ALF.length]).join("").replace(/^(.{4})/,"$1-"));
   const total = r2(items.reduce((a,it) => a + it.total, 0));
   if(!igual && FPED_ERR) throw new Error(FPED_ERR);
   const pedido = igual ? numero : FPEDS.length ? FPEDS.map(c => c.numero).join(", ") : (codsCot(pedTxt).join(", ") || pedTxt);
-  return { tipo, n, numero, pedido, cotRef: !igual && FPED ? FPED.numero : null, ...(!igual && FPEDS.length > 1 ? {cotRefs: FPEDS.map(c => c.numero)} : {}), pedOpts: !igual && FPED ? {mo:$("fx-ped-mo").checked, mat:$("fx-ped-mat").checked} : null, codigo, fecha, vence, dias, cliente,
+  return { tipo, n, numero, pedido, cotRef: !igual && FPED ? FPED.numero : null, ...(!igual && FPEDS.length > 1 ? {cotRefs: FPEDS.map(c => c.numero)} : {}), pedOpts: !igual && FPED ? {mo:$("fx-ped-mo").checked, mat:$("fx-ped-mat").checked} : null, codigo, fecha, vence, dias, ...(habiles ? {habiles:true} : {}), cliente,
            ruc:$("fx-ruc").value.trim(), email:$("fx-email").value.trim(), direccion:$("fx-dir").value.trim(), telefono:$("fx-tel").value.trim(),
            items, subtotal: total, total, conPago:$("fx-pago").checked, conPie:$("fx-pie").checked, conXml:$("fx-xml").checked,
            emisor: emisorForm(),
@@ -2168,7 +2173,7 @@ function pintarFac(){
     <td>${esc(d.tipo)}</td><td>${esc(PDFFAC.dmy(d.fecha))}</td>
     <td>${esc(d.cliente)}<div class="hint">${esc((d.items[0]?.desc||"").split("\n")[0].slice(0,60))}</div></td>
     <td class="r"><b>${money(d.total)}</b></td>
-    <td>${d.consolidadoEn && !d.anulado ? `<span class="pill p-blue" title="Su saldo se cobra en el consolidado">En consolidado ${esc(d.consolidadoEn.numero)}</span>` : d.anulado ? `<span class="pill p-gray">${d.tipo==="Factura"?"Anulada":"Anulado"}</span><div class="hint">${esc(PDFFAC.dmy(d.anulado.fecha))}${d.anulado.motivo ? " · " + esc(d.anulado.motivo) : ""}</div>` : (!enCxc(d) && cobradoDe(d)===0) ? '<span class="pill p-gray" title="No está en Cuentas por cobrar">Sin cobro</span>' : (e => `<span class="pill ${e==="Cobrado"?"p-ok":e==="Vencido"?"p-bad":"p-warn"}">${e}</span>${e!=="Cobrado" && cobradoDe(d) > 0 ? `<div class="hint">abonado ${money(cobradoDe(d))}</div>` : ""}`)(estadoCxc(d))}</td>
+    <td>${d.consolidadoEn && !d.anulado ? `<span class="pill p-blue" title="Su saldo se cobra en el consolidado">En consolidado ${esc(d.consolidadoEn.numero)}</span>` : d.anulado ? `<span class="pill p-gray">${d.tipo==="Factura"?"Anulada":"Anulado"}</span><div class="hint">${esc(PDFFAC.dmy(d.anulado.fecha))}${d.anulado.motivo ? " · " + esc(d.anulado.motivo) : ""}</div>` : (!enCxc(d) && cobradoDe(d)===0) ? '<span class="pill p-gray" title="No está en Cuentas por cobrar">Sin cobro</span>' : (e => `${pillCxc(d)}${e!=="Cobrado" && cobradoDe(d) > 0 ? `<div class="hint">abonado ${money(cobradoDe(d))}</div>` : ""}`)(estadoCxc(d))}</td>
     <td class="acts-td"><div class="acts">
       <button class="b-navy b-sm" data-f="pdf" data-c="${esc(d.codigo)}">Descargar</button>
       ${menuHTML([
@@ -2212,7 +2217,7 @@ function exportarFac(){
   if(!ds.length){ $("h-status").className="status warn"; $("h-status").textContent="No hay recibos ni facturas para exportar."; return; }
   const res = ds.map(d => ({"N.º": d.numero, "Tipo": d.tipo, "Pedido N.º": d.pedido, "Fecha": PDFFAC.dmy(d.fecha), "Vencimiento": PDFFAC.dmy(d.vence),
     "Cliente": d.cliente, "CIP/RUC": d.ruc||"", "Email": d.email||"", "Descripción": d.items.map(i=>i.desc).filter(Boolean).join(" | "), "Total": d.total,
-    "Estado de cobro": d.anulado ? (d.tipo==="Factura"?"Anulada":"Anulado") : d.consolidadoEn ? `En consolidado ${d.consolidadoEn.numero}` : (!enCxc(d) && cobradoDe(d)===0) ? "No está en cuentas por cobrar" : estadoCxc(d), "Cobrado": cobradoDe(d), "Saldo": d.anulado ? 0 : saldoDe(d), "Fecha de cobro": d.cobro?.fecha ? PDFFAC.dmy(d.cobro.fecha) : "", "Motivo de anulación": d.anulado?.motivo || "",
+    "Estado de cobro": d.anulado ? (d.tipo==="Factura"?"Anulada":"Anulado") : d.consolidadoEn ? `En consolidado ${d.consolidadoEn.numero}` : (!enCxc(d) && cobradoDe(d)===0) ? "No está en cuentas por cobrar" : etiquetaCxc(d).t, "Cobrado": cobradoDe(d), "Saldo": d.anulado ? 0 : saldoDe(d), "Fecha de cobro": d.cobro?.fecha ? PDFFAC.dmy(d.cobro.fecha) : "", "Motivo de anulación": d.anulado?.motivo || "",
     "Código de validación": d.codigo, "Enlace del QR": fUrl(d)}));
   const det = detalleFac(ds);
   const wb = XLSX.utils.book_new(), s1 = XLSX.utils.json_to_sheet(res), s2 = XLSX.utils.json_to_sheet(det);
@@ -2724,7 +2729,14 @@ function cobradoDe(d){
   return d.cobro?.estado==="Cobrado" ? r2(d.total) : 0;
 }
 const saldoDe = d => r2(Math.max(0, d.total - cobradoDe(d)));
-function estadoCxc(d){   // Cobrado · Vencido · Por vencer (+ abonado)
+/* etiqueta de un recibo o factura: Vigente (verde) · Por vencer (amarillo, 1 día hábil o menos) · Vencido (rojo) · Cobrado */
+function etiquetaCxc(d){
+  const e = estadoCxc(d); if(e!=="Por vencer") return {t:e, cls: e==="Cobrado" ? "p-ok" : e==="Vencido" ? "p-bad" : "p-gray"};
+  const h = habilesEntre(hoyISO(), d.vence);
+  return h <= 1 ? {t:"Por vencer", cls:"p-warn", nota: h===0 ? "vence hoy" : "vence el próximo día hábil"} : {t:"Vigente", cls:"p-ok", nota:`${h} días hábiles`};
+}
+const pillCxc = (d, extra="") => { const e = etiquetaCxc(d); return `<span class="pill ${e.cls}"${e.nota ? ` title="${esc(e.nota)}"` : ""}${extra}>${e.t}</span>`; };
+function estadoCxc(d){   // Cobrado · Vencido · Por vencer (= aún no vence; la etiqueta distingue Vigente / Por vencer)
   if(d.anulado) return "Anulado";
   if(saldoDe(d) <= 0.004) return "Cobrado";
   return diasEntre(hoyISO(), d.vence) < 0 ? "Vencido" : "Por vencer";
@@ -2815,12 +2827,12 @@ function pintarCxc(){
   const kp = (t, v, s, cls) => `<div class="kpi ${cls}"><span>${t}</span><b>${v}</b><small>${s}</small></div>`;
   $("cx-kpis").innerHTML =
     kp("Total vencido", money(venT), `${ven.length} documento(s)`, "k-bad") +
-    kp("Total por vencer", money(porT), `${por.length} documento(s)`, "k-warn") +
+    kp("Total sin vencer", money(porT), `${por.length} documento(s)`, "k-warn") +
     kp("Total cobrado", money(cobT), `${pct(cobT)} del facturado`, "k-ok") +
     kp("Total cotizado", money(cotT), !cots.length ? "sin cotizaciones vigentes" : cotMat > 0 ? `M. de obra ${money(cotMO)} · Mat. ${money(cotMat)}` : `${cots.length} cotización(es) · solo mano de obra`, "k-blue") +
     kp("Facturado", money(fact), `${pct(cobT)} cobrado`, "k-navy") +
     kp("Saldo por cobrar", money(saldoT), `${pct(saldoT)} del facturado`, "k-lila");
-  const segs = [["Cobrado", cobT, "s-ok"], ["Vencido", venT, "s-bad"], ["Por vencer", porT, "s-warn"]];
+  const segs = [["Cobrado", cobT, "s-ok"], ["Vencido", venT, "s-bad"], ["Sin vencer", porT, "s-warn"]];
   $("cx-bar").innerHTML = fact ? `<div class="cx-fill" style="width:${CXANIM ? 0 : 100}%">` + segs.filter(s => s[1] > 0).map(([t,v,c]) => `<div class="seg-b ${c}" style="flex:${v} 1 0" title="${t}: ${money(v)} (${pct(v)})"></div>`).join("") + `</div>` : '<div class="seg-b s-empty" style="flex:1"></div>';
   $("cx-pend").innerHTML = (ven.length + por.length)
     ? `<b>${ven.length + por.length}</b> pendiente(s) de cobro de <b>${L.length}</b> en cuentas por cobrar${L.some(d => d.origen==="control") ? ' · <span class="dot-prev" style="margin:0 4px 0 0"></span>= recibo del control anterior' : ""}`
@@ -2828,11 +2840,11 @@ function pintarCxc(){
   $("cx-leg").innerHTML = segs.map(([t,v,c]) => `<span><i class="${c}"></i>${t} <b>${money(v)}</b> · ${pct(v)}</span>`).join("");
   const btnCobro = d => `<div class="acts"><button class="b-ghost b-sm b-cobro" data-x="cobrar" data-c="${esc(d.codigo)}">Registrar cobro</button>${menuCx(d)}</div>`;
   const fila = (d, dias) => `<tr><td><b>${esc(numCx(d))}</b>${tagCx(d)}</td><td>${esc(d.cliente)}</td><td class="cx-desc">${esc(descDe(d))}</td>
-    <td>${esc(PDFFAC.dmy(d.fecha))}</td><td>${esc(PDFFAC.dmy(d.vence))}</td><td class="r"><b>${dias===0 ? "Hoy" : dias}</b></td>
+    <td>${esc(PDFFAC.dmy(d.fecha))}</td><td>${esc(PDFFAC.dmy(d.vence))}</td><td class="r"><b>${dias===0 ? "Hoy" : dias}</b>${estadoCxc(d)==="Por vencer" ? `<div style="margin-top:3px">${pillCxc(d, ' style="padding:1px 8px"')}</div>` : ""}</td>
     <td class="r"><b>${money(saldoDe(d))}</b>${cobradoDe(d) > 0 ? `<div class="hint">de ${money(d.total)} · abonado ${money(cobradoDe(d))}</div>` : ""}</td><td class="r">${btnCobro(d)}</td></tr>`;
   const vacio = (n, t) => `<tr><td colspan="${n}" class="empty">${t}</td></tr>`;
   $("cx-ven").innerHTML = ven.length ? ven.map(d => fila(d, diasEntre(d.vence, hoyISO()))).join("") + `<tr class="cx-sub"><td colspan="6">Subtotal vencidos</td><td class="r"><b>${money(venT)}</b></td><td></td></tr>` : vacio(8, "No hay documentos vencidos. 🎉");
-  $("cx-por").innerHTML = por.length ? por.map(d => fila(d, diasEntre(hoyISO(), d.vence))).join("") + `<tr class="cx-sub"><td colspan="6">Subtotal por vencer</td><td class="r"><b>${money(porT)}</b></td><td></td></tr>` : vacio(8, "No hay documentos por vencer.");
+  $("cx-por").innerHTML = por.length ? por.map(d => fila(d, habilesEntre(hoyISO(), d.vence))).join("") + `<tr class="cx-sub"><td colspan="6">Subtotal vigentes y por vencer</td><td class="r"><b>${money(porT)}</b></td><td></td></tr>` : vacio(8, "No hay documentos vigentes ni por vencer.");
   $("cx-cob").innerHTML = cob.length ? cob.map(d => { const u = ultimoCobro(d), parcial = saldoDe(d) > 0.004;
       return `<tr><td><b>${esc(numCx(d))}</b>${tagCx(d)}</td><td>${esc(d.cliente)}</td><td class="cx-desc">${esc(descDe(d))}</td><td>${esc(PDFFAC.dmy(d.fecha))}</td>
       <td>${u?.fecha ? esc(PDFFAC.dmy(u.fecha)) : "—"}${(d.cobro?.abonos||[]).length > 1 ? `<div class="hint">${d.cobro.abonos.length} abonos</div>` : ""}</td><td>${esc(u?.metodo || "—")}</td>
@@ -2859,7 +2871,7 @@ function pintarCxc(){
       <td class="r"><button class="b-ghost b-sm b-cxc" data-x="enviarcot" data-c="${esc(c.codigo)}" title="Enviar esta cotización a cuentas por cobrar">Por cobrar</button></td></tr>`;
     const cobK = r2(ds.reduce((a, d) => a + cobradoDe(d) * parte(d, k), 0)), cotT = c ? r2(c.total) : null, falta = cotT==null ? null : r2(Math.max(0, cotT - cobK));
     return `<tr><td><b>${esc(k)}</b>${c?.anulado ? '<div class="hint bad">Anulada</div>' : ""}</td><td>${esc(c?.cliente || ds[0].cliente)}</td>
-      <td>${ds.map(d => `<span class="pill ${estadoCxc(d)==="Cobrado"?"p-ok":estadoCxc(d)==="Vencido"?"p-bad":"p-warn"}" style="padding:2px 8px;margin:1px" title="${cotsDeDoc(d).length > 1 ? "Este documento junta las cotizaciones " + esc(cotsDeDoc(d).join(", ")) : ""}">${d._k==="cot" ? "Cuenta de la cotización" : esc(d.numero)} · ${money(d.total)}${d._k!=="cot" && cotsDeDoc(d).length > 1 ? " · junto con " + esc(cotsDeDoc(d).filter(x => x!==k).join(", ")) : ""}</span>`).join(" ")}</td>
+      <td>${ds.map(d => `<span class="pill ${etiquetaCxc(d).cls}" style="padding:2px 8px;margin:1px" title="${cotsDeDoc(d).length > 1 ? "Este documento junta las cotizaciones " + esc(cotsDeDoc(d).join(", ")) : ""}">${d._k==="cot" ? "Cuenta de la cotización" : esc(d.numero)} · ${money(d.total)}${d._k!=="cot" && cotsDeDoc(d).length > 1 ? " · junto con " + esc(cotsDeDoc(d).filter(x => x!==k).join(", ")) : ""}</span>`).join(" ")}</td>
       <td class="r">${cotT==null ? '<span class="hint">no está en el historial</span>' : money(cotT)}</td><td class="r"><b>${money(cobK)}</b></td>
       <td class="r">${falta==null ? "—" : falta <= 0.004 ? '<span class="pill p-ok">Completa</span>' : `<b class="bad">${money(falta)}</b>`}</td></tr>`; }).join("")
     : vacio(6, "Aún no has emitido cotizaciones.");
@@ -3007,7 +3019,7 @@ function pedirCxc(kind, rec, ctx="hist"){   // enviar un recibo/factura o una co
   box.innerHTML = `<div class="box" style="background:var(--blue-bg)"><b>¿Enviar ${esc(nom)} a Cuentas por cobrar?</b> · ${esc(rec.cliente)} · <b>${money(rec.total)}</b><br>
     ${kind==="cot" ? `Úsalo cuando el cliente te debe esta cotización y no vas a emitir recibo por ahora.
       <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap"><label style="margin:0">Días para pagar</label><input type="number" inputmode="numeric" pattern="[0-9]*" id="ex-dias" min="0" value="4" style="max-width:90px"><span class="hint" id="ex-vence"></span></div>`
-      : `Vence el <b>${esc(PDFFAC.dmy(rec.vence))}</b>. Aparecerá en Vencidos o Por vencer hasta que registres el cobro.`}
+      : `Vence el <b>${esc(PDFFAC.dmy(rec.vence))}</b>. Aparecerá en Vencidos o en Vigentes y por vencer hasta que registres el cobro.`}
     <div class="actions" style="justify-content:flex-start;margin-top:8px"><button class="b-navy" id="ex-ok">Enviar a cuentas por cobrar</button><button class="b-ghost" id="ex-no">Cancelar</button></div><div class="status" id="ex-st"></div></div>`;
   box.scrollIntoView({behavior:"smooth", block:"center"});
   const venceTxt = () => { if($("ex-vence")) $("ex-vence").textContent = "Vence el " + PDFFAC.dmy(masDias(hoyISO(), Math.max(0, Number($("ex-dias").value||0)))); };
@@ -3076,7 +3088,7 @@ $("cx-export").onclick = () => {
   const est = L.map(d => estadoCxc(d)), sum = f => r2(L.reduce((s,d,i) => s + f(d,i), 0)), fact = sum(d => d.total);
   const ven = sum((d,i) => est[i]==="Vencido" ? saldoDe(d) : 0), por = sum((d,i) => est[i]==="Por vencer" ? saldoDe(d) : 0), cob = sum(cobradoDe);
   const res = [{"Concepto":"Fecha de corte","Valor":PDFFAC.dmy(hoyISO())}, {"Concepto":"Facturado","Valor":fact}, {"Concepto":"Total cobrado","Valor":cob},
-    {"Concepto":"Total vencido","Valor":ven}, {"Concepto":"Total por vencer","Valor":por}, {"Concepto":"Saldo por cobrar","Valor":r2(ven+por)},
+    {"Concepto":"Total vencido","Valor":ven}, {"Concepto":"Total sin vencer (vigente y por vencer)","Valor":por}, {"Concepto":"Saldo por cobrar","Valor":r2(ven+por)},
     {"Concepto":"Pendientes","Valor":est.filter(e => e!=="Cobrado").length}, {"Concepto":"Documentos","Valor":L.length}];
   const cs = (HIST?.cotizaciones||[]).filter(c => !c.anulado);
   res.push({"Concepto":"Total cotizado","Valor":r2(cs.reduce((t,c) => t + c.total, 0))},
@@ -3084,8 +3096,8 @@ $("cx-export").onclick = () => {
            {"Concepto":"  · Materiales (con ITBMS)","Valor":r2(cs.reduce((t,c) => t + (c.incMat ? r2(c.tot.matTotal) : 0), 0))});
   const cuentas = L.map((d,i) => { const u = ultimoCobro(d); return {"N.º": d.numero, "Tipo": d.origen==="control" ? "Recibo (control anterior)" : d.tipo, "Cliente": d.cliente,
     "Descripción": descDe(d), "Cotización": cotsDeDoc(d).join(", "), "Fecha emisión": PDFFAC.dmy(d.fecha), "Vencimiento": PDFFAC.dmy(d.vence),
-    "Monto": d.total, "Cobrado": cobradoDe(d), "Saldo": saldoDe(d), "Estado": est[i] + (est[i]!=="Cobrado" && cobradoDe(d) > 0 ? " (abono parcial)" : ""),
-    "Días de atraso": est[i]==="Vencido" ? diasEntre(d.vence, hoyISO()) : "", "Días para vencer": est[i]==="Por vencer" ? diasEntre(hoyISO(), d.vence) : "",
+    "Monto": d.total, "Cobrado": cobradoDe(d), "Saldo": saldoDe(d), "Estado": etiquetaCxc(d).t + (est[i]!=="Cobrado" && cobradoDe(d) > 0 ? " (abono parcial)" : ""),
+    "Días de atraso": est[i]==="Vencido" ? diasEntre(d.vence, hoyISO()) : "", "Días hábiles para vencer": est[i]==="Por vencer" ? habilesEntre(hoyISO(), d.vence) : "",
     "Fecha de cobro": est[i]==="Cobrado" && u?.fecha ? PDFFAC.dmy(u.fecha) : "", "Método": u?.metodo || ""}; });
   const abonos = []; L.forEach(d => (d.cobro?.abonos||[]).forEach(a => abonos.push({"N.º": d.numero, "Cliente": d.cliente, "Fecha": PDFFAC.dmy(a.fecha), "Monto": a.monto, "Método": a.metodo||"", "Nota": a.nota||""})));
   const wb = XLSX.utils.book_new(), s1 = XLSX.utils.json_to_sheet(res), s2 = XLSX.utils.json_to_sheet(cuentas), s3 = XLSX.utils.json_to_sheet(abonos.length ? abonos : [{"N.º":"", "Cliente":"", "Fecha":"", "Monto":"", "Método":"", "Nota":""}]);
