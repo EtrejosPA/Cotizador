@@ -101,6 +101,9 @@
   .col-t{cursor:pointer;border-radius:4px}.col-t i{font-style:normal;opacity:.45;font-size:10px}.col-t:hover i{opacity:1;color:var(--navy)}.col-t:hover{color:var(--navy)}
   .col-in{font-size:16px!important;padding:3px 6px!important;height:auto!important;text-transform:none;font-weight:600;width:100%}
   .ff-drop{font-size:12.5px;color:var(--muted);border:1.5px dashed #CBD3DF;border-radius:8px;padding:7px 12px;flex:1;min-width:180px;text-align:center}
+  .ff-docs{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:6px}.ff-docs:empty{display:none}
+  .fd-it{position:relative;display:flex;max-width:100%}.fd-ver{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #CBD3DF;border-radius:8px;padding:7px 30px 7px 10px;color:var(--navy);font-size:13px;font-weight:600;text-align:left;max-width:100%;white-space:nowrap}
+  .fd-ver span{overflow:hidden;text-overflow:ellipsis;min-width:0}.fd-ver small{color:var(--muted);font-weight:500;flex:none}.fd-it .ff-x{top:50%;right:4px;margin-top:-11px}
   .ffotos.ff-sobre{background:#FFF8E8;outline:2px dashed var(--orange);outline-offset:4px;border-radius:8px}
   @media (hover:none), (pointer:coarse){ .ff-drop{display:none} }
   #tirar{position:fixed;top:0;left:0;right:0;height:0;background:#fff;z-index:31;display:flex;align-items:center;justify-content:center;overflow:hidden;pointer-events:none}
@@ -116,7 +119,7 @@
   .aviso{display:flex;gap:12px;align-items:flex-start;border-radius:14px;padding:14px 16px;font-size:14px;line-height:1.5;box-shadow:0 8px 22px rgba(15,38,64,.08)}
   .aviso b{display:block}.aviso .x{margin-left:auto;background:none;border:0;font-size:20px;line-height:1;color:inherit;opacity:.6;padding:0 4px}
   .aviso.warn{background:var(--amber-bg);color:#5b3d07;border:1px solid #F3DDA9}.aviso.bad{background:var(--red-bg);color:#7f1d1d;border:1px solid #F5C2C2}.aviso.info{background:var(--blue-bg);color:#183a7a;border:1px solid #BCD3F5}
-  @media (max-width:720px){ html{scroll-padding-bottom:calc(112px + env(safe-area-inset-bottom))} }
+  @media (max-width:720px){ html{scroll-padding-bottom:calc(96px + env(safe-area-inset-bottom))} }
   header .t span{font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase}
   nav{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
   body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
@@ -242,22 +245,14 @@
   @media (max-width:720px){
     header{padding-bottom:10px}
     header img{height:44px}
-    /* barra flotante de vidrio (estilo Liquid Glass) */
-    nav#nav{position:fixed;left:14px;right:14px;width:auto;bottom:calc(10px + env(safe-area-inset-bottom));z-index:40;margin:0;border-radius:32px;padding:6px;
-      display:grid;grid-template-columns:repeat(4,1fr);gap:0;
-      background:linear-gradient(180deg,rgba(255,255,255,.58),rgba(255,255,255,.30));
-      -webkit-backdrop-filter:blur(16px) saturate(190%) brightness(1.06);backdrop-filter:blur(16px) saturate(190%) brightness(1.06);
-      border:1px solid rgba(255,255,255,.65);border-top-color:rgba(255,255,255,.95);
-      box-shadow:0 12px 32px rgba(15,38,64,.20),0 2px 6px rgba(15,38,64,.08),inset 0 1px 1px rgba(255,255,255,.95),inset 0 -8px 16px rgba(255,255,255,.18)}
-    nav#nav.liq{-webkit-backdrop-filter:url(#nav-liq) blur(10px) saturate(190%) brightness(1.06);backdrop-filter:url(#nav-liq) blur(10px) saturate(190%) brightness(1.06)}   /* Android/Chrome: ondulación líquida */
-    nav#nav::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(120% 60% at 50% -10%,rgba(255,255,255,.55),transparent 60%)}
+    nav#nav{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0;background:rgba(255,255,255,.96);-webkit-backdrop-filter:saturate(180%) blur(12px);backdrop-filter:saturate(180%) blur(12px);
+      border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
     nav#nav.hidden{display:none!important}
-    nav#nav button{position:relative;z-index:1;background:none;border:0;color:#3F4D61;font-size:10.5px;font-weight:700;padding:7px 2px 6px;white-space:normal;line-height:1.15;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:26px;transition:background .2s ease,box-shadow .2s ease}
+    nav#nav button{background:none;border:0;color:var(--muted);font-size:10.5px;font-weight:700;padding:4px 2px;white-space:normal;line-height:1.15;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:10px}
     nav#nav button .ni{display:block;width:22px;height:22px}
-    nav#nav button.on{color:var(--navy);background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,.55));box-shadow:inset 0 1px 1px #fff,0 1px 4px rgba(15,38,64,.12),inset 0 0 0 1px rgba(255,255,255,.7)}
-    nav#nav button.on::after{content:"";position:absolute;left:50%;bottom:3px;width:16px;height:3px;margin-left:-8px;border-radius:3px;background:var(--orange)}
+    nav#nav button.on{background:none;color:var(--navy)}
     nav#nav button.on .ni{color:var(--navy)}
-    main{margin-bottom:calc(104px + env(safe-area-inset-bottom))}
+    main{margin-bottom:calc(86px + env(safe-area-inset-bottom))}
     .card{padding:16px}
     .htools > select{flex:1 1 100%}
     .actions{flex-wrap:wrap}
@@ -999,27 +994,30 @@ const PDFFAC = (() => {
         doc.setFont("Serif", g.k==="total" ? "bold" : "normal"); doc.setFontSize(sz);
         const lines = String(v??"").split("\n").flatMap(p => doc.splitTextToSize(p, g.w-10));
         // evidencia fotográfica: «Evidencia fotográfica: img01, img02» al final de la descripción, con enlaces al carrusel del portal
-        let fotos = null;
-        if(g.k==="desc" && it.fotos?.length && d.url){
-          const lab = "Evidencia fotográfica:", fila = d.items.indexOf(it) + 1;
-          doc.setFont("Serif","bold"); const wl = doc.getTextWidth(lab + " "); doc.setFont("Serif","normal");
+        // y «Documentos anexos: archivos» (PDF, Word, Excel), cada uno con su enlace al portal
+        let anex = [];
+        if(g.k==="desc" && d.url){
+          const fila = d.items.indexOf(it) + 1, L = [];
           // un solo enlace «imágenes» que abre el carrusel con todas las fotos de la fila, en el orden en que se subieron
-          const t = it.fotos.length === 1 ? "imagen" : "imágenes", tw = doc.getTextWidth(t);
-          const nl = g.x + 5 + wl + tw > g.x + g.w - 5;
-          fotos = {lab, ini: lines.length, segs: [{t, x: nl ? g.x + 5 : g.x + 5 + wl, l: nl ? 1 : 0, w: tw, url: d.url + "&f=" + fila + "&i=1"}], n: nl ? 2 : 1};
+          if(it.fotos?.length) L.push({lab:"Evidencia fotográfica:", t: it.fotos.length === 1 ? "imagen" : "imágenes", url: d.url + "&f=" + fila + "&i=1"});
+          if(it.docs?.length) L.push({lab:"Documentos anexos:", t: it.docs.length === 1 ? "archivo" : "archivos", url: d.url + "&f=" + fila + "&d=1"});
+          let ini = lines.length;
+          anex = L.map(a => { doc.setFont("Serif","bold"); const wl = doc.getTextWidth(a.lab + " "); doc.setFont("Serif","normal");
+            const tw = doc.getTextWidth(a.t), nl = g.x + 5 + wl + tw > g.x + g.w - 5;
+            const o = {lab:a.lab, ini, segs:[{t:a.t, x: nl ? g.x + 5 : g.x + 5 + wl, l: nl ? 1 : 0, w: tw, url: a.url}], n: nl ? 2 : 1}; ini += o.n; return o; });
         }
-        return {g, lines, fotos};
+        return {g, lines, anex};
       });
-      const n = Math.max(1, ...cel.map(c => c.lines.length + (c.fotos ? c.fotos.n : 0))), h = n*lh + 11;
+      const n = Math.max(1, ...cel.map(c => c.lines.length + c.anex.reduce((a,x) => a + x.n, 0))), h = n*lh + 11;
       if(y + h > 640){ doc.addPage(); y = 50; }
       cel.forEach(({g, lines}) => lines.forEach((ln,i) => T(doc, ln, g.al==="right" ? g.x+g.w-5 : g.al==="center" ? g.x+g.w/2 : g.x+5, y + i*lh, {sz, st: g.k==="total"?"bold":"normal", al:g.al})));
-      cel.filter(c => c.fotos).forEach(({g, fotos}) => {
+      cel.forEach(({g, anex}) => anex.forEach(fotos => {
         const y0 = y + fotos.ini*lh;
         T(doc, fotos.lab, g.x+5, y0, {sz, st:"bold", c:C.navy});
         fotos.segs.forEach(sg => { const yy = y0 + sg.l*lh; T(doc, sg.t, sg.x, yy, {sz, c:[30,79,184]});
           doc.setDrawColor(30,79,184); doc.setLineWidth(0.5); doc.line(sg.x, yy + sz*0.92, sg.x + sg.w, yy + sz*0.92);
           doc.link(sg.x - 1, yy - 1, sg.w + 2, lh + 2, {url: sg.url}); });
-      });
+      }));
       R(doc, L, y + h - 6.5, W, 0.5, C.sep);
       y += h;
     });
@@ -1230,12 +1228,6 @@ async function entrar(){
   window.__tirar = pinta;
 })();
 
-/* Android (Chrome): el vidrio de la barra ondula el fondo como líquido; Safari no admite este filtro y usa el vidrio normal */
-if(/Android/i.test(navigator.userAgent) && /Chrome\//.test(navigator.userAgent)){
-  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("width", "0"); s.setAttribute("height", "0"); s.setAttribute("aria-hidden", "true"); s.style.position = "absolute";
-  s.innerHTML = '<filter id="nav-liq" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.008 0.02" numOctaves="2" seed="3" result="n"/><feGaussianBlur in="n" stdDeviation="2" result="b"/><feDisplacementMap in="SourceGraphic" in2="b" scale="70" xChannelSelector="R" yChannelSelector="G"/></filter>';
-  document.body.appendChild(s); document.getElementById("nav")?.classList.add("liq");
-}
 /* ==================== sin conexión ==================== */
 if("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "127.0.0.1")){
   try{ navigator.serviceWorker.register("sw.js").catch(e => console.warn("sw", e)); }catch(e){}
@@ -1957,16 +1949,43 @@ async function fotoPortal(codigo, id){   // trae y descifra una foto ya publicad
   return FOTOCACHE[kk] = URL.createObjectURL(new Blob([await descifrar(k.key, bin.slice(0,12), bin.slice(12))], {type:"image/jpeg"}));
 }
 let FILA_ACT = null;   // fila donde se pegan las fotos con Ctrl+V
+/* documentos anexos: PDF (también lo escaneado con el iPhone), Word y Excel; se guardan tal cual, cifrados en el portal */
+const DOC_MAX = 10 * 1024 * 1024;
+const DOC_TIPOS = {pdf:"application/pdf", doc:"application/msword", docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls:"application/vnd.ms-excel", xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", csv:"text/csv"};
+const extDe = n => (String(n||"").match(/\.([a-z0-9]+)$/i)?.[1] || "").toLowerCase();
+const esDoc = f => !!DOC_TIPOS[extDe(f.name)] || Object.values(DOC_TIPOS).includes(f.type);
+const esImg = f => /^image\//.test(f.type) || /\.(jpe?g|png|heic|heif|webp|gif)$/i.test(f.name||"");
+const iconoDoc = e => e==="pdf" ? "📄" : /^xls|csv/.test(e) ? "📊" : "📝";
+const pesoTxt = b => b >= 1048576 ? (b/1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b/1024)) + " KB";
+const ACEPTA = "image/*,.pdf,application/pdf,.doc,.docx,.xls,.xlsx,.csv," + Object.values(DOC_TIPOS).join(",");
 async function agregarFotos(div, files){
-  const st = div.querySelector(".ff-st"), fs = files.filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|heic|heif|webp|gif)$/i.test(f.name||""));
-  if(!fs.length){ if(files.length) st.textContent = "Solo se aceptan imágenes."; return; }
-  st.textContent = "Preparando foto(s)…";
-  for(const f of fs){ try{ const blob = await comprimirFoto(f); div._fotos.push({id:idFoto(), blob, url:URL.createObjectURL(blob)}); }catch(e){ st.textContent = "No pude leer " + (f.name || "la imagen"); } }
-  if(st.textContent==="Preparando foto(s)…") st.textContent = ""; pintarFotos(div); fCalc();
+  const st = div.querySelector(".ff-st"), fs = files.filter(esImg), ds = files.filter(f => !esImg(f) && esDoc(f)), otros = files.length - fs.length - ds.length;
+  if(!fs.length && !ds.length){ if(files.length) st.textContent = "Solo se aceptan fotos, PDF, Word o Excel."; return; }
+  st.textContent = "Preparando…"; let aviso = otros ? "Algunos archivos no se agregaron: solo fotos, PDF, Word o Excel." : "";
+  for(const f of fs){ try{ const blob = await comprimirFoto(f); div._fotos.push({id:idFoto(), blob, url:URL.createObjectURL(blob)}); }catch(e){ aviso = "No pude leer " + (f.name || "la imagen"); } }
+  for(const f of ds){
+    if(f.size > DOC_MAX){ aviso = `«${f.name}» pesa ${pesoTxt(f.size)}: el máximo por archivo es 10 MB.`; continue; }
+    const e = extDe(f.name) || Object.keys(DOC_TIPOS).find(k => DOC_TIPOS[k]===f.type) || "pdf";
+    div._docs.push({id:idFoto(), nombre: f.name || ("documento." + e), tipo: DOC_TIPOS[e] || f.type || "application/octet-stream", tam:f.size, blob:f});
+  }
+  st.textContent = aviso; pintarFotos(div); fCalc();
+}
+const DOCCACHE = {};
+async function docPortal(codigo, x){   // trae y descifra un documento ya publicado
+  const kk = codigo + "/" + x.id; if(DOCCACHE[kk]) return DOCCACHE[kk];
+  const k = await clavesPortal(codigo), r = await fetch(`${CFG.site}data/${k.id}-${x.id}.bin`, {cache:"no-store"});
+  if(!r.ok) throw new Error("documento no encontrado"); const bin = new Uint8Array(await r.arrayBuffer());
+  return DOCCACHE[kk] = new Blob([await descifrar(k.key, bin.slice(0,12), bin.slice(12))], {type:x.tipo});
+}
+async function abrirDoc(x, codigo){
+  const blob = x.blob || await docPortal(codigo, x), u = URL.createObjectURL(blob);
+  if(x.tipo==="application/pdf"){ const w = window.open(u, "_blank"); if(w) return; }
+  const a = document.createElement("a"); a.href = u; a.download = x.nombre; document.body.appendChild(a); a.click(); a.remove();
 }
 document.addEventListener("paste", e => {   // pegar fotos con Ctrl+V en la fila activa de Facturación
   if($("sec-fac").classList.contains("hidden")) return;
-  const fs = [...(e.clipboardData?.files || [])].filter(f => /^image\//.test(f.type)); if(!fs.length) return;
+  const fs = [...(e.clipboardData?.files || [])].filter(f => esImg(f) || esDoc(f)); if(!fs.length) return;
   const filas = [...$("fx-rows").children], div = filas.includes(FILA_ACT) ? FILA_ACT : filas[filas.length-1]; if(!div) return;
   e.preventDefault(); agregarFotos(div, fs.map((f,i) => new File([f], f.name && f.name!=="image.png" ? f.name : `pegada_${Date.now()}_${i}.png`, {type:f.type})));
 });
@@ -1989,18 +2008,27 @@ document.addEventListener("click", e => {
   ip.addEventListener("blur", () => fin(true));
 });
 function pintarFotos(r, codigo){
+  const dl = r.querySelector(".ff-docs"); if(dl){
+    dl.innerHTML = (r._docs||[]).map(x => `<div class="fd-it" data-id="${x.id}"><button type="button" class="fd-ver" title="Abrir">${iconoDoc(extDe(x.nombre))} <span>${esc(x.nombre)}</span> <small>${pesoTxt(x.tam||0)}</small></button><button type="button" class="ff-x fd-x" title="Quitar documento">×</button></div>`).join("");
+    dl.querySelectorAll(".fd-x").forEach(b => b.onclick = () => { const id = b.closest(".fd-it").dataset.id; r._docs = r._docs.filter(x => x.id!==id); pintarFotos(r, codigo); fCalc(); });
+    dl.querySelectorAll(".fd-ver").forEach(b => b.onclick = () => { const x = r._docs.find(y => y.id===b.closest(".fd-it").dataset.id); abrirDoc(x, codigo || FEDIT?.codigo).catch(e => r.querySelector(".ff-st").textContent = "No se pudo abrir: " + e.message); });
+  }
   const list = r.querySelector(".ff-list"); if(!list) return;
   list.innerHTML = r._fotos.map((f,j) => `<div class="ff-it" data-id="${f.id}"><img alt="${etiquetaFoto(j)}"${f.url ? ` src="${f.url}"` : ""}><span>${etiquetaFoto(j)}</span><button type="button" class="ff-x" title="Quitar foto">×</button></div>`).join("");
   list.querySelectorAll(".ff-x").forEach(b => b.onclick = () => { const id = b.closest(".ff-it").dataset.id; r._fotos = r._fotos.filter(f => f.id!==id); pintarFotos(r, codigo); fCalc(); });
   list.querySelectorAll(".ff-it img").forEach((img, j) => { const f = r._fotos[j]; if(!f.url && codigo) fotoPortal(codigo, f.id).then(u => { f.url = u; img.src = u; }).catch(() => img.alt = "sin vista"); });
 }
-async function subirFotos(codigo, st){   // publica en el portal (cifradas) las fotos nuevas de todas las filas
-  const pend = [...$("fx-rows").children].flatMap(r => (r._fotos||[]).filter(f => f.blob && !f.subido));
+async function subirFotos(codigo, st){   // publica en el portal (cifrados) las fotos y documentos nuevos de todas las filas
+  const filas = [...$("fx-rows").children];
+  const pend = [...filas.flatMap(r => (r._fotos||[]).filter(f => f.blob && !f.subido).map(f => ({f, que:"Evidencia fotográfica"}))),
+                ...filas.flatMap(r => (r._docs||[]).filter(f => f.blob && !f.subido).map(f => ({f, que:"Documento anexo"})))];
   if(!pend.length) return; const k = await clavesPortal(codigo);
-  for(let i=0;i<pend.length;i++){ const f = pend[i]; st.textContent = `Subiendo evidencia fotográfica ${i+1} de ${pend.length}…`;
+  for(let i=0;i<pend.length;i++){ const {f, que} = pend[i]; st.textContent = `Subiendo ${que.toLowerCase()} ${i+1} de ${pend.length}…`;
     const e = await cifrar(k.key, new Uint8Array(await f.blob.arrayBuffer())); const bin = new Uint8Array(12+e.ct.length); bin.set(e.iv,0); bin.set(e.ct,12);
-    await ghPut(CFG.repoVal, `data/${k.id}-${f.id}.bin`, bin, null, `Evidencia fotográfica · ${codigo.split("-")[0]}`); f.subido = true; }
+    await ghPut(CFG.repoVal, `data/${k.id}-${f.id}.bin`, bin, null, `${que} · ${codigo.split("-")[0]}`); f.subido = true; }
 }
+const docsPortal = d => d.items.map((it,i) => it.docs?.length ? {fila:i+1, desc:String(it.desc||"").split("\n")[0].slice(0,120), archivos:it.docs.map(({id,nombre,tipo,tam}) => ({id,nombre,tipo,tam}))} : null).filter(Boolean);
+const enlaceDocs = (d, i) => (d.items[i]?.docs||[]).length ? `${fUrl(d)}&f=${i+1}&d=1` : "";
 const fotosPortal = d => d.items.map((it,i) => it.fotos?.length ? {fila:i+1, desc:String(it.desc||"").split("\n")[0].slice(0,120), ids:it.fotos} : null).filter(Boolean);
 const enlacesFotos = (d, i) => (d.items[i]?.fotos||[]).length ? [`${fUrl(d)}&f=${i+1}&i=1`] : [];   // un enlace al carrusel de la fila
 function fRow(it={}){
@@ -2017,10 +2045,10 @@ function fRow(it={}){
       <div><span class="lbl2">Total</span><input type="number" inputmode="decimal" step="any" min="0" class="in fx-tot" value="${it.precio==null||it.precio==="" ? (it.total??"") : ""}"></div>
     </div>`;
   const ff = document.createElement("div"); ff.className = "ffotos";
-  ff.innerHTML = `<span class="lbl2">Evidencia fotográfica</span><div class="ff-list"></div>
-    <div class="ff-btns"><label class="b-ghost b-sm ff-b">🖼️ Galería o archivo<input type="file" accept="image/*" multiple></label>
-    <span class="ff-drop">o arrastra las fotos aquí · también puedes pegarlas (Ctrl+V)</span><span class="hint ff-st"></span></div>`;
-  div.appendChild(ff); div._fotos = [];
+  ff.innerHTML = `<span class="lbl2">Evidencia fotográfica y documentos anexos</span><div class="ff-list"></div><div class="ff-docs"></div>
+    <div class="ff-btns"><label class="b-ghost b-sm ff-b">📎 Galería, archivo o escanear<input type="file" accept="${ACEPTA}" multiple></label>
+    <span class="ff-drop">o arrastra aquí fotos, PDF, Word o Excel · también puedes pegarlos (Ctrl+V)</span><span class="hint ff-st"></span></div>`;
+  div.appendChild(ff); div._fotos = []; div._docs = [];
   const finp = ff.querySelector("input[type=file]");
   finp.onchange = () => { const fs = [...finp.files]; finp.value = ""; agregarFotos(div, fs); };
   ff.addEventListener("dragover", e => { if([...e.dataTransfer.items].some(i => i.kind==="file")){ e.preventDefault(); ff.classList.add("ff-sobre"); } });
@@ -2039,12 +2067,13 @@ function fItems(){
     const g = k => r.querySelector(".fx-"+k).value.trim();
     const it = {desc:g("desc")}; r.querySelectorAll(".fx-c").forEach(el => { const v = el.value.trim(); if(v) it[el.dataset.k] = v; });
     if(r._fotos?.length) it.fotos = r._fotos.map(f => f.id);
+    if(r._docs?.length) it.docs = r._docs.map(({id,nombre,tipo,tam}) => ({id,nombre,tipo,tam}));
     const c = g("cant"), p = g("precio"), t = g("tot");
     if(c!=="") it.cant = Number(c); if(p!=="") it.precio = Number(p);
     it.total = p!=="" ? r2((c===""?1:Number(c)) * Number(p)) : (t==="" ? null : r2(Number(t)));
     if(r.dataset.auto) it._auto = r.dataset.auto;
     return it;
-  }).filter(it => it.desc || it.total!=null || fcols().some(c => it[c.k]) || it.fotos);
+  }).filter(it => it.desc || it.total!=null || fcols().some(c => it[c.k]) || it.fotos || it.docs);
 }
 function fCalc(){
   [...$("fx-rows").children].forEach((r,i) => {
@@ -2085,11 +2114,11 @@ function fCargar(d, modo){
   $("fx-ped-mo").checked = d.pedOpts ? !!d.pedOpts.mo : true; $("fx-ped-mat").checked = d.pedOpts ? !!d.pedOpts.mat : false;
   ["fx-cliente","fx-ruc"].forEach(id => delete $(id).dataset.auto); $("fx-dias").value = modo==="editar" || d.habiles ? (d.dias ?? 3) : 3;
   $("fx-pago").checked = !!d.conPago; $("fx-pie").checked = !!d.conPie; $("fx-xml").checked = !!d.conXml;
-  const its = modo==="editar" ? d.items : d.items.map(({fotos, ...x}) => x);   // una copia no se lleva las fotos (son del documento original)
+  const its = modo==="editar" ? d.items : d.items.map(({fotos, docs, ...x}) => x);   // una copia no se lleva las fotos ni los anexos (son del documento original)
   FCOLS = colsDe(its, d.cols ? colsDe([], d.cols).concat(colsFac().filter(c => !d.cols.some(x => x.k===c.k))) : colsFac());
   FCONS = modo==="editar" && d.consolida ? {tipo:d.tipo, docs:d.consolida} : null; pintarEmisor(d.emisor || null); destinoNormal(); gastoPintar("fx-g", modo==="editar" ? d.gasto||null : null);
   $("fx-rows").innerHTML = ""; (its.length ? its : [{}]).forEach(it => { fAdd(it); if(it._auto) $("fx-rows").lastChild.dataset.auto = it._auto; });
-  if(modo==="editar") [...$("fx-rows").children].forEach((r,i) => { r._fotos = (its[i]?.fotos||[]).map(id => ({id, subido:true})); pintarFotos(r, d.codigo); });
+  if(modo==="editar") [...$("fx-rows").children].forEach((r,i) => { r._fotos = (its[i]?.fotos||[]).map(id => ({id, subido:true})); r._docs = (its[i]?.docs||[]).map(x => ({...x, subido:true})); pintarFotos(r, d.codigo); });
   if(enl) aplicarPedido(false); else fEnlazar(null, false);
   $("fx-title").firstChild.textContent = modo==="editar" ? `Corregir ${d.tipo.toLowerCase()} ` : `${d.tipo==="Factura"?"Nueva factura":"Nuevo recibo"} (copia) `;
   $("fx-badge").textContent = modo==="editar" ? d.numero : "copia de " + d.numero;
@@ -2147,7 +2176,7 @@ $("fx-emit").onclick = async () => {
     await ghPut(CFG.repoVal, pp, bin, shaP, `Publicar PDF · ${d.tipo} ${d.numero}`);
     const portal = { tipo:d.tipo, numero:d.numero, cliente:d.cliente, ruc:d.ruc||undefined, cotizacion: d.pedido!==d.numero ? d.pedido : undefined,
                      fecha:d.fecha, vence:d.vence, desglose:[], total:d.total, pdf:true, ...portalCobro(d), ...(d.anulado ? {anulado:d.anulado} : {}),
-                     ...(fotosPortal(d).length ? {fotos: fotosPortal(d)} : {}) };
+                     ...(fotosPortal(d).length ? {fotos: fotosPortal(d)} : {}), ...(docsPortal(d).length ? {docs: docsPortal(d)} : {}) };
     const ej = await cifrar(k.key, te.encode(JSON.stringify(portal)));
     await ghPut(CFG.repoVal, pj, te.encode(JSON.stringify({iv:b64(ej.iv), ct:b64(ej.ct)})), shaJ, `Publicar datos · ${d.tipo} ${d.numero}`);
     st.textContent="Guardando en el historial…";
@@ -2163,12 +2192,22 @@ $("fx-emit").onclick = async () => {
     const url = fUrl(d);
     msg.innerHTML = `<div class="box okb"><b>${esc(d.tipo)} ${esc(d.numero)} · ${esc(d.cliente)} · ${money(d.total)}</b><br>
       En 1–2 minutos el QR mostrará «Documento Verificado» en:<br><a href="${url}" target="_blank" rel="noopener">${url}</a>
-      <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="fx-dl-now">Descargar PDF</button><button class="b-ghost b-share" id="fx-share-now">📤 Compartir PDF</button>${d.conXml ? '<button class="b-ghost" id="fx-xml-now">Descargar XML</button>' : ""}<button class="b-ghost b-cxc" id="fx-cxc-now">Enviar a cuentas por cobrar</button><button class="b-ghost" id="fx-new-now">Nuevo recibo / factura</button></div></div>`;
+      <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="fx-dl-now">Descargar PDF</button><button class="b-ghost b-share" id="fx-share-now">📤 Compartir PDF</button>${d.conXml ? '<button class="b-ghost" id="fx-xml-now">Descargar XML</button>' : ""}${enCxc(d) ? '<span class="pill p-ok" style="align-self:center">✓ En cuentas por cobrar</span>' : '<button class="b-ghost b-cxc" id="fx-cxc-now">Enviar a cuentas por cobrar</button>'}<button class="b-ghost" id="fx-new-now">Nuevo recibo / factura</button></div></div>`;
     $("fx-dl-now").onclick = () => bajarPDF(fPdf(d), fNombre(d));
     $("fx-share-now").onclick = () => compartirPDF(pdfBytes(fPdf(d)), fNombre(d), `${d.tipo} ${d.numero} · Grupo Σ LEAN`, $("fx-status"), mensajeWA(d.tipo, d, fUrl(d)));
     if(d.conXml) $("fx-xml-now").onclick = () => bajarXML(d);
     $("fx-new-now").onclick = fNueva;
-    $("fx-cxc-now").onclick = () => { show("hist"); setHView("fac"); pedirCxc("fac", d); };
+    if($("fx-cxc-now")) $("fx-cxc-now").onclick = async () => {   // un solo toque: se envía aquí mismo (sin volver a preguntar en el Historial)
+      const b = $("fx-cxc-now"), ch = choqueCxc("fac", d);
+      if(ch){ st.className = "status warn"; st.innerHTML = ch; return; }
+      b.disabled = true; b.textContent = "Enviando…";
+      try{
+        const x = await guardarCobro({...d, _k:"doc"}, x => { x.cxc = {desde:hoyISO()}; delete x.cxcAnulada; if(!x.cobro) x.cobro = {estado:"Pendiente"}; }, `Enviar a cuentas por cobrar · ${d.tipo.toLowerCase()} ${d.numero}`);
+        d.cxc = x.cxc; d.cobro = x.cobro;
+        b.outerHTML = '<span class="pill p-ok" style="align-self:center">✓ En cuentas por cobrar</span>';
+        st.className = "status ok"; st.textContent = `✓ ${d.tipo} ${d.numero} ${d.tipo==="Factura" ? "enviada" : "enviado"} a Cuentas por cobrar · vence el ${PDFFAC.dmy(d.vence)}.`;
+      }catch(e){ console.error(e); b.disabled = false; b.textContent = "Enviar a cuentas por cobrar"; st.className = "status bad"; st.textContent = "No se pudo enviar: " + e.message; }
+    };
     FEDIT = d; document.querySelectorAll('input[name="fx-tipo"]').forEach(r => r.disabled = true);
     $("fx-title").firstChild.textContent = `Corregir ${d.tipo.toLowerCase()} `; $("fx-badge").textContent = d.numero; fHint();
   }catch(e){ console.error(e); st.className="status bad"; st.textContent = "No se pudo emitir: " + e.message; }
@@ -2186,6 +2225,7 @@ function xmlDe(d){
       const nom = {empresa:"Empresa", recoge:"LugarRecoge", entrega:"LugarEntrega", km:"KM", vehiculo:"Vehiculo", obs:"Observaciones", fecha:"Fecha"}[c.k];
       return nom ? tag(nom, it[c.k], "      ") : `      <Campo nombre="${xesc(c.t)}">${xesc(it[c.k])}</Campo>\n`; }).join("") +
     (it.fotos?.length ? `      <EvidenciaFotografica fotos="${it.fotos.length}" url="${xesc(enlacesFotos(d, i)[0])}"/>\n` : "") +
+    (it.docs?.length ? `      <DocumentosAnexos archivos="${it.docs.length}" url="${xesc(enlaceDocs(d, i))}"/>\n` : "") +
     (it.cant!=null ? `      <Cantidad>${it.cant}</Cantidad>\n` : "") + (it.precio!=null ? `      <PrecioUnitario>${xnum(it.precio)}</PrecioUnitario>\n` : "") +
     `      <Total>${xnum(it.total)}</Total>\n    </Item>\n`).join("");
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -2269,7 +2309,7 @@ function detalleFac(ds){
   const cols = []; ds.forEach(d => colsDe(d.items, Array.isArray(d.cols) ? d.cols : []).forEach(c => { if(!cols.some(x => x.k===c.k) && d.items.some(it => it[c.k])) cols.push(c); }));
   const det = []; ds.forEach(d => d.items.forEach((it,i) => { const o = {"N.º": d.numero, "Tipo": d.tipo, "Cliente": d.cliente, "#": i+1, "Descripción": it.desc||""};
     cols.forEach(c => { const v = it[c.k]; o[c.t] = v==null ? "" : c.tipo==="fecha" ? PDFFAC.dmy(v) : v; });
-    Object.assign(o, {"Cantidad": it.cant??"", "Precio unitario": it.precio??"", "Total": it.total, "Evidencia fotográfica": enlacesFotos(d, i).join("  ")}); det.push(o); }));
+    Object.assign(o, {"Cantidad": it.cant??"", "Precio unitario": it.precio??"", "Total": it.total, "Evidencia fotográfica": enlacesFotos(d, i).join("  "), "Documentos anexos": enlaceDocs(d, i)}); det.push(o); }));
   return det;
 }
 function exportarFac(){
@@ -3089,15 +3129,16 @@ async function restaurarCx(d){
 }
 function cotDeDoc(d){ return d.cotRef || (d.pedido && d.pedido!==d.numero ? codsCot(d.pedido)[0] || null : null); }
 function cotsDeDoc(d){ if(d.cotRefs?.length) return d.cotRefs; const p = d.pedido && d.pedido!==d.numero ? codsCot(d.pedido) : []; return p.length ? p : d.cotRef ? [d.cotRef] : []; }
-function pedirCxc(kind, rec, ctx="hist"){   // enviar un recibo/factura o una cotización a cuentas por cobrar
-  const box = ctx==="cxc" ? $("cx-box") : $("h-imp"); let choque = null;
+function choqueCxc(kind, rec){   // evita cobrar dos veces lo mismo (cotización y su recibo)
   if(kind==="fac"){
     const ks = cotsDeDoc(rec), c = (HIST?.cotizaciones||[]).find(x => ks.includes(x.numero) && x.cxc && !x.anulado);
-    if(c) choque = `La cotización <b>${esc(c.numero)}</b> de este documento ya está en Cuentas por cobrar por ${money(c.total)}. Para no cobrar dos veces, registra este pago allí (Cuentas por cobrar → ${esc(c.numero)} → Registrar cobro).`;
-  } else {
-    const ds = (FHIST?.docs||[]).filter(d => !d.anulado && enCxc(d) && cotsDeDoc(d).includes(rec.numero));
-    if(ds.length) choque = `Esta cotización ya tiene ${ds.length} recibo(s)/factura(s) en Cuentas por cobrar (${ds.map(d => esc(d.numero)).join(", ")}). Para no cobrar dos veces, cóbrala a través de ${ds.length>1?"ellos":"él"}.`;
+    return c ? `La cotización <b>${esc(c.numero)}</b> de este documento ya está en Cuentas por cobrar por ${money(c.total)}. Para no cobrar dos veces, registra este pago allí (Cuentas por cobrar → ${esc(c.numero)} → Registrar cobro).` : null;
   }
+  const ds = (FHIST?.docs||[]).filter(d => !d.anulado && enCxc(d) && cotsDeDoc(d).includes(rec.numero));
+  return ds.length ? `Esta cotización ya tiene ${ds.length} recibo(s)/factura(s) en Cuentas por cobrar (${ds.map(d => esc(d.numero)).join(", ")}). Para no cobrar dos veces, cóbrala a través de ${ds.length>1?"ellos":"él"}.` : null;
+}
+function pedirCxc(kind, rec, ctx="hist"){   // enviar un recibo/factura o una cotización a cuentas por cobrar
+  const box = ctx==="cxc" ? $("cx-box") : $("h-imp"), choque = choqueCxc(kind, rec);
   const nom = kind==="cot" ? `la cotización ${rec.numero}` : `${rec.tipo==="Factura"?"la factura":"el recibo"} ${rec.numero}`;
   if(choque){ box.innerHTML = `<div class="box warnb"><b>No se puede enviar ${esc(nom)}</b><br>${choque}<div class="actions" style="justify-content:flex-start;margin-top:8px"><button class="b-ghost" id="ex-no">Entendido</button></div></div>`; $("ex-no").onclick = () => box.innerHTML = ""; box.scrollIntoView({behavior:"smooth", block:"center"}); return; }
   box.innerHTML = `<div class="box" style="background:var(--blue-bg)"><b>¿Enviar ${esc(nom)} a Cuentas por cobrar?</b> · ${esc(rec.cliente)} · <b>${money(rec.total)}</b><br>
