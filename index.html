@@ -388,7 +388,7 @@
     <div class="grand"><span>TOTAL DE LA COTIZACIÓN</span><b id="g-total">$0.00</b></div>
 
     <div class="card gasto-card">
-      <h2>Control de gasto <span class="pill p-blue" style="font-size:11px">Interno · no sale en el PDF</span></h2>
+      <h2>Control de gasto <span class="pill p-blue" style="font-size:11px">Operación interna</span></h2>
       <label class="chk"><input type="checkbox" id="f-g-no" checked> No reportar gastos</label>
       <div class="hint" id="f-g-res" style="margin-top:2px">Quítalo para anotar combustible, víveres y materiales de este trabajo.</div>
       <div id="f-g-box" class="hidden" style="margin-top:10px">
@@ -507,7 +507,7 @@
     </div>
 
     <div class="card gasto-card">
-      <h2>Control de gasto <span class="pill p-blue" style="font-size:11px">Interno · no sale en el PDF</span></h2>
+      <h2>Control de gasto <span class="pill p-blue" style="font-size:11px">Operación interna</span></h2>
       <label class="chk"><input type="checkbox" id="fx-g-no" checked> No reportar gastos</label>
       <div class="hint" id="fx-g-res" style="margin-top:2px">Quítalo para anotar combustible, víveres y materiales de este trabajo.</div>
       <div id="fx-g-box" class="hidden" style="margin-top:10px">
@@ -937,8 +937,10 @@ const PDFFAC = (() => {
     return [["desc","Descripción",3.2,"left",""], ...mid, ["cant","Cantidad",1.1,"left",""], ["precio","Precio Unitario",1.3,"right",""], ["total","Total",1.1,"right",""]];
   }
   function visibles(d){
-    return columnas(d).filter(([k]) => k==="desc" || k==="total" || d.items.some(it => it[k]!=null && String(it[k]).trim()!==""))
+    const v = columnas(d).filter(([k]) => k==="desc" || k==="total" || d.items.some(it => it[k]!=null && String(it[k]).trim()!==""))
       .map(c => c[0]==="desc" && d.tituloDesc ? [c[0], d.tituloDesc, ...c.slice(2)] : c);
+    const ie = v.findIndex(c => c[0]==="empresa"); if(ie > 0) v.unshift(...v.splice(ie, 1));   // regla: si se llenó «Empresa», va antes que la descripción
+    return v;
   }
   function header(doc, A, d){
     doc.addImage(A.logo, "PNG", 5.5, 16.7, 153.4, 153.4, "logo", "FAST");
@@ -992,15 +994,16 @@ const PDFFAC = (() => {
         else if(g.k==="cant") v = (v==null||v==="") ? "" : fmtCant(v);
         else if(g.tipo==="fecha") v = v ? dmy(v) : "";
         doc.setFont("Serif", g.k==="total" ? "bold" : "normal"); doc.setFontSize(sz);
-        const lines = String(v??"").split("\n").flatMap(p => doc.splitTextToSize(p, g.w-10));
+        let lines = String(v??"").split("\n").flatMap(p => doc.splitTextToSize(p, g.w-10));
+        if(g.k==="desc" && !String(v??"").trim()) lines = [];   // sin descripción: los anexos van en la primera línea
         // evidencia fotográfica: «Evidencia fotográfica: img01, img02» al final de la descripción, con enlaces al carrusel del portal
         // y «Documentos anexos: archivos» (PDF, Word, Excel), cada uno con su enlace al portal
         let anex = [];
         if(g.k==="desc" && d.url){
           const fila = d.items.indexOf(it) + 1, L = [];
           // un solo enlace «imágenes» que abre el carrusel con todas las fotos de la fila, en el orden en que se subieron
-          if(it.fotos?.length) L.push({lab:"Evidencia fotográfica:", t: it.fotos.length === 1 ? "imagen" : "imágenes", url: d.url + "&f=" + fila + "&i=1"});
-          if(it.docs?.length) L.push({lab:"Documentos anexos:", t: it.docs.length === 1 ? "archivo" : "archivos", url: d.url + "&f=" + fila + "&d=1"});
+          if(it.fotos?.length) L.push({lab:"Evidencia fotográfica:", t: it.fotos.length + (it.fotos.length === 1 ? " imagen" : " imágenes"), url: d.url + "&f=" + fila + "&i=1"});
+          if(it.docs?.length) L.push({lab:"Anexos:", t: it.docs.length + (it.docs.length === 1 ? " archivo" : " archivos"), url: d.url + "&f=" + fila + "&d=1"});
           let ini = lines.length;
           anex = L.map(a => { doc.setFont("Serif","bold"); const wl = doc.getTextWidth(a.lab + " "); doc.setFont("Serif","normal");
             const tw = doc.getTextWidth(a.t), nl = g.x + 5 + wl + tw > g.x + g.w - 5;
@@ -2045,8 +2048,8 @@ function fRow(it={}){
       <div><span class="lbl2">Total</span><input type="number" inputmode="decimal" step="any" min="0" class="in fx-tot" value="${it.precio==null||it.precio==="" ? (it.total??"") : ""}"></div>
     </div>`;
   const ff = document.createElement("div"); ff.className = "ffotos";
-  ff.innerHTML = `<span class="lbl2">Evidencia fotográfica y documentos anexos</span><div class="ff-list"></div><div class="ff-docs"></div>
-    <div class="ff-btns"><label class="b-ghost b-sm ff-b">📎 Galería, archivo o escanear<input type="file" accept="${ACEPTA}" multiple></label>
+  ff.innerHTML = `<span class="lbl2">Evidencia fotográfica y anexos</span><div class="ff-list"></div><div class="ff-docs"></div>
+    <div class="ff-btns"><label class="b-ghost b-sm ff-b">📎 Galería o archivo<input type="file" accept="${ACEPTA}" multiple></label>
     <span class="ff-drop">o arrastra aquí fotos, PDF, Word o Excel · también puedes pegarlos (Ctrl+V)</span><span class="hint ff-st"></span></div>`;
   div.appendChild(ff); div._fotos = []; div._docs = [];
   const finp = ff.querySelector("input[type=file]");
@@ -2225,7 +2228,7 @@ function xmlDe(d){
       const nom = {empresa:"Empresa", recoge:"LugarRecoge", entrega:"LugarEntrega", km:"KM", vehiculo:"Vehiculo", obs:"Observaciones", fecha:"Fecha"}[c.k];
       return nom ? tag(nom, it[c.k], "      ") : `      <Campo nombre="${xesc(c.t)}">${xesc(it[c.k])}</Campo>\n`; }).join("") +
     (it.fotos?.length ? `      <EvidenciaFotografica fotos="${it.fotos.length}" url="${xesc(enlacesFotos(d, i)[0])}"/>\n` : "") +
-    (it.docs?.length ? `      <DocumentosAnexos archivos="${it.docs.length}" url="${xesc(enlaceDocs(d, i))}"/>\n` : "") +
+    (it.docs?.length ? `      <Anexos archivos="${it.docs.length}" url="${xesc(enlaceDocs(d, i))}"/>\n` : "") +
     (it.cant!=null ? `      <Cantidad>${it.cant}</Cantidad>\n` : "") + (it.precio!=null ? `      <PrecioUnitario>${xnum(it.precio)}</PrecioUnitario>\n` : "") +
     `      <Total>${xnum(it.total)}</Total>\n    </Item>\n`).join("");
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -2309,7 +2312,7 @@ function detalleFac(ds){
   const cols = []; ds.forEach(d => colsDe(d.items, Array.isArray(d.cols) ? d.cols : []).forEach(c => { if(!cols.some(x => x.k===c.k) && d.items.some(it => it[c.k])) cols.push(c); }));
   const det = []; ds.forEach(d => d.items.forEach((it,i) => { const o = {"N.º": d.numero, "Tipo": d.tipo, "Cliente": d.cliente, "#": i+1, "Descripción": it.desc||""};
     cols.forEach(c => { const v = it[c.k]; o[c.t] = v==null ? "" : c.tipo==="fecha" ? PDFFAC.dmy(v) : v; });
-    Object.assign(o, {"Cantidad": it.cant??"", "Precio unitario": it.precio??"", "Total": it.total, "Evidencia fotográfica": enlacesFotos(d, i).join("  "), "Documentos anexos": enlaceDocs(d, i)}); det.push(o); }));
+    Object.assign(o, {"Cantidad": it.cant??"", "Precio unitario": it.precio??"", "Total": it.total, "Evidencia fotográfica": enlacesFotos(d, i).join("  "), "Anexos": enlaceDocs(d, i)}); det.push(o); }));
   return det;
 }
 function exportarFac(){
