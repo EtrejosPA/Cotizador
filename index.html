@@ -116,7 +116,7 @@
   .aviso{display:flex;gap:12px;align-items:flex-start;border-radius:14px;padding:14px 16px;font-size:14px;line-height:1.5;box-shadow:0 8px 22px rgba(15,38,64,.08)}
   .aviso b{display:block}.aviso .x{margin-left:auto;background:none;border:0;font-size:20px;line-height:1;color:inherit;opacity:.6;padding:0 4px}
   .aviso.warn{background:var(--amber-bg);color:#5b3d07;border:1px solid #F3DDA9}.aviso.bad{background:var(--red-bg);color:#7f1d1d;border:1px solid #F5C2C2}.aviso.info{background:var(--blue-bg);color:#183a7a;border:1px solid #BCD3F5}
-  @media (max-width:720px){ html{scroll-padding-bottom:calc(96px + env(safe-area-inset-bottom))} }
+  @media (max-width:720px){ html{scroll-padding-bottom:calc(112px + env(safe-area-inset-bottom))} }
   header .t span{font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase}
   nav{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
   body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
@@ -242,14 +242,22 @@
   @media (max-width:720px){
     header{padding-bottom:10px}
     header img{height:44px}
-    nav#nav{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0;background:rgba(255,255,255,.96);-webkit-backdrop-filter:saturate(180%) blur(12px);backdrop-filter:saturate(180%) blur(12px);
-      border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+    /* barra flotante de vidrio (estilo Liquid Glass) */
+    nav#nav{position:fixed;left:14px;right:14px;width:auto;bottom:calc(10px + env(safe-area-inset-bottom));z-index:40;margin:0;border-radius:32px;padding:6px;
+      display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+      background:linear-gradient(180deg,rgba(255,255,255,.58),rgba(255,255,255,.30));
+      -webkit-backdrop-filter:blur(16px) saturate(190%) brightness(1.06);backdrop-filter:blur(16px) saturate(190%) brightness(1.06);
+      border:1px solid rgba(255,255,255,.65);border-top-color:rgba(255,255,255,.95);
+      box-shadow:0 12px 32px rgba(15,38,64,.20),0 2px 6px rgba(15,38,64,.08),inset 0 1px 1px rgba(255,255,255,.95),inset 0 -8px 16px rgba(255,255,255,.18)}
+    nav#nav.liq{-webkit-backdrop-filter:url(#nav-liq) blur(10px) saturate(190%) brightness(1.06);backdrop-filter:url(#nav-liq) blur(10px) saturate(190%) brightness(1.06)}   /* Android/Chrome: ondulación líquida */
+    nav#nav::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(120% 60% at 50% -10%,rgba(255,255,255,.55),transparent 60%)}
     nav#nav.hidden{display:none!important}
-    nav#nav button{background:none;border:0;color:var(--muted);font-size:10.5px;font-weight:700;padding:4px 2px;white-space:normal;line-height:1.15;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:10px}
+    nav#nav button{position:relative;z-index:1;background:none;border:0;color:#3F4D61;font-size:10.5px;font-weight:700;padding:7px 2px 6px;white-space:normal;line-height:1.15;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:26px;transition:background .2s ease,box-shadow .2s ease}
     nav#nav button .ni{display:block;width:22px;height:22px}
-    nav#nav button.on{background:none;color:var(--navy)}
+    nav#nav button.on{color:var(--navy);background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,.55));box-shadow:inset 0 1px 1px #fff,0 1px 4px rgba(15,38,64,.12),inset 0 0 0 1px rgba(255,255,255,.7)}
+    nav#nav button.on::after{content:"";position:absolute;left:50%;bottom:3px;width:16px;height:3px;margin-left:-8px;border-radius:3px;background:var(--orange)}
     nav#nav button.on .ni{color:var(--navy)}
-    main{margin-bottom:calc(86px + env(safe-area-inset-bottom))}
+    main{margin-bottom:calc(104px + env(safe-area-inset-bottom))}
     .card{padding:16px}
     .htools > select{flex:1 1 100%}
     .actions{flex-wrap:wrap}
@@ -1222,6 +1230,12 @@ async function entrar(){
   window.__tirar = pinta;
 })();
 
+/* Android (Chrome): el vidrio de la barra ondula el fondo como líquido; Safari no admite este filtro y usa el vidrio normal */
+if(/Android/i.test(navigator.userAgent) && /Chrome\//.test(navigator.userAgent)){
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("width", "0"); s.setAttribute("height", "0"); s.setAttribute("aria-hidden", "true"); s.style.position = "absolute";
+  s.innerHTML = '<filter id="nav-liq" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.008 0.02" numOctaves="2" seed="3" result="n"/><feGaussianBlur in="n" stdDeviation="2" result="b"/><feDisplacementMap in="SourceGraphic" in2="b" scale="70" xChannelSelector="R" yChannelSelector="G"/></filter>';
+  document.body.appendChild(s); document.getElementById("nav")?.classList.add("liq");
+}
 /* ==================== sin conexión ==================== */
 if("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "127.0.0.1")){
   try{ navigator.serviceWorker.register("sw.js").catch(e => console.warn("sw", e)); }catch(e){}
