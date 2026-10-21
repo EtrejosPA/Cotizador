@@ -2037,9 +2037,10 @@ const enlacesFotos = (d, i) => (d.items[i]?.fotos||[]).length ? [`${fUrl(d)}&f=$
 function fRow(it={}){
   const div = document.createElement("div"); div.className = "frow";
   div.innerHTML = `<div class="frow-h"><b class="fn"></b><button class="b-x" title="Quitar fila">×</button></div>
+    ${fcols().filter(c => c.k==="empresa").map(c => `<div><span class="lbl2 col-t" data-k="${esc(c.k)}" title="Toca para cambiar el título de la columna">${esc(c.t)} <i>✎</i></span><input type="text" class="in fx-c" data-k="${esc(c.k)}" value="${esc(it[c.k]??"")}"></div>`).join("")}
     <div><span class="lbl2">Descripción</span><textarea class="in fx-desc" rows="2" placeholder="Descripción del servicio">${esc(it.desc||"")}</textarea></div>
     <div class="fgrid">
-      ${fcols().map(c => { const tl = `<span class="lbl2 col-t" data-k="${esc(c.k)}" title="Toca para cambiar el título de la columna">${esc(c.t)} <i>✎</i></span>`;
+      ${fcols().filter(c => c.k!=="empresa").map(c => { const tl = `<span class="lbl2 col-t" data-k="${esc(c.k)}" title="Toca para cambiar el título de la columna">${esc(c.t)} <i>✎</i></span>`;
         return c.tipo==="fecha"
         ? `<div>${tl}<input type="date" class="in fx-c" data-k="${esc(c.k)}" value="${esc(it[c.k]??"")}"></div>`
         : `<div>${tl}<textarea class="in fx-c" data-k="${esc(c.k)}" rows="1">${esc(it[c.k]??"")}</textarea></div>`; }).join("")}
