@@ -268,7 +268,17 @@
     header img{height:46px} nav{margin-left:0;width:100%}
     table.h thead{display:none}
     table.h tr{display:grid;grid-template-columns:1fr auto;border-bottom:1px solid var(--line);padding:8px 0}
-    #hf-body tr{grid-template-columns:minmax(0,36%) minmax(0,1fr)}   /* recibos y facturas: mismas columnas en todas las filas (antes la 2.ª se ajustaba al texto de cada fila) */
+    /* recibos y facturas en el celular: 1) N.º y fecha · 2) monto al centro · 3) tipo, cliente y estado; botones abajo.
+       Las columnas se calculan una vez para todas las filas (subgrid): se ajustan al contenido y quedan alineadas */
+    table:has(> #hf-body){display:block} #hf-body{display:grid;grid-template-columns:auto auto minmax(0,1fr)}
+    #hf-body tr{grid-column:1/-1;grid-template-columns:subgrid}
+    @supports not (grid-template-columns:subgrid){ #hf-body tr{grid-template-columns:92px 86px minmax(0,1fr)} }
+    #hf-body tr:not(:has(td[colspan])){grid-template-areas:"num tot tipo" "fec tot cli" "acts acts est";align-items:start}
+    #hf-body tr > td:nth-child(1){grid-area:num} #hf-body tr > td:nth-child(2){grid-area:tipo} #hf-body tr > td:nth-child(3){grid-area:fec;white-space:nowrap}
+    #hf-body tr > td:nth-child(4){grid-area:cli} #hf-body tr > td:nth-child(5){grid-area:tot;align-self:center;text-align:center;padding:0 12px;white-space:nowrap}
+    #hf-body tr > td:nth-child(6){grid-area:est;align-self:end} #hf-body tr > td:nth-child(7){grid-area:acts;align-self:end;padding-top:8px}
+    #hf-body tr > td:nth-child(2),#hf-body tr > td:nth-child(4){overflow-wrap:anywhere} #hf-body .pill{white-space:nowrap}
+    @media (max-width:390px){ #hf-body td{font-size:13.5px} #hf-body tr > td:nth-child(5){padding:0 6px} #hf-body .acts button{padding:6px 10px;font-size:13px} }
     table.h td{border:0;padding:3px 6px}
     table.h td.acts-td{grid-column:1/-1}
     table.h td[colspan]{grid-column:1/-1;text-align:center}
