@@ -268,6 +268,7 @@
     header img{height:46px} nav{margin-left:0;width:100%}
     table.h thead{display:none}
     table.h tr{display:grid;grid-template-columns:1fr auto;border-bottom:1px solid var(--line);padding:8px 0}
+    #hf-body tr{grid-template-columns:minmax(0,36%) minmax(0,1fr)}   /* recibos y facturas: mismas columnas en todas las filas (antes la 2.ª se ajustaba al texto de cada fila) */
     table.h td{border:0;padding:3px 6px}
     table.h td.acts-td{grid-column:1/-1}
     table.h td[colspan]{grid-column:1/-1;text-align:center}
