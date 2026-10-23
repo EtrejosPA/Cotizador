@@ -368,6 +368,12 @@
       <div id="f-fecha-opt" class="hidden" style="margin-top:10px">
         <label style="display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-size:14px;color:var(--text);font-weight:500;cursor:pointer"><input type="checkbox" id="f-hoy"> Actualizar la fecha de emisión a hoy</label>
       </div>
+      <div class="pedbox">
+        <label>Reporte</label>
+        <label class="chk"><input type="checkbox" id="f-rep-no" checked> Sin reporte</label>
+        <div class="hint" style="margin-top:2px">Quítalo para anexar tu reporte o propuesta (PDF, Word o Excel). Si es PDF, se imprime primero, con el QR de la cotización.</div>
+        <div id="f-rep-box" class="hidden" style="margin-top:8px"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -1358,7 +1364,7 @@ function nueva(){
   $("inc-mat").checked = true; $("inc-mo").checked = true;
   $("rows-mat").innerHTML=""; $("rows-mo").innerHTML=""; addRow("mat"); addRow("mo");
   $("f-fecha-opt").classList.add("hidden"); $("f-hoy").checked=false;
-  $("emit-status").textContent=""; $("emit-msg").innerHTML=""; fechas(); calc(); gastoPintar("f-g", null);
+  $("emit-status").textContent=""; $("emit-msg").innerHTML=""; fechas(); calc(); gastoPintar("f-g", null); repPintar(null);
 }
 function cargar(c, modo){   // modo: "editar" | "duplicar"
   EDIT = modo==="editar" ? c : null;
@@ -1370,7 +1376,7 @@ function cargar(c, modo){   // modo: "editar" | "duplicar"
   $("f-fecha-opt").classList.toggle("hidden", modo!=="editar"); $("f-hoy").checked=false;
   $("form-title").firstChild.textContent = modo==="editar" ? "Corregir cotización " : "Nueva cotización (copia) ";
   $("form-badge").textContent = modo==="editar" ? c.numero : "copia de " + c.numero;
-  $("emit-status").textContent=""; $("emit-msg").innerHTML=""; fechas(); calc(); gastoPintar("f-g", modo==="editar" ? c.gasto||null : null); show("nueva");
+  $("emit-status").textContent=""; $("emit-msg").innerHTML=""; fechas(); calc(); gastoPintar("f-g", modo==="editar" ? c.gasto||null : null); repPintar(modo==="editar" ? c : null); show("nueva");
 }
 $("btn-limpiar").onclick = () => { nueva(); };
 
@@ -1390,11 +1396,11 @@ function armar(){   // valida y arma el registro
   const dup = (HIST.cotizaciones||[]).find(c => c.n===n && (!EDIT || c.codigo!==EDIT.codigo));
   if(dup) errs.push(`actualizar: el número ${pad3(n)} ya existe (${dup.numero}). Recarga la página`);
   if(errs.length) throw new Error("Falta " + errs.join(", ") + ".");
-  const gasto = gastoLeer("f-g");
+  const gasto = gastoLeer("f-g"), reporte = repLeer();
   const fecha = fechas(), tot = totales(mat, mo, incMat, incMO);
   const numero = numeroDe(L, n);
   const codigo = EDIT ? EDIT.codigo : (numero.replace(/-/g,"") + "-" + [...crypto.getRandomValues(new Uint8Array(8))].map(b=>ALF[b%ALF.length]).join("").replace(/^(.{4})/,"$1-"));
-  return { ...guardaEstado(EDIT, ["cxc","cxcAnulada","origen"]), ...(gasto ? {gasto} : {}), numero, letra:L.toUpperCase(), n, codigo, cliente, ruc:$("f-ruc").value.trim(), email:$("f-email").value.trim(), fecha, validoHasta:masDias(fecha,30),
+  return { ...guardaEstado(EDIT, ["cxc","cxcAnulada","origen"]), ...(gasto ? {gasto} : {}), ...(reporte ? {reporte} : {}), numero, letra:L.toUpperCase(), n, codigo, cliente, ruc:$("f-ruc").value.trim(), email:$("f-email").value.trim(), fecha, validoHasta:masDias(fecha,30),
            incMat, incMO, materiales: incMat?mat:[], manoObra: incMO?mo:[], duracion:$("f-dur").value.trim(),
            tot:{matSub:tot.matSub, matItbms:tot.matItbms, matTotal:tot.matTotal, moSub:tot.moSub}, total: tot.general,
            creado: EDIT ? EDIT.creado : new Date().toISOString(), actualizado: new Date().toISOString() };
@@ -1413,7 +1419,7 @@ const nombrePDF = c => `COTI_${c.numero.replace(/-/g,"")}.pdf`;
 
 $("btn-prev").onclick = () => {
   const st = $("emit-status");
-  try{ const c = armar(); st.textContent=""; abrirPDF(pdfDe(c)); }catch(e){ st.className="status bad"; st.textContent = e.message; }
+  try{ const c = armar(); st.textContent=""; verCot(c).catch(e => { st.className="status bad"; st.textContent = "No se pudo armar el PDF: " + e.message; }); }catch(e){ st.className="status bad"; st.textContent = e.message; }
 };
 $("btn-emit").onclick = async () => {
   const st = $("emit-status"), msg = $("emit-msg"); msg.innerHTML = "";
@@ -1421,9 +1427,9 @@ $("btn-emit").onclick = async () => {
   let c; try{ c = armar(); }catch(e){ st.className="status bad"; st.textContent = e.message; return; }
   $("btn-emit").disabled = true;
   try{
-    st.className="status"; await subirFotos(c.codigo, st, [...(c.incMat ? $("rows-mat").children : []), ...(c.incMO ? $("rows-mo").children : [])]);
-    st.textContent="Generando PDF…";
-    const pdf = new Uint8Array(pdfDe(c).output("arraybuffer"));
+    st.className="status"; await subirFotos(c.codigo, st, [...(c.reporte ? [REPDIV] : []), ...(c.incMat ? $("rows-mat").children : []), ...(c.incMO ? $("rows-mo").children : [])]);
+    st.textContent = tieneRep(c) ? "Uniendo el reporte y generando el PDF…" : "Generando PDF…";
+    const pdf = await bytesCot(c);
     st.textContent="Publicando en el portal de validación…";
     const k = await clavesPortal(c.codigo);
     const pp = `data/${k.id}.pdf.bin`, pj = `data/${k.id}.json`;
@@ -1432,7 +1438,7 @@ $("btn-emit").onclick = async () => {
     const ep = await cifrar(k.key, pdf); const bin = new Uint8Array(12+ep.ct.length); bin.set(ep.iv,0); bin.set(ep.ct,12);
     await ghPut(CFG.repoVal, pp, bin, shaP, `Publicar PDF · Cotización ${c.numero}`);
     const portal = { tipo:"Cotización", numero:c.numero, cliente:c.cliente, ruc:c.ruc||undefined, fecha:c.fecha, validoHasta:c.validoHasta,
-      desglose:[...(c.incMat?[["Materiales (con ITBMS)", r2(c.tot.matTotal)]]:[]), ...(c.incMO?[["Mano de obra", r2(c.tot.moSub)]]:[])], total:c.total, pdf:true, ...anexosCotPortal(c) };
+      desglose:[...(c.incMat?[["Materiales (con ITBMS)", r2(c.tot.matTotal)]]:[]), ...(c.incMO?[["Mano de obra", r2(c.tot.moSub)]]:[])], total:c.total, pdf:true, ...anexosCotPortal(c), ...(c.reporte ? {reporte: c.reporte.docs} : {}) };
     const ej = await cifrar(k.key, te.encode(JSON.stringify(portal)));
     await ghPut(CFG.repoVal, pj, te.encode(JSON.stringify({iv:b64(ej.iv), ct:b64(ej.ct)})), shaJ, `Publicar datos · Cotización ${c.numero}`);
     st.textContent="Guardando en el historial…";
@@ -1449,8 +1455,8 @@ $("btn-emit").onclick = async () => {
     msg.innerHTML = `<div class="box okb"><b>${esc(c.numero)} · ${esc(c.cliente)} · ${money(c.total)}</b><br>
       En 1–2 minutos el QR mostrará «Documento Verificado» en:<br><a href="${url}" target="_blank" rel="noopener">${url}</a>
       <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="dl-now">Descargar PDF</button><button class="b-ghost b-share" id="share-now">📤 Compartir PDF</button><button class="b-ghost b-cxc" id="cxc-now">Enviar a cuentas por cobrar</button><button class="b-ghost" id="new-now">Nueva cotización</button></div></div>`;
-    $("dl-now").onclick = () => bajarPDF(pdfDe(c), nombrePDF(c));
-    $("share-now").onclick = () => compartirPDF(pdfBytes(pdfDe(c)), nombrePDF(c), `Cotización ${c.numero} · Grupo Σ LEAN`, $("emit-status"), mensajeWA("Cotización", c, urlDe(c)));
+    $("dl-now").onclick = async () => bajarBytes(await bytesCot(c), nombrePDF(c));
+    $("share-now").onclick = async () => compartirPDF(await bytesCot(c), nombrePDF(c), `Cotización ${c.numero} · Grupo Σ LEAN`, $("emit-status"), mensajeWA("Cotización", c, urlDe(c)));
     $("new-now").onclick = () => nueva();
     $("cxc-now").onclick = () => { show("hist"); setHView("cot"); pedirCxc("cot", c); };
     EDIT = c; $("f-fecha-opt").classList.remove("hidden"); numHint();
@@ -1900,7 +1906,9 @@ function pintarHist(){
       const st = $("h-status"), tit = `Cotización ${c.numero} · Grupo Σ LEAN`;
       if(c.origen==="excel" && c.publicado){ st.className="status"; st.textContent="Preparando el PDF original…";
         try{ return compartirPDF(await pdfPortal(c.codigo), nombrePDF(c), tit, st, mensajeWA("Cotización", c, urlDe(c))); }catch(e){ st.className="status bad"; st.textContent = "No se pudo obtener el PDF: " + e.message; return; } }
-      return compartirPDF(pdfBytes(pdfDe(c)), nombrePDF(c), tit, st, mensajeWA("Cotización", c, urlDe(c)));
+      if(tieneRep(c)){ st.className = "status"; st.textContent = "Preparando el PDF con el reporte…"; }
+      try{ const bytes = await bytesCot(c); if(tieneRep(c)) st.textContent = ""; return compartirPDF(bytes, nombrePDF(c), tit, st, mensajeWA("Cotización", c, urlDe(c))); }
+      catch(e){ st.className = "status bad"; st.textContent = "No se pudo armar el PDF: " + e.message; return; }
     }
     if((b.dataset.a==="ver" || b.dataset.a==="pdf") && c.origen==="excel" && c.publicado){   // el PDF original publicado desde Excel
       const st = $("h-status"); st.className="status"; st.textContent="Abriendo el PDF original del portal…";
@@ -1909,8 +1917,8 @@ function pintarHist(){
       catch(e){ if(w) w.close(); st.className="status bad"; st.textContent = "No se pudo abrir el PDF del portal: " + e.message; }
       return;
     }
-    if(b.dataset.a==="ver") abrirPDF(pdfDe(c));
-    if(b.dataset.a==="pdf") bajarPDF(pdfDe(c), nombrePDF(c));
+    if(b.dataset.a==="ver") verCot(c).catch(e => { $("h-status").className = "status bad"; $("h-status").textContent = "No se pudo armar el PDF: " + e.message; });
+    if(b.dataset.a==="pdf") bytesCot(c).then(bytes => bajarBytes(bytes, nombrePDF(c))).catch(e => { $("h-status").className = "status bad"; $("h-status").textContent = "No se pudo armar el PDF: " + e.message; });
     if(b.dataset.a==="edit") cargar(c, "editar");
     if(b.dataset.a==="anular" || b.dataset.a==="react") return pedirAnular("cot", c, b.dataset.a==="anular");
     if(b.dataset.a==="cxc") return pedirCxc("cot", c);
@@ -2014,9 +2022,9 @@ const iconoDoc = e => e==="pdf" ? "📄" : /^xls|csv/.test(e) ? "📊" : "📝";
 const pesoTxt = b => b >= 1048576 ? (b/1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b/1024)) + " KB";
 const ACEPTA = "image/*,.pdf,application/pdf,.doc,.docx,.xls,.xlsx,.csv," + Object.values(DOC_TIPOS).join(",");
 async function agregarFotos(div, files){
-  const st = div.querySelector(".ff-st"), fs = files.filter(esImg), ds = files.filter(f => !esImg(f) && esDoc(f)), otros = files.length - fs.length - ds.length;
-  if(!fs.length && !ds.length){ if(files.length) st.textContent = "Solo se aceptan fotos, PDF, Word o Excel."; return; }
-  st.textContent = "Preparando…"; let aviso = otros ? "Algunos archivos no se agregaron: solo fotos, PDF, Word o Excel." : "";
+  const st = div.querySelector(".ff-st"), fs = div._soloDocs ? [] : files.filter(esImg), ds = files.filter(f => !esImg(f) && esDoc(f)), otros = files.length - fs.length - ds.length;
+  if(!fs.length && !ds.length){ if(files.length) st.textContent = div._soloDocs ? "Para el reporte sube un PDF, Word o Excel." : "Solo se aceptan fotos, PDF, Word o Excel."; return; }
+  st.textContent = "Preparando…"; let aviso = otros ? (div._soloDocs ? "Algunos archivos no se agregaron: para el reporte, solo PDF, Word o Excel." : "Algunos archivos no se agregaron: solo fotos, PDF, Word o Excel.") : "";
   for(const f of fs){ try{ const blob = await comprimirFoto(f); div._fotos.push({id:idFoto(), blob, url:URL.createObjectURL(blob)}); }catch(e){ aviso = "No pude leer " + (f.name || "la imagen"); } }
   for(const f of ds){
     if(f.size > DOC_MAX){ aviso = `«${f.name}» pesa ${pesoTxt(f.size)}: el máximo por archivo es 10 MB.`; continue; }
@@ -2090,16 +2098,69 @@ function anexosCotPortal(c){
   const docs = L.filter(x => x.it.docs?.length).map(x => ({fila:x.fila, etq:x.etq, desc:desc(x.it), archivos:x.it.docs.map(({id,nombre,tipo,tam}) => ({id,nombre,tipo,tam}))}));
   return {...(fotos.length ? {fotos} : {}), ...(docs.length ? {docs} : {})};
 }
+/* ----- reporte de la cotización: PDF, Word o Excel; el PDF se imprime antes de la cotización, con su QR ----- */
+let REPDIV = null;
+function repPintar(c){
+  if(!REPDIV){ REPDIV = document.createElement("div"); bloqueAnexos(REPDIV, () => {}, {soloDocs:true, titulo:"Reporte o propuesta (PDF, Word o Excel)"}); $("f-rep-box").appendChild(REPDIV); }
+  REPDIV._docs = []; REPDIV._fotos = []; REPDIV.querySelector(".ff-st").textContent = "";
+  const tiene = !!c?.reporte?.docs?.length;
+  $("f-rep-no").checked = !tiene; $("f-rep-box").classList.toggle("hidden", !tiene);
+  if(tiene) ponerAnexos(REPDIV, c.reporte, c.codigo); else pintarFotos(REPDIV);
+}
+$("f-rep-no").onchange = () => { $("f-rep-box").classList.toggle("hidden", $("f-rep-no").checked); };
+const repLeer = () => !$("f-rep-no").checked && REPDIV?._docs?.length ? anexosDe(REPDIV) : null;
+const esPDFdoc = x => /pdf/i.test(x.tipo) || /\.pdf$/i.test(x.nombre||"");
+const tieneRep = c => !!c?.reporte?.docs?.some(esPDFdoc);
+const PDFLIB_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js";
+async function bytesCot(c){   // PDF de la cotización; con reporte: reporte (con QR) + materiales + mano de obra
+  const base = pdfBytes(pdfDe(c)); if(!tieneRep(c)) return base;
+  if(!window.PDFLib) await cargarScript(PDFLIB_URL);
+  const {PDFDocument, rgb} = window.PDFLib, out = await PDFDocument.create(), url = urlDe(c);
+  for(const x of c.reporte.docs.filter(esPDFdoc)){
+    const loc = REPDIV?._docs?.find(y => y.id===x.id && y.blob);
+    const bytes = new Uint8Array(await (loc ? loc.blob : await docPortal(c.codigo, x)).arrayBuffer());
+    const src = await PDFDocument.load(bytes, {ignoreEncryption:true});
+    const esquinas = await esquinasLibres(bytes).catch(() => []);
+    const pags = await out.copyPages(src, src.getPageIndices());
+    pags.forEach((pg, i) => { out.addPage(pg); sellarQR(pg, url, esquinas[i] || "tr", rgb); });
+  }
+  const cot = await PDFDocument.load(base);
+  (await out.copyPages(cot, cot.getPageIndices())).forEach(pg => out.addPage(pg));
+  out.setTitle(`Cotización ${c.numero} · Grupo LEAN`); out.setAuthor("Grupo Σ LEAN — Ingeniería & Proyectos");
+  return new Uint8Array(await out.save());
+}
+const QR_PT = 56, QR_M = 18;   // mismo tamaño que en la cotización
+function sellarQR(pg, texto, esq, rgb){
+  const q = qrcode(0, "L"); q.addData(texto); q.make();
+  const n = q.getModuleCount(), cell = QR_PT / (n + 2), {width:W, height:H} = pg.getSize();
+  const x0 = esq[1]==="l" ? QR_M : W - QR_M - QR_PT, y0 = esq[0]==="t" ? H - QR_M - QR_PT : QR_M;   // pdf-lib: origen abajo a la izquierda
+  pg.drawRectangle({x:x0, y:y0, width:QR_PT, height:QR_PT, color:rgb(1,1,1)});
+  for(let r=0;r<n;r++) for(let k=0;k<n;k++) if(q.isDark(r,k)) pg.drawRectangle({x:x0 + (k+1)*cell, y:y0 + QR_PT - (r+2)*cell, width:cell+0.02, height:cell+0.02, color:rgb(26/255, 53/255, 84/255)});
+}
+async function esquinasLibres(bytes){   // para cada página: la primera esquina en blanco (arriba-der, arriba-izq, abajo-der, abajo-izq)
+  await libsPDF(); const doc = await pdfjsLib.getDocument({data: bytes.slice()}).promise, res = [];
+  for(let p=1; p<=doc.numPages; p++){
+    const pg = await doc.getPage(p), v0 = pg.getViewport({scale:1}), esc = Math.min(1, 400 / v0.width), v = pg.getViewport({scale:esc});
+    const cv = document.createElement("canvas"); cv.width = Math.ceil(v.width); cv.height = Math.ceil(v.height); const ctx = cv.getContext("2d", {willReadFrequently:true});
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height); await pg.render({canvasContext:ctx, viewport:v}).promise;
+    const t = Math.ceil((QR_PT + 6) * esc), m = Math.floor((QR_M - 3) * esc);
+    const libre = (x, y) => { const d = ctx.getImageData(x, y, t, t).data; let b = 0; for(let i=0;i<d.length;i+=4) if(d[i] < 235 || d[i+1] < 235 || d[i+2] < 235) b++; return b / (d.length/4) < 0.004; };
+    const op = {tr:[cv.width-m-t, m], tl:[m, m], br:[cv.width-m-t, cv.height-m-t], bl:[m, cv.height-m-t]};
+    res.push(Object.keys(op).find(k => libre(...op[k])) || "tr");
+  }
+  return res;
+}
+async function verCot(c){ if(!tieneRep(c)) return abrirPDF(pdfDe(c)); const w = ventanaPrevia(); try{ abrirBytes(await bytesCot(c), w); }catch(e){ if(w) w.close(); throw e; } }
 const docsPortal = d => d.items.map((it,i) => it.docs?.length ? {fila:i+1, desc:String(it.desc||"").split("\n")[0].slice(0,120), archivos:it.docs.map(({id,nombre,tipo,tam}) => ({id,nombre,tipo,tam}))} : null).filter(Boolean);
 const enlaceDocs = (d, i) => (d.items[i]?.docs||[]).length ? `${fUrl(d)}&f=${i+1}&d=1` : "";
 const fotosPortal = d => d.items.map((it,i) => it.fotos?.length ? {fila:i+1, desc:String(it.desc||"").split("\n")[0].slice(0,120), ids:it.fotos} : null).filter(Boolean);
 const enlacesFotos = (d, i) => (d.items[i]?.fotos||[]).length ? [`${fUrl(d)}&f=${i+1}&i=1`] : [];   // un enlace al carrusel de la fila
-function bloqueAnexos(div, cambio){   // fotos y documentos de una fila (recibos/facturas y cotizaciones)
+function bloqueAnexos(div, cambio, o={}){   // fotos y documentos de una fila (recibos/facturas y cotizaciones); o.soloDocs: solo PDF, Word o Excel (reporte)
   const ff = document.createElement("div"); ff.className = "ffotos";
-  ff.innerHTML = `<span class="lbl2">Evidencia fotográfica y anexos</span><div class="ff-list"></div><div class="ff-docs"></div>
-    <div class="ff-btns"><label class="b-ghost b-sm ff-b">📎 Galería o archivo<input type="file" accept="${ACEPTA}" multiple></label>
-    <span class="ff-drop">o arrastra aquí fotos, PDF, Word o Excel · también puedes pegarlos (Ctrl+V)</span><span class="hint ff-st"></span></div>`;
-  div.appendChild(ff); div._fotos = []; div._docs = []; div._cambio = cambio;
+  ff.innerHTML = `<span class="lbl2">${o.titulo || "Evidencia fotográfica y anexos"}</span><div class="ff-list"></div><div class="ff-docs"></div>
+    <div class="ff-btns"><label class="b-ghost b-sm ff-b">📎 ${o.soloDocs ? "Subir archivo" : "Galería o archivo"}<input type="file" accept="${o.soloDocs ? ACEPTA.replace("image/*,", "") : ACEPTA}" multiple></label>
+    <span class="ff-drop">o arrastra aquí ${o.soloDocs ? "el PDF, Word o Excel" : "fotos, PDF, Word o Excel · también puedes pegarlos (Ctrl+V)"}</span><span class="hint ff-st"></span></div>`;
+  div.appendChild(ff); div._fotos = []; div._docs = []; div._cambio = cambio; div._soloDocs = !!o.soloDocs;
   const finp = ff.querySelector("input[type=file]");
   finp.onchange = () => { const fs = [...finp.files]; finp.value = ""; agregarFotos(div, fs); };
   ff.addEventListener("dragover", e => { if([...e.dataTransfer.items].some(i => i.kind==="file")){ e.preventDefault(); ff.classList.add("ff-sobre"); } });
@@ -3170,7 +3231,7 @@ function pedirDeshacer(d){
 async function verCx(d){
   try{
     if(d._k==="cot"){ const c = HIST.cotizaciones.find(x => x.codigo===d.codigo); if(!c) return;
-      if(c.origen==="excel" && c.publicado){ const w = ventanaPrevia(); abrirBytes(await pdfPortal(c.codigo), w); } else abrirPDF(pdfDe(c)); }
+      if(c.origen==="excel" && c.publicado){ const w = ventanaPrevia(); abrirBytes(await pdfPortal(c.codigo), w); } else await verCot(c); }
     else { const x = FHIST.docs.find(y => y.codigo===d.codigo); if(!x) return;
       if(x.origen==="excel" && x.publicado){ const w = ventanaPrevia(); abrirBytes(await pdfPortal(x.codigo), w); } else abrirPDF(fPdf(x)); }
   }catch(e){ $("cx-status").className = "status bad"; $("cx-status").textContent = "No se pudo abrir el documento: " + e.message; }
