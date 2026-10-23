@@ -2127,6 +2127,7 @@ async function leerInforme(bytes){   // lee Cliente, Elaborado por, Fecha de vis
     out[k] = lineas.map(x => x.s).join(" ").replace(/[\u0000-\u001F\uFFFD]/g, "").replace(/\s+/g, " ").trim();
   }
   if(out.fecha) out.fecha = pFechaLarga(out.fecha) || pFechaCorta(out.fecha) || "";
+  if(out.elaborado) out.elaborado = out.elaborado.replace(/grupo\s*[^\sA-Za-z0-9]?\s*lean/i, "Grupo Σ LEAN");   // la Σ a veces se lee mal del PDF
   return out;
 }
 function formInforme(x, titulo, conArchivo){
