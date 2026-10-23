@@ -299,6 +299,12 @@
     table.cx td.g-cli{grid-column:1/-1}
     table.cx tr.cx-sub.g-tot{display:grid;grid-template-columns:1fr 1fr}
   }
+.ec-emi{margin:0 0 12px;border:1px solid var(--line,#dde3ec);border-radius:12px;padding:8px 12px;background:var(--card,#fff)}
+.ec-emi summary{cursor:pointer;font-weight:600;color:var(--navy,#1f3864);list-style-position:inside}.ec-emi summary small{color:var(--muted);font-weight:400}
+.ec-emi-l{max-height:230px;overflow:auto;margin-top:8px}
+.ec-emi-r{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line,#e6eaf0)}
+.ec-emi-r small{display:block;color:var(--muted);font-size:.8em;margin-top:2px}.ec-emi-b{display:flex;gap:6px;flex-shrink:0}
+@media (max-width:520px){.ec-emi-r{flex-wrap:wrap}.ec-emi-b{width:100%;justify-content:flex-end}}
 </style>
 </head>
 <body>
@@ -2371,8 +2377,12 @@ function excelEC(e){
   const hayCons = e.filas.some(f => partes(f).some(p => p.de));
   const det = []; e.filas.forEach(f => partes(f).forEach(p => p.items.forEach((it,i) => {
     const o = {"Documento": f.doc, ...(hayCons ? {"Incluye": p.de || ""} : {}), "Fecha del documento": PDFFAC.dmy(p.d.fecha || f.fecha), "Fila": i+1, "Descripción": String(it.desc||"").replace(/\n/g, " ")};
-    extra.forEach(c => o[c.t] = c.tipo==="fecha" && it[c.k] ? PDFFAC.dmy(it[c.k]) : (it[c.k] ?? ""));
-    Object.assign(o, {"Cantidad": it.cant ?? "", "Precio unitario": it.precio ?? "", "Total": it.total ?? "", "Evidencia fotográfica": p.d._k==="cot" ? "" : enlacesFotos(p.d, i).join("  "), "Anexos": p.d._k==="cot" ? "" : enlaceDocs(p.d, i)});
+    // recibos digitalizados (control anterior) no traen esas columnas: se llenan con lo que se sabe del documento
+    const sinCols = p.d.origen==="control" || !(p.d.cols||[]).length;
+    extra.forEach(c => { const v = c.tipo==="fecha" && it[c.k] ? PDFFAC.dmy(it[c.k]) : (it[c.k] ?? "");
+      o[c.t] = v!=="" || !sinCols ? v : c.k==="empresa" ? (p.d.cliente||e.cliente) : c.k==="fecha" || c.tipo==="fecha" ? PDFFAC.dmy(p.d.fecha || f.fecha) : c.k==="recoge" || c.k==="entrega" ? "No registrado" : ""; });
+    const tot = it.total ?? "", cant = it.cant ?? (tot!=="" ? 1 : ""), pu = it.precio ?? (tot!=="" && cant ? r2(Number(tot)/Number(cant)) : "");
+    Object.assign(o, {"Cantidad": cant, "Precio unitario": pu, "Total": tot, "Evidencia fotográfica": p.d._k==="cot" ? "" : enlacesFotos(p.d, i).join("  "), "Anexos": p.d._k==="cot" ? "" : enlaceDocs(p.d, i)});
     det.push(o); })));
   const anchoDet = det.length ? Object.keys(det[0]).map(k => k==="Descripción" ? 48 : /Evidencia|Anexos/.test(k) ? 40 : Math.min(30, Math.max(k.length, ...det.map(o => String(o[k]??"").length)) + 2)) : null;
   hoja("Detalle", det, anchoDet);
@@ -2414,6 +2424,7 @@ $("rp-ec").onclick = async () => {
   const cls = clientesEC();
   const {caja, cerrar} = modal(`<h2 style="margin-bottom:6px">📄 Estado de cuenta</h2>
     <p class="hint" style="margin-bottom:10px">Al emitirlo recibe su número y su QR (el cliente lo valida en el portal), y se descarga un .zip con el PDF, el Excel con todo el detalle y la copia de cada recibo o factura.</p>
+    <div id="ec-emitidos"></div>
     <label>Cliente</label><select id="ec-cli">${cls.length ? cls.map(c => `<option value="${esc(c.nombre)}">${esc(c.nombre)} · ${c.n} doc.${c.saldo > 0.004 ? " · saldo " + money(c.saldo) : ""}</option>`).join("") : '<option value="">Aún no hay recibos ni facturas</option>'}</select>
     <div class="grid g2" style="margin-top:10px"><div><label>Desde</label><input type="date" class="in" id="ec-desde"></div><div><label>Hasta</label><input type="date" class="in" id="ec-hasta"></div></div>
     <label class="chk" style="margin-top:10px"><input type="checkbox" id="ec-pend"> Solo pendientes de cobro</label>
@@ -2428,6 +2439,18 @@ $("rp-ec").onclick = async () => {
     <div class="box" id="ec-res" style="background:var(--blue-bg);margin-top:12px"></div>
     <div class="status" id="ec-st"></div>
     <div class="actions" style="margin-top:12px"><button class="b-ghost" data-cerrar>Cancelar</button><button class="b-blue" id="ec-prev" title="Sin número ni QR: se asignan al emitir">Vista previa PDF</button><button class="b-navy" id="ec-zip">Emitir y descargar .zip</button></div>`);
+  const pintarEmitidos = () => { const L = [...(HIST?.estados||[])].reverse(), box = $("ec-emitidos"); if(!L.length){ box.innerHTML = ""; return; }
+    box.innerHTML = `<details class="ec-emi"><summary>📤 Emitidos: volver a compartir <small>(${L.length})</small></summary><div class="ec-emi-l">${L.slice(0,30).map((x,i) => `
+      <div class="ec-emi-r"><div><b>${esc(x.numero)}</b> · ${esc(x.cliente)}<small>${PDFFAC.dmy(x.fecha)} · ${esc(x.periodo||"Todos")} · saldo ${money(x.saldo||0)}</small></div>
+      <div class="ec-emi-b"><button class="b-ghost b-sm" data-ecv="${i}" title="Abrir el PDF">📄</button><button class="b-ghost b-sm b-share" data-ecs="${i}">📤 Compartir</button></div></div>`).join("")}</div><div class="status" id="ec-emi-st"></div></details>`;
+    const pdfDe = async x => { const st = $("ec-emi-st"); st.className = "status"; st.textContent = `Descargando ${x.numero} del portal…`; const b = await pdfPortal(x.codigo); st.textContent = ""; return b; };
+    box.querySelectorAll("[data-ecv]").forEach(b => b.onclick = async () => { const x = L[b.dataset.ecv], w = window.open("", "_blank");
+      try{ abrirBytes(await pdfDe(x), w); }catch(e){ if(w) w.close(); $("ec-emi-st").className = "status bad"; $("ec-emi-st").textContent = "No se pudo: " + e.message; } });
+    box.querySelectorAll("[data-ecs]").forEach(b => b.onclick = async () => { const x = L[b.dataset.ecs], st = $("ec-emi-st");
+      try{ const pdf = await pdfDe(x), url = CFG.site + "?c=" + x.codigo;
+        compartirPDF(pdf, nombreEC({numero:x.numero, cliente:x.cliente, corte:x.fecha}) + ".pdf", `Estado de cuenta ${x.numero} · Grupo Σ LEAN`, st, mensajeWA("Estado de cuenta", {numero:x.numero, cliente:x.cliente}, url)); }
+      catch(e){ st.className = "status bad"; st.textContent = "No se pudo: " + e.message; } }); };
+  pintarEmitidos();
   const ed = emisorDef(); $("ec-em-nom").value = ed.nombre||""; $("ec-em-ruc").value = ed.ruc||""; $("ec-em-dir").value = ed.direccion||""; $("ec-em-email").value = ed.email||""; $("ec-em-tel").value = ed.telefono||"";
   caja.querySelector(`input[name="ec-em-rt"][value="${ed.rucTipo==="CIP" ? "CIP" : "RUC"}"]`).checked = true;
   const emis = () => caja.querySelector('input[name="ec-em"]:checked').value==="igual" ? ed
@@ -2446,7 +2469,7 @@ $("rp-ec").onclick = async () => {
     try{
       if(!window.JSZip) await cargarScript(JSZIP_URL);
       st.textContent = "Publicando el estado de cuenta en el portal…";
-      const {ec, pdf} = await publicarEC(e);
+      const {ec, pdf} = await publicarEC(e); pintarEmitidos();
       const zip = new JSZip(), base = nombreEC(ec);
       zip.file(base + ".pdf", pdf);
       zip.file(base + ".xlsx", excelEC(ec));
