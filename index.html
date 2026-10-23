@@ -366,7 +366,7 @@
       <div class="grid g3" style="margin-top:12px">
         <div><label>Cliente</label><input type="text" id="f-cliente" class="in" placeholder="Nombre del cliente o empresa"></div>
         <div><label>CIP / RUC</label><input type="text" id="f-ruc" class="in" placeholder="Opcional"></div>
-        <div><label>Email</label><input type="email" id="f-email" class="in" placeholder="Opcional" inputmode="email" autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+        <div><label>Email(s)</label><input type="text" id="f-email" class="in" placeholder="Opcional · varios: separa con coma" inputmode="email" autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
       </div>
       <div id="f-inicio" class="hidden box warnb">
         <b>Solo esta vez:</b> ¿cuál fue el <b>último número</b> de cotización que usaste en Excel? La siguiente continuará desde ahí y luego avanzará sola.
@@ -513,7 +513,7 @@
       <div class="grid g2" id="fx-de-box">
         <div><label>Cliente</label><input type="text" id="fx-cliente" class="in" placeholder="Nombre del cliente o empresa"></div>
         <div><label>CIP / RUC</label><input type="text" id="fx-ruc" class="in" placeholder="Opcional (ej. RUC: 155643349-2-2017 DV 2)"></div>
-        <div><label>Email</label><input type="email" id="fx-email" class="in" placeholder="Opcional" inputmode="email" autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
+        <div><label>Email(s)</label><input type="text" id="fx-email" class="in" placeholder="Opcional · varios: separa con coma" inputmode="email" autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false"></div>
         <div><label>Dirección</label><input type="text" id="fx-dir" class="in" placeholder="Opcional"></div>
         <div><label>Teléfono</label><input type="text" id="fx-tel" class="in" placeholder="Opcional"></div>
       </div>
@@ -1179,7 +1179,11 @@ const masHabiles = (iso, n) => { let d = iso; for(let k = 0; k < n; ){ d = masDi
 function habilesEntre(a, b){   // días hábiles desde a (sin contar) hasta b (contando); negativo si b ya pasó
   if(b < a) return -habilesEntre(b, a); let n = 0; for(let d = masDias(a, 1); d <= b; d = masDias(d, 1)) if(esHabil(d)) n++; return n; }
 const pad3 = n => String(n).padStart(3,"0");
-const EMAIL_OK = e => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
+const EMAIL_UNO = e => /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]{2,}$/.test(e);
+const listaEmails = v => [...new Set(String(v||"").split(/[\s,;]+/).map(x => x.trim().toLowerCase()).filter(Boolean))];
+const EMAIL_OK = v => { const l = listaEmails(v); return l.length > 0 && l.every(EMAIL_UNO); };   // uno o varios, separados por coma
+const normEmails = v => listaEmails(v).join(", ");
+const paraDe = o => { const c = o?.cliente ? clientesTodos().find(x => normCli(x.cliente)===normCli(o.cliente)) : null; return [...new Set([...listaEmails(o?.email), ...listaEmails(c?.email)])].join(", "); };
 const numeroDe = (letra, n) => `${String(letra).toUpperCase()}-${pad3(n)}`;
 const inicial = s => { const m = String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").match(/[A-Za-z]/); return m ? m[0].toUpperCase() : ""; };
 
@@ -1457,7 +1461,7 @@ function armar(){   // valida y arma el registro
   const mat = leerItems("mat"), mo = leerItems("mo"), errs = [];
   if(n==null) errs.push("indicar una sola vez el último número que usaste en Excel (recuadro amarillo arriba)");
   if(!cliente) errs.push("el cliente"); else if(!L) errs.push("que el nombre del cliente empiece con una letra");
-  if($("f-email").value.trim() && !EMAIL_OK($("f-email").value.trim())) errs.push("un email válido (o dejarlo vacío)");
+  if($("f-email").value.trim() && !EMAIL_OK($("f-email").value.trim())) errs.push("emails válidos, separados por coma (o dejarlo vacío)");
   if(!incMat && !incMO) errs.push("al menos una hoja (materiales o mano de obra)");
   [[incMat,mat,"materiales"],[incMO,mo,"mano de obra"]].forEach(([inc,arr,nom]) => {
     if(!inc) return;
@@ -1471,7 +1475,7 @@ function armar(){   // valida y arma el registro
   const fecha = fechas(), tot = totales(mat, mo, incMat, incMO);
   const numero = numeroDe(L, n);
   const codigo = EDIT ? EDIT.codigo : (numero.replace(/-/g,"") + "-" + [...crypto.getRandomValues(new Uint8Array(8))].map(b=>ALF[b%ALF.length]).join("").replace(/^(.{4})/,"$1-"));
-  return { ...guardaEstado(EDIT, ["cxc","cxcAnulada","origen"]), ...(gasto ? {gasto} : {}), ...(reporte ? {reporte} : {}), numero, letra:L.toUpperCase(), n, codigo, cliente, ruc:$("f-ruc").value.trim(), email:$("f-email").value.trim(), fecha, validoHasta:masDias(fecha,30),
+  return { ...guardaEstado(EDIT, ["cxc","cxcAnulada","origen"]), ...(gasto ? {gasto} : {}), ...(reporte ? {reporte} : {}), numero, letra:L.toUpperCase(), n, codigo, cliente, ruc:$("f-ruc").value.trim(), email:normEmails($("f-email").value), fecha, validoHasta:masDias(fecha,30),
            incMat, incMO, materiales: incMat?mat:[], manoObra: incMO?mo:[], duracion:$("f-dur").value.trim(),
            tot:{matSub:tot.matSub, matItbms:tot.matItbms, matTotal:tot.matTotal, moSub:tot.moSub}, total: tot.general,
            creado: EDIT ? EDIT.creado : new Date().toISOString(), actualizado: new Date().toISOString() };
@@ -1527,7 +1531,7 @@ $("btn-emit").onclick = async () => {
       En 1–2 minutos el QR mostrará «Documento Verificado» en:<br><a href="${url}" target="_blank" rel="noopener">${url}</a>
       <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="dl-now">Descargar PDF</button><button class="b-ghost b-share" id="share-now">📤 Compartir PDF</button><button class="b-ghost b-cxc" id="cxc-now">Enviar a cuentas por cobrar</button><button class="b-ghost" id="new-now">Nueva cotización</button></div></div>`;
     $("dl-now").onclick = async () => bajarBytes(await bytesCot(c), nombrePDF(c));
-    $("share-now").onclick = async () => compartirPDF(await bytesCot(c), nombrePDF(c), `Cotización ${c.numero} · Grupo Σ LEAN`, $("emit-status"), mensajeWA("Cotización", c, urlDe(c)));
+    $("share-now").onclick = async () => compartirPara(paraDe(c), await bytesCot(c), nombrePDF(c), `Cotización ${c.numero} · Grupo Σ LEAN`, $("emit-status"), mensajeWA("Cotización", c, urlDe(c)));
     $("new-now").onclick = () => nueva();
     $("cxc-now").onclick = () => { show("hist"); setHView("cot"); pedirCxc("cot", c); };
     EDIT = c; $("f-fecha-opt").classList.remove("hidden"); numHint();
@@ -1552,16 +1556,37 @@ const sinNegrita = t => String(t||"").replace(/\*([^*\n]+)\*/g, "$1");
 /* En PC (sobre todo Chrome en Mac) el menú de compartir mezcla archivo + texto: WhatsApp recibe la ruta del archivo pegada al mensaje
    y el PDF dos veces. Por eso en PC: WhatsApp se abre con el mensaje listo (wa.me) y el PDF se descarga para arrastrarlo al chat. */
 const esPC = () => !/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) && (navigator.maxTouchPoints||0) < 2;
-function compartirPDF(bytes, nombre, titulo, st, texto){
-  const pc = esPC();
+const compartirPara = (para, ...a) => compartirPDF(...a, para);
+function compartirPDF(bytes, nombre, titulo, st, texto, para){
+  const pc = esPC(); para = listaEmails(para).join(", ");
   if(!texto || (!pc && !(navigator.canShare && navigator.share))) return compartirPDF_(bytes, nombre, titulo, st, texto);
   const {caja, cerrar} = modal(`<h2 style="margin-bottom:4px">📤 Compartir ${esc(nombre)}</h2><p class="hint" style="margin-bottom:12px">¿Por dónde lo vas a enviar?</p>
     <div class="fx-op"><button class="fx-op-b" data-app="wa"><span>💬</span><b>WhatsApp</b><small>${pc ? "se abre con el mensaje listo" : "firma en negrita"}</small></button>
-    <button class="fx-op-b" data-app="otra"><span>📨</span><b>Otra app</b><small>correo, mensajes, etc.</small></button></div>
+    <button class="fx-op-b" data-app="mail"><span>✉️</span><b>Correo</b><small>${para ? esc(para.length > 34 ? para.slice(0,32) + "…" : para) : "sin correo registrado"}</small></button>
+    <button class="fx-op-b" data-app="otra"><span>📨</span><b>Otra app</b><small>mensajes, etc.</small></button></div>
     <div class="actions" style="margin-top:12px"><button class="b-ghost" data-cerrar>Cancelar</button></div>`);
   caja.querySelectorAll("[data-app]").forEach(b => b.onclick = () => { cerrar();
     if(b.dataset.app==="wa") return pc ? compartirWAPC(bytes, nombre, st, texto) : compartirPDF_(bytes, nombre, titulo, st, texto);
+    if(b.dataset.app==="mail") return compartirMail(bytes, nombre, titulo, st, sinNegrita(texto), para, pc);
     compartirPDF_(bytes, nombre, titulo, st, sinNegrita(texto), pc); });
+}
+/* correo: «Para» con los correos del cliente, asunto y mensaje listos. En PC el PDF se descarga para arrastrarlo al correo;
+   en celular se abre el menú de compartir con el PDF adjunto y los correos quedan copiados para pegarlos en «Para». */
+function compartirMail(bytes, nombre, titulo, st, texto, para, pc){
+  const msg = (cls, t) => { if(st){ st.className = "status " + cls; st.innerHTML = t; } };
+  const movilConArchivo = !pc && navigator.canShare && navigator.share && navigator.canShare({files:[new File([bytes], nombre, {type:"application/pdf"})]});
+  if(movilConArchivo){
+    if(para){ try{ navigator.clipboard && navigator.clipboard.writeText(para).catch(() => {}); }catch(e){} }
+    navigator.share({files:[new File([bytes], nombre, {type:"application/pdf"})], title:titulo, text:texto})
+      .then(() => msg("ok", `✓ Listo.${para ? ` Los correos (<b>${esc(para)}</b>) quedaron copiados: pégalos en «Para».` : ""}`))
+      .catch(e => { if(e.name!=="AbortError") location.href = `mailto:${encodeURIComponent(para).replace(/%40/g,"@").replace(/%2C%20/g,",")}?subject=${encodeURIComponent(titulo)}&body=${encodeURIComponent(texto)}`; });
+    if(para) msg("", `Elige tu app de correo. Los correos quedaron copiados para pegarlos en «Para»: <b>${esc(para)}</b>`);
+    return;
+  }
+  const to = para.split(/\s*,\s*/).filter(Boolean).map(e => encodeURIComponent(e).replace(/%40/g,"@")).join(",");
+  location.href = `mailto:${to}?subject=${encodeURIComponent(titulo)}&body=${encodeURIComponent(texto)}`;
+  if(pc) bajarBytes(bytes, nombre);
+  msg("ok", `✓ Se abrió tu correo${para ? ` para <b>${esc(para)}</b>` : ""} con el asunto y el mensaje listos.${pc ? ` Se descargó <b>${esc(nombre)}</b>: arrástralo al correo para adjuntarlo.` : ""}${para ? "" : " Este cliente no tiene correo registrado: escríbelo en «Para»."}`);
 }
 function compartirWAPC(bytes, nombre, st, texto){   // PC: mensaje limpio en WhatsApp + PDF descargado
   window.open("https://wa.me/?text=" + encodeURIComponent(texto), "_blank", "noopener");
@@ -1685,11 +1710,16 @@ function filasFac(lista, etiqueta){ return [...lista].sort((a,b) => a.n-b.n).map
   "N.º": d.numero, "Tipo": etiqueta || d.tipo, "Pedido / cotización": d.pedido && d.pedido!==d.numero ? d.pedido : "", "Fecha": PDFFAC.dmy(d.fecha), "Vencimiento": PDFFAC.dmy(d.vence),
   "Cliente": d.cliente, "CIP/RUC": d.ruc||"", "Email": d.email||"", "Teléfono": d.telefono||"", "Dirección": d.direccion||"", "Total": d.total,
   "Cobrado": cobradoDe(d), "Saldo": d.anulado ? 0 : saldoDe(d), "Estado": d.anulado ? "Anulado" : d.consolidadoEn ? `En consolidado ${d.consolidadoEn.numero}` : etiquetaCxc(d).t, "En cuentas por cobrar": enCxc(d) ? "Sí" : "No", ...colsGasto(d), "Código": d.codigo })); }
-function clientesTodos(){
+function clientesTodos(){   // ficha de cada cliente, armada con todo lo que se ha llenado en sus documentos con el tiempo
   const m = new Map();
-  const add = (o, f) => { const k = String(o.cliente||"").trim().toLowerCase(); if(!k) return; const c = m.get(k) || {cliente:o.cliente.trim(), ruc:"", email:"", telefono:"", direccion:"", docs:0, ultimo:""};
-    ["ruc","email","telefono","direccion"].forEach(x => { if(o[x] && (!c[x] || (f||"") >= c.ultimo)) c[x] = o[x]; }); c.docs++; if((f||"") > c.ultimo) c.ultimo = f||""; m.set(k, c); };
-  (HIST?.cotizaciones||[]).forEach(c => add(c, c.fecha)); (FHIST?.docs||[]).forEach(d => add(d, d.fecha)); (FHIST?.previos||[]).forEach(d => add(d, d.fecha));
+  const docs = [...(HIST?.cotizaciones||[]), ...(FHIST?.docs||[]), ...(FHIST?.previos||[])].filter(o => String(o.cliente||"").trim())
+    .sort((a,b) => (a.fecha||"").localeCompare(b.fecha||"") || (a.creado||"").localeCompare(b.creado||""));
+  docs.forEach(o => { const k = normCli(o.cliente); if(!k) return;
+    const c = m.get(k) || {cliente:o.cliente.trim(), ruc:"", email:"", telefono:"", direccion:"", docs:0, ultimo:""};
+    ["ruc","telefono","direccion"].forEach(x => { const v = String(o[x]||"").trim(); if(v) c[x] = v; });   // el dato más reciente que no esté vacío
+    const em = listaEmails(o.email); if(em.length) c.email = em.join(", ");   // la lista de correos del documento más reciente (si quitas uno, deja de salir)
+    if(!o.anulado) c.cliente = o.cliente.trim();
+    c.docs++; if((o.fecha||"") > c.ultimo) c.ultimo = o.fecha||""; m.set(k, c); });
   return [...m.values()].sort((a,b) => a.cliente.localeCompare(b.cliente, "es"));
 }
 async function marcarRespaldo(){ try{ await guardarAjustes(a => { a.ultimoRespaldo = new Date().toISOString(); }, "Respaldo completo descargado"); pintarAvisos(); }catch(e){ console.warn(e); } }
@@ -1824,9 +1854,13 @@ function autoCliente(idNombre, campos){
   inp.setAttribute("autocomplete","off");
   let items = [], sel = -1;
   const cerrar = () => { lista.classList.add("hidden"); sel = -1; };
+  // llena lo que falte con la ficha del cliente (no pisa lo que tú escribiste; sí lo que se llenó solo antes)
+  const llenar = c => Object.entries(campos).forEach(([k, id]) => { const el = $(id); if(el && c[k] && (!el.value.trim() || el.dataset.cli)){ el.value = c[k]; el.dataset.cli = "1"; } });
+  Object.values(campos).forEach(id => { const el = $(id); if(el) el.addEventListener("input", e => { if(e.isTrusted) delete el.dataset.cli; }); });
+  inp.addEventListener("change", () => { const c = clientesTodos().find(x => normCli(x.cliente)===normCli(inp.value)); if(c) llenar(c); });
   const elegir = c => {
     inp.value = c.cliente; delete inp.dataset.auto;
-    Object.entries(campos).forEach(([k, id]) => { const el = $(id); if(el && c[k]){ el.value = c[k]; delete el.dataset.auto; } });
+    llenar(c, true);
     cerrar(); inp.dispatchEvent(new Event("input", {bubbles:true})); inp.dispatchEvent(new Event("change", {bubbles:true}));
     const sig = $(Object.values(campos)[0]); if(sig) sig.focus();
   };
@@ -1851,6 +1885,7 @@ function autoCliente(idNombre, campos){
   });
 }
 autoCliente("f-cliente", {ruc:"f-ruc", email:"f-email"});
+["f-email","fx-email"].forEach(id => $(id).addEventListener("blur", () => { const v = $(id).value; if(v.trim() && EMAIL_OK(v)) $(id).value = normEmails(v); }));
 autoCliente("fx-cliente", {ruc:"fx-ruc", email:"fx-email", direccion:"fx-dir", telefono:"fx-tel"});
 
 /* ==================== bloque activo (marco naranja) ==================== */
@@ -1978,9 +2013,9 @@ function pintarHist(){
     if(b.dataset.a==="share"){
       const st = $("h-status"), tit = `Cotización ${c.numero} · Grupo Σ LEAN`;
       if(c.origen==="excel" && c.publicado){ st.className="status"; st.textContent="Preparando el PDF original…";
-        try{ return compartirPDF(await pdfPortal(c.codigo), nombrePDF(c), tit, st, mensajeWA("Cotización", c, urlDe(c))); }catch(e){ st.className="status bad"; st.textContent = "No se pudo obtener el PDF: " + e.message; return; } }
+        try{ return compartirPara(paraDe(c), await pdfPortal(c.codigo), nombrePDF(c), tit, st, mensajeWA("Cotización", c, urlDe(c))); }catch(e){ st.className="status bad"; st.textContent = "No se pudo obtener el PDF: " + e.message; return; } }
       if(tieneRep(c)){ st.className = "status"; st.textContent = "Preparando el PDF con el reporte…"; }
-      try{ const bytes = await bytesCot(c); if(tieneRep(c)) st.textContent = ""; return compartirPDF(bytes, nombrePDF(c), tit, st, mensajeWA("Cotización", c, urlDe(c))); }
+      try{ const bytes = await bytesCot(c); if(tieneRep(c)) st.textContent = ""; return compartirPara(paraDe(c), bytes, nombrePDF(c), tit, st, mensajeWA("Cotización", c, urlDe(c))); }
       catch(e){ st.className = "status bad"; st.textContent = "No se pudo armar el PDF: " + e.message; return; }
     }
     if((b.dataset.a==="ver" || b.dataset.a==="pdf") && c.origen==="excel" && c.publicado){   // el PDF original publicado desde Excel
@@ -2253,7 +2288,7 @@ $("h-inf-file").onchange = async e => {
       hs.innerHTML = `✓ Informe técnico <b>${esc(rec.numero)}</b> publicado · ${esc(rec.cliente)} · <a href="${urlDe(rec)}" target="_blank" rel="noopener">Ver en el portal</a>
         <div class="actions" style="justify-content:flex-start;margin-top:8px"><button class="b-navy b-sm" id="inf-dl">Descargar PDF</button><button class="b-ghost b-sm b-share" id="inf-sh">📤 Compartir PDF</button></div>`;
       $("inf-dl").onclick = () => bajarBytes(pdf, nombreInf(rec));
-      $("inf-sh").onclick = () => compartirPDF(pdf, nombreInf(rec), `Informe técnico ${rec.numero} · Grupo Σ LEAN`, hs, mensajeWA("Informe técnico", rec, urlDe(rec)));
+      $("inf-sh").onclick = () => compartirPara(paraDe(rec), pdf, nombreInf(rec), `Informe técnico ${rec.numero} · Grupo Σ LEAN`, hs, mensajeWA("Informe técnico", rec, urlDe(rec)));
       $("hist-inf").scrollIntoView({behavior:"smooth", block:"start"});
     }catch(err){ console.error(err); st.className = "status bad"; st.textContent = "No se pudo publicar: " + err.message; $("inf-ok").disabled = false; }
   };
@@ -2280,7 +2315,7 @@ async function accionInf(a, x){
     const w = a==="ver" ? ventanaPrevia() : null; st.className = "status"; st.textContent = "Trayendo el informe del portal…";
     try{ const bytes = await pdfPortal(x.codigo); st.textContent = "";
       if(a==="ver") abrirBytes(bytes, w); else if(a==="pdf") bajarBytes(bytes, nombreInf(x));
-      else compartirPDF(bytes, nombreInf(x), `Informe técnico ${x.numero} · Grupo Σ LEAN`, st, mensajeWA("Informe técnico", x, urlDe(x))); }
+      else compartirPara(paraDe(x), bytes, nombreInf(x), `Informe técnico ${x.numero} · Grupo Σ LEAN`, st, mensajeWA("Informe técnico", x, urlDe(x))); }
     catch(e){ if(w) w.close(); st.className = "status bad"; st.textContent = "No se pudo traer el informe: " + e.message; }
     return;
   }
@@ -2342,7 +2377,7 @@ function datosCliEC(cli){   // datos del cliente: el dato más reciente que no e
   const k = normCli(cli), out = {cliente:cli, ruc:"", email:"", direccion:"", telefono:""}, f = {};
   const docs = [...(HIST?.cotizaciones||[]), ...todosFac(), ...(FHIST?.docs||[]), ...(FHIST?.previos||[])].filter(d => !d.anulado && normCli(d.cliente)===k);
   docs.forEach(d => ["ruc","email","direccion","telefono"].forEach(x => { const v = String(d[x]||"").trim(); if(v && (!out[x] || (d.fecha||"") >= f[x])){ out[x] = v; f[x] = d.fecha||""; } }));
-  const c = clientesTodos().find(c => normCli(c.cliente)===k); if(c) out.cliente = c.cliente;
+  const c = clientesTodos().find(c => normCli(c.cliente)===k); if(c){ out.cliente = c.cliente; if(c.email) out.email = c.email; }
   return out;
 }
 function armarEC(cli, desde, hasta, soloPend){
@@ -2449,7 +2484,7 @@ $("rp-ec").onclick = async () => {
       try{ abrirBytes(await pdfDe(x), w); }catch(e){ if(w) w.close(); $("ec-emi-st").className = "status bad"; $("ec-emi-st").textContent = "No se pudo: " + e.message; } });
     box.querySelectorAll("[data-ecs]").forEach(b => b.onclick = async () => { const x = L[b.dataset.ecs], st = $("ec-emi-st");
       try{ const pdf = await pdfDe(x), url = CFG.site + "?c=" + x.codigo;
-        compartirPDF(pdf, nombreEC({numero:x.numero, cliente:x.cliente, corte:x.fecha}) + ".pdf", `Estado de cuenta ${x.numero} · Grupo Σ LEAN`, st, mensajeWA("Estado de cuenta", {numero:x.numero, cliente:x.cliente}, url)); }
+        compartirPara(paraDe({cliente:x.cliente}), pdf, nombreEC({numero:x.numero, cliente:x.cliente, corte:x.fecha}) + ".pdf", `Estado de cuenta ${x.numero} · Grupo Σ LEAN`, st, mensajeWA("Estado de cuenta", {numero:x.numero, cliente:x.cliente}, url)); }
       catch(e){ st.className = "status bad"; st.textContent = "No se pudo: " + e.message; } }); };
   pintarEmitidos();
   const ed = emisorDef(); $("ec-em-nom").value = ed.nombre||""; $("ec-em-ruc").value = ed.ruc||""; $("ec-em-dir").value = ed.direccion||""; $("ec-em-email").value = ed.email||""; $("ec-em-tel").value = ed.telefono||"";
@@ -2480,7 +2515,7 @@ $("rp-ec").onclick = async () => {
       const blob = await zip.generateAsync({type:"blob"}), a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = base + ".zip"; document.body.appendChild(a); a.click(); a.remove();
       st.className = "status ok"; st.innerHTML = `✓ Estado de cuenta <b>${esc(ec.numero)}</b> emitido y descargado · <a href="${ec.url}" target="_blank" rel="noopener">Ver en el portal</a>
         <div class="actions" style="justify-content:flex-start;margin-top:8px"><button class="b-ghost b-sm b-share" id="ec-sh">📤 Compartir PDF</button></div>`;
-      $("ec-sh").onclick = () => compartirPDF(pdf, base + ".pdf", `Estado de cuenta ${ec.numero} · Grupo Σ LEAN`, st, mensajeWA("Estado de cuenta", {numero:ec.numero, cliente:ec.cliente}, ec.url));
+      $("ec-sh").onclick = () => compartirPara(paraDe(ec), pdf, base + ".pdf", `Estado de cuenta ${ec.numero} · Grupo Σ LEAN`, st, mensajeWA("Estado de cuenta", {numero:ec.numero, cliente:ec.cliente}, ec.url));
     }catch(err){ console.error(err); st.className = "status bad"; st.textContent = "No se pudo armar el .zip: " + err.message; }
     $("ec-zip").disabled = false;
   };
@@ -2661,7 +2696,7 @@ function fArmar(){
   if(!cliente) errs.push("el cliente");
   if(!$("fx-em-igual").checked && !$("fx-em-nom").value.trim()) errs.push("el nombre del emisor");
   if(!$("fx-em-igual").checked && $("fx-em-email").value.trim() && !EMAIL_OK($("fx-em-email").value.trim())) errs.push("un email válido del emisor");
-  if($("fx-email").value.trim() && !EMAIL_OK($("fx-email").value.trim())) errs.push("un email válido (o dejarlo vacío)");
+  if($("fx-email").value.trim() && !EMAIL_OK($("fx-email").value.trim())) errs.push("emails válidos, separados por coma (o dejarlo vacío)");
   if(!items.length) errs.push("al menos una fila en el detalle");
   items.forEach((it,i) => { if(it.total==null) errs.push(`el total (o el precio) de la fila ${i+1}`); if(!it.desc && !fcols().some(c => it[c.k])) errs.push(`la descripción de la fila ${i+1}`); });
   const tipo = FEDIT ? FEDIT.tipo : fTipo();
@@ -2676,7 +2711,7 @@ function fArmar(){
   const gasto = gastoLeer("fx-g");
   const pedido = igual ? numero : FPEDS.length ? FPEDS.map(c => c.numero).join(", ") : (codsCot(pedTxt).join(", ") || pedTxt);
   return { ...guardaEstado(FEDIT, ["cxc","consolidadoEn","cxcAnulada","origen"]), ...(gasto ? {gasto} : {}), tipo, n, numero, pedido, cotRef: !igual && FPED ? FPED.numero : null, ...(!igual && FPEDS.length > 1 ? {cotRefs: FPEDS.map(c => c.numero)} : {}), pedOpts: !igual && FPED ? {mo:$("fx-ped-mo").checked, mat:$("fx-ped-mat").checked} : null, codigo, fecha, vence, dias, ...(habiles ? {habiles:true} : {}), cliente,
-           ruc:$("fx-ruc").value.trim(), email:$("fx-email").value.trim(), direccion:$("fx-dir").value.trim(), telefono:$("fx-tel").value.trim(),
+           ruc:$("fx-ruc").value.trim(), email:normEmails($("fx-email").value), direccion:$("fx-dir").value.trim(), telefono:$("fx-tel").value.trim(),
            items, subtotal: total, total, conPago:$("fx-pago").checked, conPie:$("fx-pie").checked, conXml:$("fx-xml").checked,
            emisor: emisorForm(),
            cols: fcols().filter(c => items.some(it => it[c.k]!=null && String(it[c.k]).trim()!=="")).map(({k,t,tipo}) => ({k,t,...(tipo?{tipo}:{})})),
@@ -2722,7 +2757,7 @@ $("fx-emit").onclick = async () => {
       En 1–2 minutos el QR mostrará «Documento Verificado» en:<br><a href="${url}" target="_blank" rel="noopener">${url}</a>
       <div class="actions" style="justify-content:flex-start;margin-top:10px"><button class="b-navy" id="fx-dl-now">Descargar PDF</button><button class="b-ghost b-share" id="fx-share-now">📤 Compartir PDF</button>${d.conXml ? '<button class="b-ghost" id="fx-xml-now">Descargar XML</button>' : ""}${enCxc(d) ? '<span class="pill p-ok" style="align-self:center">✓ En cuentas por cobrar</span>' : '<button class="b-ghost b-cxc" id="fx-cxc-now">Enviar a cuentas por cobrar</button>'}<button class="b-ghost" id="fx-new-now">Nuevo recibo / factura</button></div></div>`;
     $("fx-dl-now").onclick = () => bajarPDF(fPdf(d), fNombre(d));
-    $("fx-share-now").onclick = () => compartirPDF(pdfBytes(fPdf(d)), fNombre(d), `${d.tipo} ${d.numero} · Grupo Σ LEAN`, $("fx-status"), mensajeWA(d.tipo, d, fUrl(d)));
+    $("fx-share-now").onclick = () => compartirPara(paraDe(d), pdfBytes(fPdf(d)), fNombre(d), `${d.tipo} ${d.numero} · Grupo Σ LEAN`, $("fx-status"), mensajeWA(d.tipo, d, fUrl(d)));
     if(d.conXml) $("fx-xml-now").onclick = () => bajarXML(d);
     $("fx-new-now").onclick = fNueva;
     if($("fx-cxc-now")) $("fx-cxc-now").onclick = async () => {   // un solo toque: se envía aquí mismo (sin volver a preguntar en el Historial)
@@ -2819,13 +2854,13 @@ function pintarFac(){
       const st = $("h-status"), w = b.dataset.f==="ver" ? ventanaPrevia() : null; st.className="status"; st.textContent="Preparando el PDF original…";
       return pdfPortal(d.codigo).then(bytes => { st.textContent="";
         if(b.dataset.f==="ver") abrirBytes(bytes, w); else if(b.dataset.f==="pdf") bajarBytes(bytes, fNombre(d));
-        else compartirPDF(bytes, fNombre(d), `${d.tipo} ${d.numero} · Grupo Σ LEAN`, st, mensajeWA(d.tipo, d, fUrl(d))); })
+        else compartirPara(paraDe(d), bytes, fNombre(d), `${d.tipo} ${d.numero} · Grupo Σ LEAN`, st, mensajeWA(d.tipo, d, fUrl(d))); })
         .catch(e => { if(w) w.close(); st.className="status bad"; st.textContent = "No se pudo obtener el PDF del portal: " + e.message; });
     }
     if(b.dataset.f==="ver") abrirPDF(fPdf(d));
     if(b.dataset.f==="pdf") bajarPDF(fPdf(d), fNombre(d));
     if(b.dataset.f==="xml") bajarXML(d);
-    if(b.dataset.f==="share") compartirPDF(pdfBytes(fPdf(d)), fNombre(d), `${d.tipo} ${d.numero} · Grupo Σ LEAN`, $("h-status"), mensajeWA(d.tipo, d, fUrl(d)));
+    if(b.dataset.f==="share") compartirPara(paraDe(d), pdfBytes(fPdf(d)), fNombre(d), `${d.tipo} ${d.numero} · Grupo Σ LEAN`, $("h-status"), mensajeWA(d.tipo, d, fUrl(d)));
     if(b.dataset.f==="edit") fCargar(d, "editar");
     if(b.dataset.f==="anular" || b.dataset.f==="react") return pedirAnular("fac", d, b.dataset.f==="anular");
     if(b.dataset.f==="cxc") return pedirCxc("fac", d);
