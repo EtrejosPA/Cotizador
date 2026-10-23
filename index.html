@@ -1112,13 +1112,18 @@ const PDFFAC = (() => {
       let ye = 193.7, yy = 193.7;
       [em.nombre, rucE, em.direccion, em.email, em.telefono].filter(Boolean).forEach(t => { doc.setFont("Serif","normal"); doc.setFontSize(10.1); doc.splitTextToSize(String(t), 255).forEach(ln => { T(doc, ln, 36.5, ye); ye += 13.5; }); });
       T(doc, "CLIENTE", 306.5, 176.2, {st:"bold", c:C.label});
-      [cab.cliente, cab.ruc, cab.email, cab.direccion, cab.telefono].filter(Boolean).forEach(t => { doc.setFont("Serif","normal"); doc.setFontSize(10.1); doc.splitTextToSize(String(t), e.url ? 178 : 265).forEach(ln => { T(doc, ln, 306.5, yy); yy += 13.5; }); });
+      [cab.cliente, cab.ruc, cab.email, cab.direccion, cab.telefono].filter(Boolean).forEach(t => { doc.setFont("Serif","normal"); doc.setFontSize(10.1); doc.splitTextToSize(String(t), e.url || e.preview ? 178 : 265).forEach(ln => { T(doc, ln, 306.5, yy); yy += 13.5; }); });
       let fin = Math.max(247.7, yy, ye);
       if(e.url){   // QR del estado de cuenta (se valida en el portal), como en los recibos
         qr(doc, e.url, 498, 170, 74);
         const tw = (doc.setFont("Serif","bold"), doc.setFontSize(9.5), doc.getTextWidth("VALIDADO"));
         const x0 = 535 - (tw + 13)/2; check(doc, x0, 247.6, 9.5); T(doc, "VALIDADO", x0 + 13, 247.6, {st:"bold", sz:9.5, c:C.navy});
         T(doc, "Estado de cuenta digital con copia al emisor", 532, 261, {sz:7, c:C.gray, al:"center"});
+        fin = Math.max(fin, 268);
+      } else if(e.preview){   // vista previa: el número y el QR se asignan al emitir
+        doc.setDrawColor(150,160,175); doc.setLineWidth(0.8); doc.setLineDashPattern([3,2.5], 0); doc.rect(498, 170, 74, 74); doc.setLineDashPattern([], 0);
+        ["El QR se", "genera al", "emitir"].forEach((t,i) => T(doc, t, 535, 199 + i*10.5, {sz:8, c:C.gray, al:"center"}));
+        T(doc, "VISTA PREVIA", 535, 257, {st:"bold", sz:9.5, c:C.label, al:"center"});
         fin = Math.max(fin, 268);
       }
       return fin + 24.9;
@@ -2409,7 +2414,7 @@ $("rp-ec").onclick = async () => {
     </div>
     <div class="box" id="ec-res" style="background:var(--blue-bg);margin-top:12px"></div>
     <div class="status" id="ec-st"></div>
-    <div class="actions" style="margin-top:12px"><button class="b-ghost" data-cerrar>Cancelar</button><button class="b-blue" id="ec-prev">Vista previa PDF</button><button class="b-navy" id="ec-zip">Emitir y descargar .zip</button></div>`);
+    <div class="actions" style="margin-top:12px"><button class="b-ghost" data-cerrar>Cancelar</button><button class="b-blue" id="ec-prev" title="Sin número ni QR: se asignan al emitir">Vista previa PDF</button><button class="b-navy" id="ec-zip">Emitir y descargar .zip</button></div>`);
   const ed = emisorDef(); $("ec-em-nom").value = ed.nombre||""; $("ec-em-ruc").value = ed.ruc||""; $("ec-em-dir").value = ed.direccion||""; $("ec-em-email").value = ed.email||""; $("ec-em-tel").value = ed.telefono||"";
   caja.querySelector(`input[name="ec-em-rt"][value="${ed.rucTipo==="CIP" ? "CIP" : "RUC"}"]`).checked = true;
   const emis = () => caja.querySelector('input[name="ec-em"]:checked').value==="igual" ? ed
@@ -2422,7 +2427,7 @@ $("rp-ec").onclick = async () => {
   caja.querySelectorAll("select,input").forEach(el => el.addEventListener("change", resumen)); caja.querySelectorAll("input").forEach(el => el.addEventListener("input", resumen)); resumen();
   const valido = () => { const e = armar(), st = $("ec-st"); if(!e.filas.length){ st.className = "status bad"; st.textContent = "No hay documentos con esos filtros."; return null; }
     if(!e.emisor.nombre){ st.className = "status bad"; st.textContent = "Falta el nombre del emisor."; return null; } return e; };
-  $("ec-prev").onclick = () => { const e = valido(); if(e) abrirPDF(PDFFAC.estadoCuenta(FAC_ASSETS, e)); };
+  $("ec-prev").onclick = () => { const e = valido(); if(e) abrirPDF(PDFFAC.estadoCuenta(FAC_ASSETS, {...e, preview:true})); };
   $("ec-zip").onclick = async () => {
     const e = valido(); if(!e) return; const st = $("ec-st"); $("ec-zip").disabled = true; st.className = "status"; st.textContent = "Preparando…";
     try{
