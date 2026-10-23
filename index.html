@@ -2357,9 +2357,16 @@ function excelEC(e){
     {}, {"Descripción": "Total facturado", "Monto": e.tot.monto}, {"Descripción": "Total cobrado", "Cobrado": e.tot.cobrado}, {"Descripción": "Saldo pendiente", "Saldo": e.tot.saldo}], [11,16,48,11,11,11,13,52,28]);
   // detalle: una fila por línea de cada documento, con todas las columnas que se usaron con este cliente.
   // Un consolidado se abre en las líneas de los recibos/facturas que incluye (con su descripción y columnas originales).
-  const incluidos = d => d.consolida && d.codigo ? todosFac().filter(o => o.consolidadoEn?.codigo===d.codigo && !o.anulado).sort((a,b) => String(a.numero).localeCompare(String(b.numero))) : [];
+  const incluidos = d => { if(!d.consolida) return [];
+    const t = todosFac().filter(o => !o.anulado && o !== d);
+    return d.consolida.map(c => t.find(o => (c.codigo && o.codigo===c.codigo)) || t.find(o => o.consolidadoEn?.codigo===d.codigo && o.numero===c.numero) || t.find(o => o.numero===c.numero && normCli(o.cliente)===normCli(d.cliente)))
+      .filter(Boolean).sort((a,b) => String(a.numero).localeCompare(String(b.numero))); };
+  // si no está el original, la línea del consolidado «Recibo 054 · descripción» se separa en sus columnas
+  const partirCons = it => { const m = String(it.desc||"").match(/^\s*((?:Recibo|Factura)\s+\S+)\s*[·\-–:]\s*([\s\S]*)$/); return m ? {de:m[1], it:{...it, desc:m[2]}} : null; };
   const partes = f => { if(f.d._k==="cot") return [{d:f.d, items:[{desc:`Cotización ${f.d.numero} (en cobro)`, total:f.monto}]}];
-    const inc = incluidos(f.d); return inc.length ? inc.map(o => ({d:o, items:o.items||[], de:`${o.tipo} ${o.numero}`})) : [{d:f.d, items:f.d.items||[]}]; };
+    const inc = incluidos(f.d); if(inc.length) return inc.map(o => ({d:o, items:o.items||[], de:`${o.tipo} ${o.numero}`}));
+    if(f.d.consolida) return (f.d.items||[]).map(it => { const q = partirCons(it); return q ? {d:f.d, items:[q.it], de:q.de} : {d:f.d, items:[it]}; });
+    return [{d:f.d, items:f.d.items||[]}]; };
   const extra = []; e.filas.forEach(f => partes(f).forEach(p => (p.d.cols||[]).forEach(c => { if(!extra.some(x => x.k===c.k)) extra.push(c); })));
   const hayCons = e.filas.some(f => partes(f).some(p => p.de));
   const det = []; e.filas.forEach(f => partes(f).forEach(p => p.items.forEach((it,i) => {
