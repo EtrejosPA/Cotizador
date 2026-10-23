@@ -1562,12 +1562,12 @@ function compartirPDF(bytes, nombre, titulo, st, texto, para){
   if(!texto || (!pc && !(navigator.canShare && navigator.share))) return compartirPDF_(bytes, nombre, titulo, st, texto);
   const {caja, cerrar} = modal(`<h2 style="margin-bottom:4px">📤 Compartir ${esc(nombre)}</h2><p class="hint" style="margin-bottom:12px">¿Por dónde lo vas a enviar?</p>
     <div class="fx-op"><button class="fx-op-b" data-app="wa"><span>💬</span><b>WhatsApp</b><small>${pc ? "se abre con el mensaje listo" : "firma en negrita"}</small></button>
-    <button class="fx-op-b" data-app="mail"><span>✉️</span><b>Correo</b><small>${para ? esc(para.length > 34 ? para.slice(0,32) + "…" : para) : "sin correo registrado"}</small></button>
-    <button class="fx-op-b" data-app="otra"><span>📨</span><b>Otra app</b><small>mensajes, etc.</small></button></div>
+    <button class="fx-op-b" data-app="otra"><span>📨</span><b>Correo u otra app</b><small>${para ? "para " + esc(para.length > 30 ? para.slice(0,28) + "…" : para) : "correo, mensajes, etc."}</small></button></div>
     <div class="actions" style="margin-top:12px"><button class="b-ghost" data-cerrar>Cancelar</button></div>`);
   caja.querySelectorAll("[data-app]").forEach(b => b.onclick = () => { cerrar();
     if(b.dataset.app==="wa") return pc ? compartirWAPC(bytes, nombre, st, texto) : compartirPDF_(bytes, nombre, titulo, st, texto);
-    if(b.dataset.app==="mail") return compartirMail(bytes, nombre, titulo, st, sinNegrita(texto), para, pc);
+    // correo u otra app: con correo registrado, en PC se abre el correo listo (Para, asunto y mensaje) y en celular los correos quedan copiados
+    if(para) return compartirMail(bytes, nombre, titulo, st, sinNegrita(texto), para, pc);
     compartirPDF_(bytes, nombre, titulo, st, sinNegrita(texto), pc); });
 }
 /* correo: «Para» con los correos del cliente, asunto y mensaje listos. En PC el PDF se descarga para arrastrarlo al correo;
