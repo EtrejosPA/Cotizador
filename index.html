@@ -2355,14 +2355,20 @@ function excelEC(e){
     XLSX.utils.book_append_sheet(wb, ws, nom); };
   hoja("Estado de cuenta", [...e.filas.map(f => ({"Fecha": PDFFAC.dmy(f.fecha), "Documento": f.doc, "Descripción": f.desc, "Monto": f.monto, "Cobrado": f.cobrado, "Saldo": f.saldo ?? "", "Estado": f.estado, "Ver en el portal": url(f.d), "Copia (en la carpeta Documentos)": archivoEC(f.d)})),
     {}, {"Descripción": "Total facturado", "Monto": e.tot.monto}, {"Descripción": "Total cobrado", "Cobrado": e.tot.cobrado}, {"Descripción": "Saldo pendiente", "Saldo": e.tot.saldo}], [11,16,48,11,11,11,13,52,28]);
-  // detalle: una fila por línea de cada documento, con todas las columnas que se usaron con este cliente
-  const extra = []; e.filas.forEach(f => (f.d.cols||[]).forEach(c => { if(!extra.some(x => x.k===c.k)) extra.push(c); }));
-  const det = []; e.filas.forEach(f => (f.d._k==="cot" ? [{desc:`Cotización ${f.d.numero} (en cobro)`, total:f.monto}] : (f.d.items||[])).forEach((it,i) => {
-    const o = {"Documento": f.doc, "Fecha del documento": PDFFAC.dmy(f.fecha), "Fila": i+1, "Descripción": String(it.desc||"").replace(/\n/g, " ")};
+  // detalle: una fila por línea de cada documento, con todas las columnas que se usaron con este cliente.
+  // Un consolidado se abre en las líneas de los recibos/facturas que incluye (con su descripción y columnas originales).
+  const incluidos = d => d.consolida && d.codigo ? todosFac().filter(o => o.consolidadoEn?.codigo===d.codigo && !o.anulado).sort((a,b) => String(a.numero).localeCompare(String(b.numero))) : [];
+  const partes = f => { if(f.d._k==="cot") return [{d:f.d, items:[{desc:`Cotización ${f.d.numero} (en cobro)`, total:f.monto}]}];
+    const inc = incluidos(f.d); return inc.length ? inc.map(o => ({d:o, items:o.items||[], de:`${o.tipo} ${o.numero}`})) : [{d:f.d, items:f.d.items||[]}]; };
+  const extra = []; e.filas.forEach(f => partes(f).forEach(p => (p.d.cols||[]).forEach(c => { if(!extra.some(x => x.k===c.k)) extra.push(c); })));
+  const hayCons = e.filas.some(f => partes(f).some(p => p.de));
+  const det = []; e.filas.forEach(f => partes(f).forEach(p => p.items.forEach((it,i) => {
+    const o = {"Documento": f.doc, ...(hayCons ? {"Incluye": p.de || ""} : {}), "Fecha del documento": PDFFAC.dmy(p.d.fecha || f.fecha), "Fila": i+1, "Descripción": String(it.desc||"").replace(/\n/g, " ")};
     extra.forEach(c => o[c.t] = c.tipo==="fecha" && it[c.k] ? PDFFAC.dmy(it[c.k]) : (it[c.k] ?? ""));
-    Object.assign(o, {"Cantidad": it.cant ?? "", "Precio unitario": it.precio ?? "", "Total": it.total ?? "", "Evidencia fotográfica": f.d._k==="cot" ? "" : enlacesFotos(f.d, i).join("  "), "Anexos": f.d._k==="cot" ? "" : enlaceDocs(f.d, i)});
-    det.push(o); }));
-  hoja("Detalle", det);
+    Object.assign(o, {"Cantidad": it.cant ?? "", "Precio unitario": it.precio ?? "", "Total": it.total ?? "", "Evidencia fotográfica": p.d._k==="cot" ? "" : enlacesFotos(p.d, i).join("  "), "Anexos": p.d._k==="cot" ? "" : enlaceDocs(p.d, i)});
+    det.push(o); })));
+  const anchoDet = det.length ? Object.keys(det[0]).map(k => k==="Descripción" ? 48 : /Evidencia|Anexos/.test(k) ? 40 : Math.min(30, Math.max(k.length, ...det.map(o => String(o[k]??"").length)) + 2)) : null;
+  hoja("Detalle", det, anchoDet);
   const ab = []; e.filas.forEach(f => (f.d.cobro?.abonos||[]).forEach(a => ab.push({"Documento": f.doc, "Fecha": PDFFAC.dmy(a.fecha), "Monto": a.monto, "Método": a.metodo||"", "Nota": a.nota||""})));
   hoja("Abonos", ab, [16,11,11,16,30]);
   hoja("Cliente", [{"Cliente": e.cliente, "CIP/RUC": e.ruc||"", "Email": e.email||"", "Dirección": e.direccion||"", "Teléfono": e.telefono||"", "Fecha de corte": PDFFAC.dmy(e.corte), "Período": e.periodo}], [30,20,26,36,14,12,24]);
