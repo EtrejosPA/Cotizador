@@ -2373,7 +2373,8 @@ function excelEC(e){
     const inc = incluidos(f.d); if(inc.length) return inc.map(o => ({d:o, items:o.items||[], de:`${o.tipo} ${o.numero}`}));
     if(f.d.consolida) return (f.d.items||[]).map(it => { const q = partirCons(it); return q ? {d:f.d, items:[q.it], de:q.de} : {d:f.d, items:[it]}; });
     return [{d:f.d, items:f.d.items||[]}]; };
-  const extra = []; e.filas.forEach(f => partes(f).forEach(p => (p.d.cols||[]).forEach(c => { if(!extra.some(x => x.k===c.k)) extra.push(c); })));
+  // columnas: las que declara cada documento + las que traen sus líneas con datos (sin columnas vacías de la configuración)
+  const extra = []; e.filas.forEach(f => partes(f).forEach(p => colsDe(p.items, Array.isArray(p.d.cols) ? colsDe([], p.d.cols) : []).forEach(c => { if(!["desc","cant","precio","total","docs","fotos","_auto"].includes(c.k) && !extra.some(x => x.k===c.k)) extra.push(c); })));
   const hayCons = e.filas.some(f => partes(f).some(p => p.de));
   const det = []; e.filas.forEach(f => partes(f).forEach(p => p.items.forEach((it,i) => {
     const o = {"Documento": f.doc, ...(hayCons ? {"Incluye": p.de || ""} : {}), "Fecha del documento": PDFFAC.dmy(p.d.fecha || f.fecha), "Fila": i+1, "Descripción": String(it.desc||"").replace(/\n/g, " ")};
