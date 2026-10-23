@@ -104,6 +104,7 @@
   .ff-docs{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:6px}.ff-docs:empty{display:none}
   .fd-it{position:relative;display:flex;max-width:100%}.fd-ver{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #CBD3DF;border-radius:8px;padding:7px 30px 7px 10px;color:var(--navy);font-size:13px;font-weight:600;text-align:left;max-width:100%;white-space:nowrap}
   .fd-ver span{overflow:hidden;text-overflow:ellipsis;min-width:0}.fd-ver small{color:var(--muted);font-weight:500;flex:none}.fd-it .ff-x{top:50%;right:4px;margin-top:-11px}
+  .row .ffotos{grid-column:1/-1}
   .ffotos.ff-sobre{background:#FFF8E8;outline:2px dashed var(--orange);outline-offset:4px;border-radius:8px}
   @media (hover:none), (pointer:coarse){ .ff-drop{display:none} }
   #tirar{position:fixed;top:0;left:0;right:0;height:0;background:#fff;z-index:31;display:flex;align-items:center;justify-content:center;overflow:hidden;pointer-events:none}
@@ -815,14 +816,28 @@ const PDFCOT = (() => {
     while(out.length && !out[out.length-1].t) out.pop();
     return out.length ? out : [{t:"", st:"normal"}];
   }
-  function rowsBlock(doc, A, d, titulo, items, labor, y){
+  // «Evidencia fotográfica: 2 imágenes» / «Anexos: 3 archivos» al final de la descripción, con enlace a esa fila en el portal
+  function anexLines(it, d, fila){
+    if(!d.url) return [];
+    const L = [];
+    if(it.fotos?.length) L.push({t:"Evidencia fotográfica: ", st:"bold", link:{t: it.fotos.length + (it.fotos.length===1 ? " imagen" : " imágenes"), url: d.url + "&f=" + fila + "&i=1"}});
+    if(it.docs?.length) L.push({t:"Anexos: ", st:"bold", link:{t: it.docs.length + (it.docs.length===1 ? " archivo" : " archivos"), url: d.url + "&f=" + fila + "&d=1"}});
+    return L;
+  }
+  function rowsBlock(doc, A, d, titulo, items, labor, y, base=1){
     const minAfter = labor ? 120 : 80;
     items.forEach((it, i) => {
-      const lines = descLines(doc, it.desc, labor);
+      const anex = anexLines(it, d, base + i);
+      let lines = descLines(doc, it.desc, labor);
+      if(anex.length && !String(it.desc||"").trim()) lines = [];   // sin descripción: solo los enlaces
+      lines = lines.concat(anex);
       const h = Math.max(17.6, lines.length*LH + 0.8);
       if(y + h > BOT - minAfter){ footer(doc, A); doc.addPage(); y = header(doc, A, d, titulo); }
       const top = y + Math.max(1.6, (h - lines.length*LH)/2 + 1.3);
-      lines.forEach((ln, k) => { if(ln.t) T(doc, ln.t, 112.8, top + k*LH, {st:ln.st}); });
+      lines.forEach((ln, k) => { if(!ln.t) return; const yy = top + k*LH; T(doc, ln.t, 112.8, yy, {st:ln.st, c: ln.link ? C.navy : C.black});
+        if(ln.link){ const x = 112.8 + W(doc, ln.t, "bold", 8), w = W(doc, ln.link.t, "normal", 8);
+          T(doc, ln.link.t, x, yy, {c:[30,79,184]}); doc.setDrawColor(30,79,184); doc.setLineWidth(0.4); doc.line(x, yy + 7.6, x + w, yy + 7.6);
+          doc.link(x - 1, yy - 1, w + 2, LH, {url: ln.link.url}); } });
       const mid = y + h/2 - 3.9;
       T(doc, String(i+1), CENT[0], mid, {al:"center"});
       T(doc, fmtCant(it.cant), CENT[2], mid, {al:"center"});
@@ -857,7 +872,7 @@ const PDFCOT = (() => {
   function hojaManoObra(doc, A, d){
     const tit = "COTIZACIÓN DE MANO DE OBRA";
     let y = header(doc, A, d, tit);
-    y = rowsBlock(doc, A, d, tit, d.manoObra, true, y);
+    y = rowsBlock(doc, A, d, tit, d.manoObra, true, y, 101);
     R(doc, 52, y, 507.2, 23.2, C.navy);
     T(doc, "SUB-TOTAL:", 457.1, y + 8.1, {st:"bold", c:C.white, al:"right"});
     T(doc, money(d.tot.moSub), CENT[4], y + 8.3, {st:"bold", sz:8.8, c:C.white, al:"center"});
@@ -1281,6 +1296,7 @@ function rowHTML(kind, it={}){
     <div><span class="lbl">Precio unit.</span><input type="number" inputmode="decimal" class="in f-precio" step="any" min="0" value="${it.precio??""}"></div>
     <div class="tot"></div>
     <button class="b-x" title="Quitar fila">×</button>`;
+  bloqueAnexos(div, calc);
   div.querySelector(".b-x").onclick = () => { div.remove(); if(!$(`rows-${kind}`).children.length) addRow(kind); calc(); };
   div.querySelectorAll("input,textarea").forEach(el => el.addEventListener("input", calc));
   const ta = div.querySelector("textarea"); const fit = () => { ta.style.height="auto"; ta.style.height = (ta.scrollHeight+2)+"px"; };
@@ -1293,8 +1309,8 @@ function leerItems(kind){
   return [...$(`rows-${kind}`).children].map(r => ({
     desc: r.querySelector(".f-desc").value.trim(),
     cant: r.querySelector(".f-cant").value === "" ? null : Number(r.querySelector(".f-cant").value),
-    precio: r.querySelector(".f-precio").value === "" ? null : Number(r.querySelector(".f-precio").value)
-  })).filter(it => it.desc || it.cant!=null || it.precio!=null);
+    precio: r.querySelector(".f-precio").value === "" ? null : Number(r.querySelector(".f-precio").value), ...anexosDe(r)
+  })).filter(it => it.desc || it.cant!=null || it.precio!=null || it.fotos || it.docs);
 }
 function totales(mat, mo, incMat, incMO){
   const s = a => a.reduce((t,it) => t + (it.cant||0)*(it.precio||0), 0);
@@ -1349,8 +1365,8 @@ function cargar(c, modo){   // modo: "editar" | "duplicar"
   $("f-cliente").value = c.cliente; $("f-ruc").value = c.ruc||""; $("f-email").value = c.email||""; $("f-dur").value = c.duracion||"3 - 5 horas";
   $("inc-mat").checked = c.incMat; $("inc-mo").checked = c.incMO;
   $("rows-mat").innerHTML=""; $("rows-mo").innerHTML="";
-  (c.materiales.length ? c.materiales : [{}]).forEach(it => addRow("mat", it));
-  (c.manoObra.length ? c.manoObra : [{}]).forEach(it => addRow("mo", it));
+  (c.materiales.length ? c.materiales : [{}]).forEach(it => { addRow("mat", it); if(modo==="editar") ponerAnexos($("rows-mat").lastChild, it, c.codigo); });
+  (c.manoObra.length ? c.manoObra : [{}]).forEach(it => { addRow("mo", it); if(modo==="editar") ponerAnexos($("rows-mo").lastChild, it, c.codigo); });
   $("f-fecha-opt").classList.toggle("hidden", modo!=="editar"); $("f-hoy").checked=false;
   $("form-title").firstChild.textContent = modo==="editar" ? "Corregir cotización " : "Nueva cotización (copia) ";
   $("form-badge").textContent = modo==="editar" ? c.numero : "copia de " + c.numero;
@@ -1405,7 +1421,8 @@ $("btn-emit").onclick = async () => {
   let c; try{ c = armar(); }catch(e){ st.className="status bad"; st.textContent = e.message; return; }
   $("btn-emit").disabled = true;
   try{
-    st.className="status"; st.textContent="Generando PDF…";
+    st.className="status"; await subirFotos(c.codigo, st, [...(c.incMat ? $("rows-mat").children : []), ...(c.incMO ? $("rows-mo").children : [])]);
+    st.textContent="Generando PDF…";
     const pdf = new Uint8Array(pdfDe(c).output("arraybuffer"));
     st.textContent="Publicando en el portal de validación…";
     const k = await clavesPortal(c.codigo);
@@ -1415,7 +1432,7 @@ $("btn-emit").onclick = async () => {
     const ep = await cifrar(k.key, pdf); const bin = new Uint8Array(12+ep.ct.length); bin.set(ep.iv,0); bin.set(ep.ct,12);
     await ghPut(CFG.repoVal, pp, bin, shaP, `Publicar PDF · Cotización ${c.numero}`);
     const portal = { tipo:"Cotización", numero:c.numero, cliente:c.cliente, ruc:c.ruc||undefined, fecha:c.fecha, validoHasta:c.validoHasta,
-      desglose:[...(c.incMat?[["Materiales (con ITBMS)", r2(c.tot.matTotal)]]:[]), ...(c.incMO?[["Mano de obra", r2(c.tot.moSub)]]:[])], total:c.total, pdf:true };
+      desglose:[...(c.incMat?[["Materiales (con ITBMS)", r2(c.tot.matTotal)]]:[]), ...(c.incMO?[["Mano de obra", r2(c.tot.moSub)]]:[])], total:c.total, pdf:true, ...anexosCotPortal(c) };
     const ej = await cifrar(k.key, te.encode(JSON.stringify(portal)));
     await ghPut(CFG.repoVal, pj, te.encode(JSON.stringify({iv:b64(ej.iv), ct:b64(ej.ct)})), shaJ, `Publicar datos · Cotización ${c.numero}`);
     st.textContent="Guardando en el historial…";
@@ -1687,6 +1704,28 @@ function pedirFacturar(c){
     <div class="actions" style="margin-top:12px"><button class="b-ghost" data-cerrar>Cancelar</button></div>`);
   caja.querySelectorAll(".fx-op-b").forEach(b => b.onclick = () => { cerrar(); facturarCot(c, b.dataset.t); });
 }
+/* pasar al recibo las fotos y anexos de la cotización: los de mano de obra a su fila, los de materiales a la fila de materiales
+   (si esa fila no está, a la primera fila). Se vuelven a cifrar con el código del recibo al emitir. */
+let FPED_ANEX = null;   // código de la cotización cuyos anexos se pasan al recibo
+const anexosCot = c => filasCotAnex(c).reduce((a,x) => ({f: a.f + (x.it.fotos?.length||0), d: a.d + (x.it.docs?.length||0)}), {f:0, d:0});
+function pasarAnexos(c){
+  const rows = [...$("fx-rows").children]; if(!rows.length) return;
+  rows.forEach(r => { r._fotos = (r._fotos||[]).filter(f => f.src!==c.codigo); r._docs = (r._docs||[]).filter(x => x.src!==c.codigo); });
+  const mo = rows.filter(r => r.dataset.auto==="mo"), mat = rows.filter(r => r.dataset.auto==="mat");
+  if(c.incMO) (c.manoObra||[]).forEach((it,j) => ponerAnexos(mo[j] || mo[mo.length-1] || rows[0], it, null, c.codigo));
+  if(c.incMat) (c.materiales||[]).forEach(it => ponerAnexos(mat[0] || rows[0], it, null, c.codigo));
+  rows.forEach(r => pintarFotos(r, FEDIT?.codigo));
+}
+const reAnexar = () => { if(FPED_ANEX && FPEDS.length===1 && FPEDS[0].codigo===FPED_ANEX) pasarAnexos(FPEDS[0]); };
+function preguntarAnexos(c){
+  const n = anexosCot(c); if(!n.f && !n.d) return;
+  const que = [n.f ? `${n.f} ${n.f===1 ? "foto" : "fotos"}` : "", n.d ? `${n.d} ${n.d===1 ? "archivo" : "archivos"}` : ""].filter(Boolean).join(" y ");
+  const {caja, cerrar} = modal(`<h2 style="margin-bottom:6px">📎 ¿Pasar los anexos ${fTipo()==="Factura" ? "a la factura" : "al recibo"}?</h2>
+    <p class="hint">La cotización <b>${esc(c.numero)}</b> tiene ${que}. Si los pasas, saldrán en este documento (en el PDF y en el portal), cada uno en su fila. Lo que agregues después se suma.</p>
+    <div class="actions" style="margin-top:14px"><button class="b-ghost" data-cerrar>No, solo el detalle</button><button class="b-navy" id="an-pasar">Sí, pasar anexos</button></div>`);
+  caja.querySelector("#an-pasar").onclick = () => { cerrar(); FPED_ANEX = c.codigo; pasarAnexos(c); fCalc();
+    $("fx-status").className = "status ok"; $("fx-status").textContent += ` · Anexos de la cotización agregados (${que}).`; };
+}
 function facturarCot(c, tipo){
   fNueva(); show("fac");
   const r = document.querySelector(`input[name="fx-tipo"][value="${tipo}"]`); r.checked = true; r.dispatchEvent(new Event("change", {bubbles:true}));
@@ -1694,6 +1733,7 @@ function facturarCot(c, tipo){
   $("fx-pedido").value = c.numero;
   fEnlazar(c);
   $("fx-status").className = "status ok"; $("fx-status").textContent = `✓ ${tipo} ${tipo==="Factura" ? "preparada" : "preparado"} desde la cotización ${c.numero}. Revisa y pulsa «Emitir y publicar».`;
+  setTimeout(() => preguntarAnexos(c), 450);
   setTimeout(() => { const el = $("fx-rows"); if(el) el.scrollIntoView({behavior:"smooth", block:"center"}); }, 350);
 }
 
@@ -1983,7 +2023,7 @@ async function agregarFotos(div, files){
     const e = extDe(f.name) || Object.keys(DOC_TIPOS).find(k => DOC_TIPOS[k]===f.type) || "pdf";
     div._docs.push({id:idFoto(), nombre: f.name || ("documento." + e), tipo: DOC_TIPOS[e] || f.type || "application/octet-stream", tam:f.size, blob:f});
   }
-  st.textContent = aviso; pintarFotos(div); fCalc();
+  st.textContent = aviso; pintarFotos(div); (div._cambio || fCalc)();
 }
 const DOCCACHE = {};
 async function docPortal(codigo, x){   // trae y descifra un documento ya publicado
@@ -1998,9 +2038,10 @@ async function abrirDoc(x, codigo){
   const a = document.createElement("a"); a.href = u; a.download = x.nombre; document.body.appendChild(a); a.click(); a.remove();
 }
 document.addEventListener("paste", e => {   // pegar fotos con Ctrl+V en la fila activa de Facturación
-  if($("sec-fac").classList.contains("hidden")) return;
+  const enFac = !$("sec-fac").classList.contains("hidden"), enCot = !$("sec-form").classList.contains("hidden"); if(!enFac && !enCot) return;
   const fs = [...(e.clipboardData?.files || [])].filter(f => esImg(f) || esDoc(f)); if(!fs.length) return;
-  const filas = [...$("fx-rows").children], div = filas.includes(FILA_ACT) ? FILA_ACT : filas[filas.length-1]; if(!div) return;
+  const filas = enFac ? [...$("fx-rows").children] : [...$("rows-mat").children, ...$("rows-mo").children];
+  const div = filas.includes(FILA_ACT) ? FILA_ACT : filas[filas.length-1]; if(!div) return;
   e.preventDefault(); agregarFotos(div, fs.map((f,i) => new File([f], f.name && f.name!=="image.png" ? f.name : `pegada_${Date.now()}_${i}.png`, {type:f.type})));
 });
 /* renombrar una columna tocando su título (queda guardado para los documentos nuevos) */
@@ -2024,27 +2065,54 @@ document.addEventListener("click", e => {
 function pintarFotos(r, codigo){
   const dl = r.querySelector(".ff-docs"); if(dl){
     dl.innerHTML = (r._docs||[]).map(x => `<div class="fd-it" data-id="${x.id}"><button type="button" class="fd-ver" title="Abrir">${iconoDoc(extDe(x.nombre))} <span>${esc(x.nombre)}</span> <small>${pesoTxt(x.tam||0)}</small></button><button type="button" class="ff-x fd-x" title="Quitar documento">×</button></div>`).join("");
-    dl.querySelectorAll(".fd-x").forEach(b => b.onclick = () => { const id = b.closest(".fd-it").dataset.id; r._docs = r._docs.filter(x => x.id!==id); pintarFotos(r, codigo); fCalc(); });
-    dl.querySelectorAll(".fd-ver").forEach(b => b.onclick = () => { const x = r._docs.find(y => y.id===b.closest(".fd-it").dataset.id); abrirDoc(x, codigo || FEDIT?.codigo).catch(e => r.querySelector(".ff-st").textContent = "No se pudo abrir: " + e.message); });
+    dl.querySelectorAll(".fd-x").forEach(b => b.onclick = () => { const id = b.closest(".fd-it").dataset.id; r._docs = r._docs.filter(x => x.id!==id); pintarFotos(r, codigo); (r._cambio || fCalc)(); });
+    dl.querySelectorAll(".fd-ver").forEach(b => b.onclick = () => { const x = r._docs.find(y => y.id===b.closest(".fd-it").dataset.id); abrirDoc(x, x.src || codigo || FEDIT?.codigo).catch(e => r.querySelector(".ff-st").textContent = "No se pudo abrir: " + e.message); });
   }
   const list = r.querySelector(".ff-list"); if(!list) return;
   list.innerHTML = r._fotos.map((f,j) => `<div class="ff-it" data-id="${f.id}"><img alt="${etiquetaFoto(j)}"${f.url ? ` src="${f.url}"` : ""}><span>${etiquetaFoto(j)}</span><button type="button" class="ff-x" title="Quitar foto">×</button></div>`).join("");
-  list.querySelectorAll(".ff-x").forEach(b => b.onclick = () => { const id = b.closest(".ff-it").dataset.id; r._fotos = r._fotos.filter(f => f.id!==id); pintarFotos(r, codigo); fCalc(); });
-  list.querySelectorAll(".ff-it img").forEach((img, j) => { const f = r._fotos[j]; if(!f.url && codigo) fotoPortal(codigo, f.id).then(u => { f.url = u; img.src = u; }).catch(() => img.alt = "sin vista"); });
+  list.querySelectorAll(".ff-x").forEach(b => b.onclick = () => { const id = b.closest(".ff-it").dataset.id; r._fotos = r._fotos.filter(f => f.id!==id); pintarFotos(r, codigo); (r._cambio || fCalc)(); });
+  list.querySelectorAll(".ff-it img").forEach((img, j) => { const f = r._fotos[j]; if(!f.url && (f.src || codigo)) fotoPortal(f.src || codigo, f.id).then(u => { f.url = u; img.src = u; }).catch(() => img.alt = "sin vista"); });
 }
-async function subirFotos(codigo, st){   // publica en el portal (cifrados) las fotos y documentos nuevos de todas las filas
-  const filas = [...$("fx-rows").children];
-  const pend = [...filas.flatMap(r => (r._fotos||[]).filter(f => f.blob && !f.subido).map(f => ({f, que:"Evidencia fotográfica"}))),
-                ...filas.flatMap(r => (r._docs||[]).filter(f => f.blob && !f.subido).map(f => ({f, que:"Documento anexo"})))];
+async function subirFotos(codigo, st, filas = [...$("fx-rows").children]){   // publica en el portal (cifrados) las fotos y documentos nuevos de las filas
+  const pend = [...filas.flatMap(r => (r._fotos||[]).filter(f => (f.blob || f.src) && !f.subido).map(f => ({f, que:"Evidencia fotográfica"}))),
+                ...filas.flatMap(r => (r._docs||[]).filter(f => (f.blob || f.src) && !f.subido).map(f => ({f, que:"Documento anexo"})))];
   if(!pend.length) return; const k = await clavesPortal(codigo);
   for(let i=0;i<pend.length;i++){ const {f, que} = pend[i]; st.textContent = `Subiendo ${que.toLowerCase()} ${i+1} de ${pend.length}…`;
+    if(!f.blob && f.src) f.blob = que==="Documento anexo" ? await docPortal(f.src, f) : await (await fetch(await fotoPortal(f.src, f.id))).blob();   // viene de la cotización: se vuelve a cifrar con la clave de este documento
     const e = await cifrar(k.key, new Uint8Array(await f.blob.arrayBuffer())); const bin = new Uint8Array(12+e.ct.length); bin.set(e.iv,0); bin.set(e.ct,12);
     await ghPut(CFG.repoVal, `data/${k.id}-${f.id}.bin`, bin, null, `${que} · ${codigo.split("-")[0]}`); f.subido = true; }
+}
+/* cotización: filas de materiales 1, 2… y de mano de obra 101, 102… (así cada enlace del PDF abre su fila en el portal) */
+const filasCotAnex = c => [...(c.incMat ? c.materiales : []).map((it,i) => ({it, fila:i+1, etq:`Materiales · fila ${i+1}`})), ...(c.incMO ? c.manoObra : []).map((it,i) => ({it, fila:101+i, etq:`Mano de obra · fila ${i+1}`}))];
+function anexosCotPortal(c){
+  const L = filasCotAnex(c), desc = it => String(it.desc||"").split("\n")[0].slice(0,120);
+  const fotos = L.filter(x => x.it.fotos?.length).map(x => ({fila:x.fila, etq:x.etq, desc:desc(x.it), ids:x.it.fotos}));
+  const docs = L.filter(x => x.it.docs?.length).map(x => ({fila:x.fila, etq:x.etq, desc:desc(x.it), archivos:x.it.docs.map(({id,nombre,tipo,tam}) => ({id,nombre,tipo,tam}))}));
+  return {...(fotos.length ? {fotos} : {}), ...(docs.length ? {docs} : {})};
 }
 const docsPortal = d => d.items.map((it,i) => it.docs?.length ? {fila:i+1, desc:String(it.desc||"").split("\n")[0].slice(0,120), archivos:it.docs.map(({id,nombre,tipo,tam}) => ({id,nombre,tipo,tam}))} : null).filter(Boolean);
 const enlaceDocs = (d, i) => (d.items[i]?.docs||[]).length ? `${fUrl(d)}&f=${i+1}&d=1` : "";
 const fotosPortal = d => d.items.map((it,i) => it.fotos?.length ? {fila:i+1, desc:String(it.desc||"").split("\n")[0].slice(0,120), ids:it.fotos} : null).filter(Boolean);
 const enlacesFotos = (d, i) => (d.items[i]?.fotos||[]).length ? [`${fUrl(d)}&f=${i+1}&i=1`] : [];   // un enlace al carrusel de la fila
+function bloqueAnexos(div, cambio){   // fotos y documentos de una fila (recibos/facturas y cotizaciones)
+  const ff = document.createElement("div"); ff.className = "ffotos";
+  ff.innerHTML = `<span class="lbl2">Evidencia fotográfica y anexos</span><div class="ff-list"></div><div class="ff-docs"></div>
+    <div class="ff-btns"><label class="b-ghost b-sm ff-b">📎 Galería o archivo<input type="file" accept="${ACEPTA}" multiple></label>
+    <span class="ff-drop">o arrastra aquí fotos, PDF, Word o Excel · también puedes pegarlos (Ctrl+V)</span><span class="hint ff-st"></span></div>`;
+  div.appendChild(ff); div._fotos = []; div._docs = []; div._cambio = cambio;
+  const finp = ff.querySelector("input[type=file]");
+  finp.onchange = () => { const fs = [...finp.files]; finp.value = ""; agregarFotos(div, fs); };
+  ff.addEventListener("dragover", e => { if([...e.dataTransfer.items].some(i => i.kind==="file")){ e.preventDefault(); ff.classList.add("ff-sobre"); } });
+  ff.addEventListener("dragleave", e => { if(!ff.contains(e.relatedTarget)) ff.classList.remove("ff-sobre"); });
+  ff.addEventListener("drop", e => { e.preventDefault(); ff.classList.remove("ff-sobre"); agregarFotos(div, [...e.dataTransfer.files]); });
+  div.addEventListener("pointerdown", () => FILA_ACT = div); div.addEventListener("focusin", () => FILA_ACT = div);
+}
+const anexosDe = r => ({...(r._fotos?.length ? {fotos: r._fotos.map(f => f.id)} : {}), ...(r._docs?.length ? {docs: r._docs.map(({id,nombre,tipo,tam}) => ({id,nombre,tipo,tam}))} : {})});
+function ponerAnexos(r, it, codigo, src){   // al corregir (codigo) o al pasar los de una cotización a un recibo (src = código de la cotización)
+  r._fotos.push(...(it?.fotos||[]).filter(id => !r._fotos.some(f => f.id===id)).map(id => ({id, ...(src ? {src} : {subido:true})})));
+  r._docs.push(...(it?.docs||[]).filter(x => !r._docs.some(y => y.id===x.id)).map(x => ({...x, ...(src ? {src} : {subido:true})})));
+  pintarFotos(r, codigo);
+}
 function fRow(it={}){
   const div = document.createElement("div"); div.className = "frow";
   div.innerHTML = `<div class="frow-h"><b class="fn"></b><button class="b-x" title="Quitar fila">×</button></div>
@@ -2058,17 +2126,7 @@ function fRow(it={}){
       <div><span class="lbl2">Precio unitario</span><input type="number" inputmode="decimal" step="any" min="0" class="in fx-precio" value="${it.precio??""}"></div>
       <div><span class="lbl2">Total</span><input type="number" inputmode="decimal" step="any" min="0" class="in fx-tot" value="${it.precio==null||it.precio==="" ? (it.total??"") : ""}"></div>
     </div>`;
-  const ff = document.createElement("div"); ff.className = "ffotos";
-  ff.innerHTML = `<span class="lbl2">Evidencia fotográfica y anexos</span><div class="ff-list"></div><div class="ff-docs"></div>
-    <div class="ff-btns"><label class="b-ghost b-sm ff-b">📎 Galería o archivo<input type="file" accept="${ACEPTA}" multiple></label>
-    <span class="ff-drop">o arrastra aquí fotos, PDF, Word o Excel · también puedes pegarlos (Ctrl+V)</span><span class="hint ff-st"></span></div>`;
-  div.appendChild(ff); div._fotos = []; div._docs = [];
-  const finp = ff.querySelector("input[type=file]");
-  finp.onchange = () => { const fs = [...finp.files]; finp.value = ""; agregarFotos(div, fs); };
-  ff.addEventListener("dragover", e => { if([...e.dataTransfer.items].some(i => i.kind==="file")){ e.preventDefault(); ff.classList.add("ff-sobre"); } });
-  ff.addEventListener("dragleave", e => { if(!ff.contains(e.relatedTarget)) ff.classList.remove("ff-sobre"); });
-  ff.addEventListener("drop", e => { e.preventDefault(); ff.classList.remove("ff-sobre"); agregarFotos(div, [...e.dataTransfer.files]); });
-  div.addEventListener("pointerdown", () => FILA_ACT = div); div.addEventListener("focusin", () => FILA_ACT = div);
+  bloqueAnexos(div, fCalc);
   div.querySelector(".b-x").onclick = () => { div.remove(); if(!$("fx-rows").children.length) fAdd(); fCalc(); };
   div.querySelectorAll("input,textarea").forEach(el => el.addEventListener("input", fCalc));
   div.querySelectorAll("textarea").forEach(ta => { const fit = () => { ta.style.height="auto"; ta.style.height=(ta.scrollHeight+2)+"px"; }; ta.addEventListener("input", fit); requestAnimationFrame(fit); });
@@ -2112,7 +2170,7 @@ $("fx-btn-ultimo").onclick = async () => {
 function fNueva(){
   FEDIT = null; $("fx-title").firstChild.textContent = "Nuevo recibo / factura "; $("fx-badge").textContent = "";
   ["fx-cliente","fx-ruc","fx-email","fx-dir","fx-tel","fx-pedido"].forEach(id => { $(id).value = ""; delete $(id).dataset.auto; }); $("fx-dias").value = 3;
-  $("fx-ped-igual").checked = true; $("fx-ped-box").classList.add("hidden"); $("fx-ped-mo").checked = true; $("fx-ped-mat").checked = false; FPED = null; FPEDS = []; FPED_ERR = null; FPED_VARIAS = false; $("fx-ped-info").textContent = ""; $("fx-ped-opts").classList.add("hidden"); $("fx-ped-old").classList.add("hidden"); $("fx-old-code").value = "";
+  $("fx-ped-igual").checked = true; $("fx-ped-box").classList.add("hidden"); $("fx-ped-mo").checked = true; $("fx-ped-mat").checked = false; FPED_ANEX = null; FPED = null; FPEDS = []; FPED_ERR = null; FPED_VARIAS = false; $("fx-ped-info").textContent = ""; $("fx-ped-opts").classList.add("hidden"); $("fx-ped-old").classList.add("hidden"); $("fx-old-code").value = "";
   document.querySelector('input[name="fx-tipo"][value="Recibo"]').checked = true;
   document.querySelectorAll('input[name="fx-tipo"]').forEach(r => r.disabled = false);
   $("fx-pago").checked = true; $("fx-pie").checked = true; $("fx-xml").checked = false;
@@ -2534,6 +2592,7 @@ function fEnlazar(arg, regen=true, R=null){
     ponerAuto("mo", $("fx-ped-mo").checked ? cs.flatMap(filasMO) : []);
     ponerAuto("mat", $("fx-ped-mat").checked ? filaMatN(cs) : []);
     if(!$("fx-rows").children.length) fAdd();
+    reAnexar();
     [["fx-cliente", c.cliente], ["fx-ruc", c.ruc||""], ["fx-email", c.email||""]].forEach(([id, val]) => {
       if(!$(id).value.trim() || $(id).dataset.auto){ $(id).value = val; $(id).dataset.auto = "1"; }
     });
@@ -2549,8 +2608,8 @@ $("fx-ped-igual").onchange = () => {
 let FPED_T = null;
 $("fx-pedido").addEventListener("input", () => { clearTimeout(FPED_T); FPED_T = setTimeout(() => aplicarPedido(), 250); });
 $("fx-pedido").addEventListener("blur", () => { const cs = codsCot($("fx-pedido").value); if(cs.length) $("fx-pedido").value = cs.join(", "); });
-$("fx-ped-mo").onchange = () => { if(FPED){ ponerAuto("mo", $("fx-ped-mo").checked ? FPEDS.flatMap(filasMO) : []); if(!$("fx-rows").children.length) fAdd(); fCalc(); } };
-$("fx-ped-mat").onchange = () => { if(FPED){ ponerAuto("mat", $("fx-ped-mat").checked ? filaMatN(FPEDS) : []); if(!$("fx-rows").children.length) fAdd(); fCalc(); } };
+$("fx-ped-mo").onchange = () => { if(FPED){ ponerAuto("mo", $("fx-ped-mo").checked ? FPEDS.flatMap(filasMO) : []); if(!$("fx-rows").children.length) fAdd(); reAnexar(); fCalc(); } };
+$("fx-ped-mat").onchange = () => { if(FPED){ ponerAuto("mat", $("fx-ped-mat").checked ? filaMatN(FPEDS) : []); if(!$("fx-rows").children.length) fAdd(); reAnexar(); fCalc(); } };
 ["fx-cliente","fx-ruc","fx-email"].forEach(id => $(id).addEventListener("input", () => delete $(id).dataset.auto));
 
 $("fx-old-xl").onclick = () => { $("fx-old-file").value = ""; $("fx-old-file").click(); };
