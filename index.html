@@ -230,6 +230,7 @@
   .p-ok{background:var(--green-bg);color:var(--green)}.p-warn{background:var(--amber-bg);color:var(--amber)}.p-blue{background:var(--blue-bg);color:var(--blue)}
   /* historial */
   .htools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+  .b-inf{background:var(--orange);color:var(--navy);border:1px solid var(--orange)}
   .htools input{flex:1;min-width:200px}
   table.h{width:100%;border-collapse:collapse;font-size:14px}
   table.h th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--muted);padding:8px;border-bottom:2px solid var(--line);cursor:pointer;white-space:nowrap}
@@ -285,6 +286,7 @@
     table.h td[colspan]{grid-column:1/-1;text-align:center}
     .htools > input{flex:1 1 100%}
     .htools > button{flex:1 1 calc(50% - 5px);white-space:normal;padding:9px 8px;font-size:13px}
+    .htools > #h-inf{flex:0 1 auto;margin:0 auto;padding:10px 18px}   /* celular: abajo, centrado entre las dos columnas */
     table.h td .acts{justify-content:flex-start}
     table.cx tr{grid-template-columns:1fr 1fr;gap:2px 10px;padding:10px 0}
     table.cx td[data-l]::before{content:attr(data-l);display:block;font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--muted);margin-bottom:1px}
@@ -673,13 +675,17 @@
       <button class="b-ghost" id="h-pdf" title="Agrega al sistema una cotización, recibo o factura hecha en Excel y exportada a PDF">📥 Incorporar PDF</button>
       <button class="b-ghost" id="h-import">Importar desde Excel</button>
       <button class="b-navy" id="h-export">Exportar a Excel</button>
+      <button class="b-inf" id="h-inf" title="Publica en el portal un informe técnico en PDF, con su propio número y QR">📋 Publicar informe técnico</button>
       <input type="file" id="h-file" accept=".xlsx,.xlsm,.xls" class="hidden">
+      <input type="file" id="h-inf-file" accept="application/pdf,.pdf" class="hidden">
       <input type="file" id="h-pdf-file" accept="application/pdf,.pdf" class="hidden">
     </div>
     <div id="h-imp"></div>
     <div style="overflow-x:auto" id="hist-cot"><table class="h"><thead><tr>
       <th>N°</th><th>Fecha</th><th>Cliente</th><th class="r">Total</th><th>Estado</th><th class="r">Acciones</th>
     </tr></thead><tbody id="h-body"></tbody></table></div>
+    <div id="hist-inf" class="hidden" style="margin-top:18px"><h2 style="font-size:16px">Informes técnicos <span class="pill p-blue" id="hi-count"></span></h2>
+      <div style="overflow-x:auto"><table class="h"><thead><tr><th>N.º</th><th>Fecha de visita</th><th>Cliente y asunto</th><th class="r">Acciones</th></tr></thead><tbody id="hi-body"></tbody></table></div></div>
     <div style="overflow-x:auto" id="hist-fac" class="hidden"><table class="h"><thead><tr>
       <th>N.º</th><th>Tipo</th><th>Fecha</th><th>Cliente</th><th class="r">Total</th><th>Cobro</th><th class="r">Acciones</th>
     </tr></thead><tbody id="hf-body"></tbody></table></div>
@@ -1470,7 +1476,7 @@ const pdfBytes = doc => new Uint8Array(doc.output("arraybuffer"));
 function mensajeWA(tipo, rec, url){   // mensaje por defecto que acompaña al PDF
   const cli = String(rec.cliente||"").trim();
   const empresa = /\b(s\.?\s?a\.?|inc\.?|corp\.?|ltda\.?|s\.?r\.?l\.?|llc|group|grupo|company|cía|cia)(\b|$)/i.test(cli);
-  const doc = tipo==="Cotización" ? `cotización N° ${rec.numero}` : `${tipo==="Factura" ? "factura" : "recibo"} N° ${rec.numero}`;
+  const doc = tipo==="Cotización" ? `cotización N° ${rec.numero}` : tipo==="Informe técnico" ? `informe técnico N° ${rec.numero}` : `${tipo==="Factura" ? "factura" : "recibo"} N° ${rec.numero}`;
   const saludo = empresa || !cli ? `Buen día${cli ? ", " + cli : ""}` : `Hola ${(n => n.charAt(0).toUpperCase() + n.slice(1))(cli.split(/\s+/)[0])}`;
   return `${saludo}, le comparto su ${doc}. Puede verla y validarla aquí: ${url}\nSaludos,\n*Grupo Σ LEAN — Ingeniería & Proyectos*`   // *…* = negrita (solo para WhatsApp)
     .replace("verla y validarla", tipo==="Cotización" || tipo==="Factura" ? "verla y validarla" : "verlo y validarlo");
@@ -1880,6 +1886,7 @@ function lista(){
     .sort((a,b) => SORT_DESC ? b.n-a.n : a.n-b.n);
 }
 function pintarHist(){
+  pintarInf();
   const L = lista(), tb = $("h-body");
   $("h-count").textContent = (HIST?.cotizaciones||[]).length;
   if(!L.length){ tb.innerHTML = `<tr><td colspan="6" class="empty">${(HIST?.cotizaciones||[]).length ? "Sin resultados para la búsqueda." : "Todavía no has emitido cotizaciones con el cotizador."}</td></tr>`; return; }
@@ -2098,6 +2105,153 @@ function anexosCotPortal(c){
   const docs = L.filter(x => x.it.docs?.length).map(x => ({fila:x.fila, etq:x.etq, desc:desc(x.it), archivos:x.it.docs.map(({id,nombre,tipo,tam}) => ({id,nombre,tipo,tam}))}));
   return {...(fotos.length ? {fotos} : {}), ...(docs.length ? {docs} : {})};
 }
+/* ==================== INFORMES TÉCNICOS (PDF con su propio N.º y QR, sin montos) ==================== */
+const INF_BASE = 26;   // el primero es INF-027
+const ELAB_DEF = "Grupo Σ LEAN — Ingeniería & Proyectos";
+const infSiguiente = () => Math.max(INF_BASE, Number(HIST?.infUltimo||0), ...(HIST?.informes||[]).map(x => x.n)) + 1;
+const infNumero = (n, cli) => "INF-" + ((inicial(cli||"") || "").toUpperCase()) + String(n).padStart(3, "0");   // INF-H027: inicial del cliente + consecutivo único
+const nombreInf = x => x.numero.replace(/-/g, "_") + ".pdf";
+async function leerInforme(bytes){   // lee Cliente, Elaborado por, Fecha de visita y Asunto de la primera página
+  await libsPDF();
+  const doc = await pdfjsLib.getDocument({data: bytes.slice()}).promise, pg = await doc.getPage(1), vp = pg.getViewport({scale:1});
+  const it = (await pg.getTextContent()).items.filter(t => t.str && t.str.trim()).map(t => ({s:t.str.normalize("NFC").trim(), x:t.transform[4], y:vp.height - t.transform[5]}));
+  const RE = {cliente:/^cliente\b/i, elaborado:/^(elaborado por|empresa proponente|proponente)\b/i, fecha:/^fecha de (la )?visita/i, asunto:/^asunto\b/i};
+  const lab = {}; for(const [k,re] of Object.entries(RE)){ const l = it.find(t => re.test(t.s)); if(l) lab[k] = l; }
+  const labs = Object.values(lab), out = {};
+  for(const [k,l] of Object.entries(lab)){
+    const der = labs.filter(o => o!==l && Math.abs(o.y - l.y) < 4 && o.x > l.x).map(o => o.x).sort((a,b) => a-b)[0] ?? Infinity;
+    const abajo = labs.filter(o => o!==l && o.y > l.y + 4 && Math.abs(o.x - l.x) < 30).map(o => o.y).sort((a,b) => a-b)[0] ?? l.y + 70;
+    const vs = it.filter(t => !labs.includes(t) && t.y > l.y + 3 && t.y < Math.min(abajo - 2, l.y + 70) && t.x >= l.x - 8 && t.x < der - 8).sort((a,b) => a.y - b.y || a.x - b.x);
+    const lineas = []; vs.forEach(t => { const u = lineas[lineas.length-1]; if(u && Math.abs(u.y - t.y) < 3) u.s += " " + t.s; else lineas.push({y:t.y, s:t.s}); });
+    out[k] = lineas.map(x => x.s).join(" ").replace(/[\u0000-\u001F\uFFFD]/g, "").replace(/\s+/g, " ").trim();
+  }
+  if(out.fecha) out.fecha = pFechaLarga(out.fecha) || pFechaCorta(out.fecha) || "";
+  return out;
+}
+function formInforme(x, titulo, conArchivo){
+  return `<h2 style="margin-bottom:6px">${titulo}</h2>
+    ${conArchivo ? `<p class="hint" id="inf-leido" style="margin-bottom:10px"></p>` : ""}
+    <div class="grid g2">
+      <div><label>Informe N.º</label><input type="text" class="in" id="inf-num" value="${esc(x.numero)}" disabled style="font-weight:800;color:var(--navy)"></div>
+      <div><label>Fecha de visita e inspección técnica</label><input type="date" class="in" id="inf-fecha" value="${esc(x.fechaVisita||"")}"></div>
+      <div><label>Cliente</label><input type="text" class="in" id="inf-cli" value="${esc(x.cliente||"")}"></div>
+      <div><label>Elaborado por</label><input type="text" class="in" id="inf-elab" value="${esc(x.elaborado||ELAB_DEF)}"></div>
+    </div>
+    <div style="margin-top:8px"><label>Asunto</label><textarea class="in" id="inf-asunto" rows="3">${esc(x.asunto||"")}</textarea></div>
+    <div class="status" id="inf-st"></div>
+    <div class="actions" style="margin-top:12px"><button class="b-ghost" data-cerrar>Cancelar</button><button class="b-navy" id="inf-ok">${conArchivo ? "Publicar informe" : "Guardar cambios"}</button></div>`;
+}
+const infLeerForm = () => ({cliente:$("inf-cli").value.trim(), elaborado:$("inf-elab").value.trim(), fechaVisita:$("inf-fecha").value, asunto:$("inf-asunto").value.trim()});
+const portalInf = x => ({tipo:"Informe técnico", numero:x.numero, cliente:x.cliente, elaborado:x.elaborado, fechaVisita:x.fechaVisita||undefined, asunto:x.asunto, fecha:x.fecha, pdf:true, ...(x.anulado ? {anulado:x.anulado} : {})});
+$("h-inf").onclick = () => { $("h-inf-file").value = ""; $("h-inf-file").click(); };
+$("h-inf-file").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if(!f) return;
+  const st0 = $("h-status");
+  if(!/\.pdf$/i.test(f.name) && f.type!=="application/pdf"){ st0.className = "status bad"; st0.textContent = "El informe debe ser un PDF."; return; }
+  if(f.size > DOC_MAX){ st0.className = "status bad"; st0.textContent = `El PDF pesa ${pesoTxt(f.size)}: el máximo es 10 MB.`; return; }
+  const bytes = new Uint8Array(await f.arrayBuffer());
+  try{ await recargarHist(); }catch(err){}
+  const n = infSiguiente(), numero = infNumero(n);   // la letra se pone al escribir el cliente
+  const x = {numero, n, cliente:"", elaborado:ELAB_DEF, fechaVisita:"", asunto:"", archivo:{nombre:f.name, tam:f.size}};
+  const {caja, cerrar} = modal(formInforme(x, `📋 Publicar informe técnico ${numero}`, true));
+  const numVivo = () => { $("inf-num").value = infNumero(n, $("inf-cli").value); $("inf-num").closest(".modal-caja").querySelector("h2").textContent = `📋 Publicar informe técnico ${$("inf-num").value}`; };
+  $("inf-cli").addEventListener("input", numVivo);
+  $("inf-leido").textContent = "Leyendo el PDF…";
+  leerInforme(bytes).then(d => {
+    if(d.cliente){ $("inf-cli").value = d.cliente; numVivo(); } if(d.elaborado) $("inf-elab").value = d.elaborado; if(d.fecha) $("inf-fecha").value = d.fecha; if(d.asunto) $("inf-asunto").value = d.asunto;
+    const ok = ["cliente","fecha","asunto"].filter(k => d[k]).length;
+    $("inf-leido").textContent = `${f.name} · ` + (ok ? "Datos leídos del PDF: revísalos y corrige si hace falta." : "No encontré los datos en el PDF: escríbelos.");
+  }).catch(() => { $("inf-leido").textContent = `${f.name} · No pude leer los datos del PDF: escríbelos.`; });
+  $("inf-ok").onclick = async () => {
+    const v = infLeerForm(), st = $("inf-st");
+    if(!v.cliente || !v.asunto){ st.className = "status bad"; st.textContent = "Falta el cliente o el asunto."; return; }
+    if(!inicial(v.cliente)){ st.className = "status bad"; st.textContent = "El nombre del cliente debe empezar con una letra."; return; }
+    $("inf-ok").disabled = true; st.className = "status";
+    try{
+      await recargarHist(); const n2 = infSiguiente(), rec = {...x, ...v, n:n2, numero:infNumero(n2, v.cliente), fecha:hoyISO(), creado:new Date().toISOString()};
+      rec.codigo = rec.numero.replace(/-/g,"") + "-" + [...crypto.getRandomValues(new Uint8Array(8))].map(b=>ALF[b%ALF.length]).join("").replace(/^(.{4})/,"$1-");
+      st.textContent = "Poniendo el QR en el informe…";
+      const pdf = await pdfConQR(bytes, urlDe(rec), `Informe técnico ${rec.numero} · Grupo LEAN`);
+      st.textContent = "Publicando en el portal de validación…";
+      const k = await clavesPortal(rec.codigo), pp = `data/${k.id}.pdf.bin`, pj = `data/${k.id}.json`;
+      const ep = await cifrar(k.key, pdf), bin = new Uint8Array(12+ep.ct.length); bin.set(ep.iv,0); bin.set(ep.ct,12);
+      await ghPut(CFG.repoVal, pp, bin, null, `Publicar PDF · Informe técnico ${rec.numero}`);
+      const ej = await cifrar(k.key, te.encode(JSON.stringify(portalInf(rec))));
+      await ghPut(CFG.repoVal, pj, te.encode(JSON.stringify({iv:b64(ej.iv), ct:b64(ej.ct)})), null, `Publicar datos · Informe técnico ${rec.numero}`);
+      st.textContent = "Guardando en el historial…";
+      for(let i=0;i<3;i++){ try{ await recargarHist(); (HIST.informes ||= []).push(rec); HIST.infUltimo = Math.max(Number(HIST.infUltimo||0), rec.n); await guardarHist(`Publicar informe técnico ${rec.numero}`); break; }
+        catch(err){ if(err.status!==409 || i===2) throw err; HIST.informes = (HIST.informes||[]).filter(y => y.codigo!==rec.codigo); } }
+      cerrar(); pintarHist();
+      const hs = $("h-status"); hs.className = "status ok";
+      hs.innerHTML = `✓ Informe técnico <b>${esc(rec.numero)}</b> publicado · ${esc(rec.cliente)} · <a href="${urlDe(rec)}" target="_blank" rel="noopener">Ver en el portal</a>
+        <div class="actions" style="justify-content:flex-start;margin-top:8px"><button class="b-navy b-sm" id="inf-dl">Descargar PDF</button><button class="b-ghost b-sm b-share" id="inf-sh">📤 Compartir PDF</button></div>`;
+      $("inf-dl").onclick = () => bajarBytes(pdf, nombreInf(rec));
+      $("inf-sh").onclick = () => compartirPDF(pdf, nombreInf(rec), `Informe técnico ${rec.numero} · Grupo Σ LEAN`, hs, mensajeWA("Informe técnico", rec, urlDe(rec)));
+      $("hist-inf").scrollIntoView({behavior:"smooth", block:"start"});
+    }catch(err){ console.error(err); st.className = "status bad"; st.textContent = "No se pudo publicar: " + err.message; $("inf-ok").disabled = false; }
+  };
+};
+function pintarInf(){
+  const q = $("h-q").value.trim().toLowerCase(), todos = HIST?.informes || [];
+  const L = todos.filter(x => !q || [x.numero, x.cliente, x.asunto, x.elaborado].join(" ").toLowerCase().includes(q)).sort((a,b) => SORT_DESC ? b.n - a.n : a.n - b.n);
+  $("hist-inf").classList.toggle("hidden", HVIEW!=="cot" || !todos.length); $("hi-count").textContent = todos.length;
+  $("hi-body").innerHTML = L.length ? L.map(x => `<tr>
+    <td><button class="num-link${x.anulado?" anul":""}" data-i="ver" data-c="${esc(x.codigo)}" title="Ver el informe (PDF)">${esc(x.numero)}</button>${x.anulado ? '<div><span class="pill p-gray">Anulado</span></div>' : ""}</td>
+    <td>${x.fechaVisita ? esc(PDFFAC.dmy(x.fechaVisita)) : "—"}</td>
+    <td>${esc(x.cliente)}<div class="hint">${esc(x.asunto)}</div></td>
+    <td class="acts-td"><div class="acts"><button class="b-navy b-sm" data-i="pdf" data-c="${esc(x.codigo)}">Descargar</button>${menuHTML([
+      `<button class="mi" data-i="share" data-c="${esc(x.codigo)}">📤 Compartir PDF</button>`,
+      `<a class="mi" href="${urlDe(x)}" target="_blank" rel="noopener">🌐 Ver en el portal</a>`,
+      x.anulado ? "" : `<button class="mi" data-i="edit" data-c="${esc(x.codigo)}">✏️ Corregir datos</button>`, "sep",
+      x.anulado ? `<button class="mi" data-i="react" data-c="${esc(x.codigo)}">↩︎ Reactivar informe</button>` : `<button class="mi red" data-i="anular" data-c="${esc(x.codigo)}">✕ Anular informe</button>`])}</div></td></tr>`).join("")
+    : `<tr><td colspan="4" class="empty">Sin resultados para la búsqueda.</td></tr>`;
+  $("hi-body").querySelectorAll("[data-i]").forEach(b => b.onclick = () => accionInf(b.dataset.i, (HIST.informes||[]).find(x => x.codigo===b.dataset.c)));
+}
+async function accionInf(a, x){
+  if(!x) return; const st = $("h-status");
+  if(a==="ver" || a==="pdf" || a==="share"){
+    const w = a==="ver" ? ventanaPrevia() : null; st.className = "status"; st.textContent = "Trayendo el informe del portal…";
+    try{ const bytes = await pdfPortal(x.codigo); st.textContent = "";
+      if(a==="ver") abrirBytes(bytes, w); else if(a==="pdf") bajarBytes(bytes, nombreInf(x));
+      else compartirPDF(bytes, nombreInf(x), `Informe técnico ${x.numero} · Grupo Σ LEAN`, st, mensajeWA("Informe técnico", x, urlDe(x))); }
+    catch(e){ if(w) w.close(); st.className = "status bad"; st.textContent = "No se pudo traer el informe: " + e.message; }
+    return;
+  }
+  if(a==="edit"){
+    const {cerrar} = modal(formInforme(x, `✏️ Corregir informe ${x.numero}`, false));
+    $("inf-ok").onclick = async () => { const v = infLeerForm(), s2 = $("inf-st");
+      if(!v.cliente || !v.asunto){ s2.className = "status bad"; s2.textContent = "Falta el cliente o el asunto."; return; }
+      $("inf-ok").disabled = true; s2.className = "status"; s2.textContent = "Guardando…";
+      try{ await guardarInf(x.codigo, y => Object.assign(y, v), `Corregir informe técnico ${x.numero}`); cerrar(); st.className = "status ok"; st.textContent = `✓ Informe ${x.numero} corregido.`; }
+      catch(e){ s2.className = "status bad"; s2.textContent = "No se pudo guardar: " + e.message; $("inf-ok").disabled = false; } };
+    return;
+  }
+  if(a==="react"){ try{ await guardarInf(x.codigo, y => { delete y.anulado; }, `Reactivar informe técnico ${x.numero}`); st.className = "status ok"; st.textContent = `✓ Informe ${x.numero} reactivado.`; }catch(e){ st.className = "status bad"; st.textContent = "No se pudo: " + e.message; } return; }
+  if(a==="anular"){
+    const {cerrar} = modal(`<h2 style="margin-bottom:6px">✕ Anular informe ${esc(x.numero)}</h2><p class="hint">${esc(x.cliente)} · ${esc(x.asunto)}</p>
+      <label style="margin-top:10px">Motivo</label><input type="text" class="in" id="inf-mot" placeholder="Ej. datos equivocados">
+      <p class="hint" style="margin-top:6px">En el portal el informe saldrá como anulado. Si el motivo dice «prueba», se borra del historial (el número no se vuelve a usar).</p>
+      <div class="status" id="inf-st"></div><div class="actions" style="margin-top:12px"><button class="b-ghost" data-cerrar>Cancelar</button><button class="b-red" id="inf-ok">Anular</button></div>`);
+    $("inf-ok").onclick = async () => { const mot = $("inf-mot").value.trim(), s2 = $("inf-st");
+      if(!mot){ s2.className = "status bad"; s2.textContent = "Escribe el motivo."; return; }
+      $("inf-ok").disabled = true; s2.className = "status"; s2.textContent = "Guardando…";
+      try{ const prueba = esPrueba(mot);
+        await guardarInf(x.codigo, y => { y.anulado = {fecha:hoyISO(), motivo:mot}; }, `Anular informe técnico ${x.numero}`, prueba);
+        cerrar(); st.className = "status ok"; st.textContent = prueba ? `✓ Informe ${x.numero} borrado (era de prueba).` : `✓ Informe ${x.numero} anulado.`; }
+      catch(e){ s2.className = "status bad"; s2.textContent = "No se pudo: " + e.message; $("inf-ok").disabled = false; } };
+  }
+}
+async function guardarInf(codigo, cambio, msg, borrar){   // cambia el informe en el historial y en el portal
+  for(let i=0;i<3;i++){
+    try{ await recargarHist(); const y = (HIST.informes||[]).find(z => z.codigo===codigo); if(!y) throw new Error("el informe no está en el historial");
+      cambio(y); y.actualizado = new Date().toISOString(); const datos = portalInf(y);
+      if(borrar){ HIST.informes = HIST.informes.filter(z => z.codigo!==codigo); HIST.infUltimo = Math.max(Number(HIST.infUltimo||0), y.n); }
+      await guardarHist(msg);
+      await portalPatch(codigo, doc => { ["cliente","elaborado","fechaVisita","asunto"].forEach(k => doc[k] = datos[k]); if(datos.anulado) doc.anulado = datos.anulado; else delete doc.anulado; }, () => msg);
+      pintarHist(); return;
+    }catch(e){ if(e.status!==409 || i===2) throw e; }
+  }
+}
 /* ----- reporte de la cotización: PDF, Word o Excel; el PDF se imprime antes de la cotización, con su QR ----- */
 let REPDIV = null;
 function repPintar(c){
@@ -2119,14 +2273,22 @@ async function bytesCot(c){   // PDF de la cotización; con reporte: reporte (co
   for(const x of c.reporte.docs.filter(esPDFdoc)){
     const loc = REPDIV?._docs?.find(y => y.id===x.id && y.blob);
     const bytes = new Uint8Array(await (loc ? loc.blob : await docPortal(c.codigo, x)).arrayBuffer());
-    const src = await PDFDocument.load(bytes, {ignoreEncryption:true});
-    const esquinas = await esquinasLibres(bytes).catch(() => []);
-    const pags = await out.copyPages(src, src.getPageIndices());
-    pags.forEach((pg, i) => { out.addPage(pg); sellarQR(pg, url, esquinas[i] || "tr", rgb); });
+    await agregarConQR(out, bytes, url);
   }
   const cot = await PDFDocument.load(base);
   (await out.copyPages(cot, cot.getPageIndices())).forEach(pg => out.addPage(pg));
   out.setTitle(`Cotización ${c.numero} · Grupo LEAN`); out.setAuthor("Grupo Σ LEAN — Ingeniería & Proyectos");
+  return new Uint8Array(await out.save());
+}
+async function agregarConQR(out, bytes, url){   // agrega las páginas de un PDF con el QR en la primera esquina libre de cada una
+  const src = await window.PDFLib.PDFDocument.load(bytes, {ignoreEncryption:true});
+  const esquinas = await esquinasLibres(bytes).catch(() => []);
+  (await out.copyPages(src, src.getPageIndices())).forEach((pg, i) => { out.addPage(pg); sellarQR(pg, url, esquinas[i] || "tr", window.PDFLib.rgb); });
+}
+async function pdfConQR(bytes, url, titulo){
+  if(!window.PDFLib) await cargarScript(PDFLIB_URL);
+  const out = await window.PDFLib.PDFDocument.create(); await agregarConQR(out, bytes, url);
+  if(titulo) out.setTitle(titulo); out.setAuthor("Grupo Σ LEAN — Ingeniería & Proyectos");
   return new Uint8Array(await out.save());
 }
 const QR_PT = 56, QR_M = 18;   // mismo tamaño que en la cotización
@@ -2461,7 +2623,7 @@ function exportarFac(){
 }
 function setHView(v){
   HVIEW = v; $("hv-cot").classList.toggle("on", v==="cot"); $("hv-fac").classList.toggle("on", v==="fac"); $("h-cons").classList.toggle("hidden", v!=="fac");
-  $("hist-cot").classList.toggle("hidden", v!=="cot"); $("hist-fac").classList.toggle("hidden", v!=="fac");
+  $("hist-cot").classList.toggle("hidden", v!=="cot"); $("hist-fac").classList.toggle("hidden", v!=="fac"); $("h-inf").classList.toggle("hidden", v!=="cot"); $("hist-inf").classList.toggle("hidden", v!=="cot" || !(HIST?.informes||[]).length);
   $("h-title").textContent = v==="cot" ? "Historial de cotizaciones" : "Historial de recibos y facturas";
   $("h-status").textContent = ""; $("h-imp").innerHTML = "";
   v==="cot" ? pintarHist() : pintarFac();
