@@ -559,6 +559,7 @@
       <div class="htools" style="margin-bottom:14px">
         <select id="rp-anio" style="flex:1;min-width:180px;max-width:280px"><option value="12m" selected>Últimos 12 meses</option></select>
         <button class="b-navy" id="rp-export">Exportar a Excel</button>
+        <button class="b-inf" id="rp-ec" title="Estado de cuenta de un cliente: PDF, Excel y copia de sus recibos y facturas">📄 Estado de cuenta</button>
       </div>
       <div class="kpis" id="rp-kpis"></div>
       <div class="rp-graf" id="rp-graf"></div>
@@ -1094,7 +1095,60 @@ const PDFFAC = (() => {
     if(d.conPie){ const n = doc.getNumberOfPages(); for(let i=1;i<=n;i++){ doc.setPage(i); pie(doc); } }
     return doc;
   }
-  return { build, COLS, money, dmy };
+  /* ===== Estado de cuenta por cliente (mismo diseño del recibo, sin QR) =====
+     e = { cliente, ruc, email, direccion, telefono, emisor, corte, periodo, filas:[{fecha, doc, desc, monto, cobrado, saldo, estado}], tot:{monto, cobrado, saldo}, conPie } */
+  function estadoCuenta(A, e){
+    const doc = make(A);
+    doc.setProperties({title:`Estado de cuenta · ${e.cliente} · Grupo LEAN`, subject:e.cliente, author:"Grupo Σ LEAN — Ingeniería & Proyectos", creator:"Cotizador Grupo LEAN"});
+    const cab = {tipo:"Estado de cuenta", cliente:e.cliente, ruc:e.ruc, email:e.email, direccion:e.direccion, telefono:e.telefono, emisor:e.emisor};
+    const encabezado = () => {
+      doc.addImage(A.logo, "PNG", 5.5, 16.7, 153.4, 153.4, "logo", "FAST");
+      T(doc, "Estado de cuenta", 305.5, 39.1, {st:"bold", sz:19.9, c:C.navy});
+      [...(e.numero ? [["Estado de cuenta N.º", e.numero]] : []), ["Fecha de corte", dmy(e.corte)], ["Período", e.periodo], ["Documentos", String(e.filas.length)]]
+        .forEach(([k,v],i) => { T(doc, k, 306, 72.5 + i*15.45, {c:C.label}); T(doc, v, 577.5, 72.5 + i*15.45, {al:"right"}); });
+      T(doc, "EMISOR", 36.5, 176.2, {st:"bold", c:C.label});
+      const em = cab.emisor || {nombre:"Grupo Σ LEAN", direccion:"Tocumen, Nuevo Belen, calle agua buena, ofi: A-01", email:"etrejos24@gmail.com", telefono:"+507 310-4763"};
+      const rucE = em.ruc ? (/^(ruc|cip|c[ée]dula)\b/i.test(em.ruc.trim()) ? em.ruc.trim() : `${em.rucTipo==="CIP" ? "CIP" : "RUC"}: ${em.ruc.trim()}`) : "";
+      let ye = 193.7, yy = 193.7;
+      [em.nombre, rucE, em.direccion, em.email, em.telefono].filter(Boolean).forEach(t => { doc.setFont("Serif","normal"); doc.setFontSize(10.1); doc.splitTextToSize(String(t), 255).forEach(ln => { T(doc, ln, 36.5, ye); ye += 13.5; }); });
+      T(doc, "CLIENTE", 306.5, 176.2, {st:"bold", c:C.label});
+      [cab.cliente, cab.ruc, cab.email, cab.direccion, cab.telefono].filter(Boolean).forEach(t => { doc.setFont("Serif","normal"); doc.setFontSize(10.1); doc.splitTextToSize(String(t), e.url ? 178 : 265).forEach(ln => { T(doc, ln, 306.5, yy); yy += 13.5; }); });
+      let fin = Math.max(247.7, yy, ye);
+      if(e.url){   // QR del estado de cuenta (se valida en el portal), como en los recibos
+        qr(doc, e.url, 498, 170, 74);
+        const tw = (doc.setFont("Serif","bold"), doc.setFontSize(9.5), doc.getTextWidth("VALIDADO"));
+        const x0 = 535 - (tw + 13)/2; check(doc, x0, 247.6, 9.5); T(doc, "VALIDADO", x0 + 13, 247.6, {st:"bold", sz:9.5, c:C.navy});
+        T(doc, "Estado de cuenta digital con copia al emisor", 532, 261, {sz:7, c:C.gray, al:"center"});
+        fin = Math.max(fin, 268);
+      }
+      return fin + 24.9;
+    };
+    const cols = [["fecha","Fecha",1.05,"center"],["doc","Documento",1.25,"left"],["desc","Descripción",3.1,"left"],["monto","Monto",1.15,"right"],["cobrado","Cobrado",1.15,"right"],["saldo","Saldo",1.15,"right"]];
+    const peso = cols.reduce((a,c) => a + c[2], 0); let x = L;
+    const geo = cols.map(([k,t,w,al]) => { const cw = W*w/peso, g = {k,t,al,x,w:cw}; x += cw; return g; });
+    const sz = 9.4, lh = sz*1.16;
+    const cabTabla = y => { R(doc, L, y, W, 21.6, C.band); geo.forEach(g => T(doc, g.t, g.al==="right" ? g.x+g.w-5 : g.al==="center" ? g.x+g.w/2 : g.x+5, y + 6.2, {st:"bold", sz, c:C.navy, al:g.al})); return y + 28; };
+    let y = cabTabla(encabezado());
+    e.filas.forEach(f => {
+      const val = {fecha:dmy(f.fecha), doc:f.doc, desc:f.desc, monto:money(f.monto), cobrado:f.cobrado ? money(f.cobrado) : "—", saldo:f.saldo==null ? "—" : money(f.saldo)};
+      doc.setFontSize(sz);
+      const cel = geo.map(g => { doc.setFont("Serif", g.k==="saldo" ? "bold" : "normal"); return String(val[g.k]??"").split("\n").flatMap(p => doc.splitTextToSize(p, g.w-10)); });
+      const est = f.estado ? 1 : 0, n = Math.max(1, ...cel.map((l,i) => l.length + (geo[i].k==="doc" ? est : 0))), h = n*lh + 10;
+      if(y + h > 640){ doc.addPage(); y = cabTabla(50); }
+      cel.forEach((ls,i) => { const g = geo[i]; ls.forEach((ln,j) => T(doc, ln, g.al==="right" ? g.x+g.w-5 : g.al==="center" ? g.x+g.w/2 : g.x+5, y + j*lh, {sz, st: g.k==="saldo" ? "bold" : "normal", al:g.al}));
+        if(g.k==="doc" && f.estado){ const c = /vencid/i.test(f.estado) ? [185,28,28] : /cobrad/i.test(f.estado) ? C.green : /por vencer/i.test(f.estado) ? [180,120,0] : C.gray; T(doc, f.estado, g.x+5, y + ls.length*lh, {sz:7.8, st:"bold", c}); } });
+      R(doc, L, y + h - 6.5, W, 0.5, C.sep); y += h;
+    });
+    if(y + 120 > 690){ doc.addPage(); y = 60; }
+    y += 10.6;
+    [["Total facturado", e.tot.monto], ["Total cobrado", e.tot.cobrado]].forEach(([k,v]) => { R(doc, L, y, W, 21.6, C.band); T(doc, k, 41, y + 6.5, {st:"bold", c:C.navy}); T(doc, money(v), 571, y + 6.5, {st:"bold", c:C.navy, al:"right"}); y += 25; });
+    y += 18;
+    T(doc, "Saldo pendiente", 41, y, {st:"bold", sz:13, c:C.navy}); T(doc, money(e.tot.saldo), 571, y, {st:"bold", sz:13, c:C.navy, al:"right"});
+    y += 26; T(doc, `Estado de cuenta al ${dmy(e.corte)}. Este estado de cuenta y cada recibo o factura pueden validarse en el portal con su código QR.`, 41, y, {sz:8, c:C.gray});
+    if(e.conPie !== false){ const n = doc.getNumberOfPages(); for(let i=1;i<=n;i++){ doc.setPage(i); pie(doc); } }
+    return doc;
+  }
+  return { build, estadoCuenta, COLS, money, dmy };
 })();
 
 </script>
@@ -1477,7 +1531,7 @@ function mensajeWA(tipo, rec, url){   // mensaje por defecto que acompaña al PD
   const cli = String(rec.cliente||"").trim();
   const empresa = /\b(s\.?\s?a\.?|inc\.?|corp\.?|ltda\.?|s\.?r\.?l\.?|llc|group|grupo|company|cía|cia)(\b|$)/i.test(cli);
   const conRep = tipo==="Cotización" && rec.reporte?.docs?.length;   // cotización con reporte anexado
-  const doc = conRep ? `informe y cotización N° ${rec.numero}` : tipo==="Cotización" ? `cotización N° ${rec.numero}` : tipo==="Informe técnico" ? `informe técnico N° ${rec.numero}` : `${tipo==="Factura" ? "factura" : "recibo"} N° ${rec.numero}`;
+  const doc = conRep ? `informe y cotización N° ${rec.numero}` : tipo==="Cotización" ? `cotización N° ${rec.numero}` : tipo==="Informe técnico" ? `informe técnico N° ${rec.numero}` : tipo==="Estado de cuenta" ? `estado de cuenta N° ${rec.numero}` : `${tipo==="Factura" ? "factura" : "recibo"} N° ${rec.numero}`;
   const saludo = empresa || !cli ? `Buen día${cli ? ", " + cli : ""}` : `Hola ${(n => n.charAt(0).toUpperCase() + n.slice(1))(cli.split(/\s+/)[0])}`;
   return `${saludo}, le comparto su ${doc}. Puede verla y validarla aquí: ${url}\nSaludos,\n*Grupo Σ LEAN — Ingeniería & Proyectos*`   // *…* = negrita (solo para WhatsApp)
     .replace("verla y validarla", conRep ? "verlos y validarlos" : tipo==="Cotización" || tipo==="Factura" ? "verla y validarla" : "verlo y validarlo");
@@ -2254,6 +2308,141 @@ async function guardarInf(codigo, cambio, msg, borrar){   // cambia el informe e
     }catch(e){ if(e.status!==409 || i===2) throw e; }
   }
 }
+/* ==================== ESTADO DE CUENTA POR CLIENTE (PDF + Excel + copias, en un .zip) ==================== */
+const JSZIP_URL = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+const normCli = c => sinTilde(c).replace(/[^a-z0-9]/g, "");
+function docsEC(cli){   // recibos/facturas y cotizaciones en cobro del cliente (sin anulados; lo consolidado va en su consolidado)
+  const k = normCli(cli);
+  const fac = todosFac().filter(d => !d.anulado && !d.consolidadoEn && normCli(d.cliente)===k);
+  const cot = (HIST?.cotizaciones||[]).filter(c => !c.anulado && c.cxc && normCli(c.cliente)===k).map(vistaCot);
+  return [...fac, ...cot].sort((a,b) => (a.fecha||"").localeCompare(b.fecha||"") || String(a.numero).localeCompare(String(b.numero)));
+}
+function filaEC(d){
+  const cxc = enCxc(d) || d._k==="cot", cob = cobradoDe(d);
+  return {d, fecha:d.fecha, doc:`${d._k==="cot" ? "Cotización" : d.origen==="control" ? "Recibo" : d.tipo} ${d.numero}`, desc: d.tituloDesc && d.consolida ? `${d.tituloDesc}: ${d.consolida.map(x => x.numero).join(", ")}` : (descDe(d) || "—"),
+    monto: r2(Number(d.total||0)), cobrado: cob, saldo: cxc || cob > 0 ? saldoDe(d) : null, estado: cxc || cob > 0 ? etiquetaCxc(d).t : "Sin cobro"};
+}
+function clientesEC(){
+  const m = new Map(); [...todosFac().filter(d => !d.anulado), ...(HIST?.cotizaciones||[]).filter(c => !c.anulado && c.cxc).map(vistaCot)].forEach(d => {
+    const k = normCli(d.cliente); if(!k) return; const x = m.get(k) || {nombre:String(d.cliente).trim(), n:0, saldo:0}; x.n++; const f = filaEC(d); x.saldo = r2(x.saldo + (f.saldo||0)); m.set(k, x); });
+  return [...m.values()].sort((a,b) => a.nombre.localeCompare(b.nombre, "es"));
+}
+function datosCliEC(cli){   // datos del cliente: el dato más reciente que no esté vacío, de cualquier documento suyo (incluye variantes del nombre y consolidados)
+  const k = normCli(cli), out = {cliente:cli, ruc:"", email:"", direccion:"", telefono:""}, f = {};
+  const docs = [...(HIST?.cotizaciones||[]), ...todosFac(), ...(FHIST?.docs||[]), ...(FHIST?.previos||[])].filter(d => !d.anulado && normCli(d.cliente)===k);
+  docs.forEach(d => ["ruc","email","direccion","telefono"].forEach(x => { const v = String(d[x]||"").trim(); if(v && (!out[x] || (d.fecha||"") >= f[x])){ out[x] = v; f[x] = d.fecha||""; } }));
+  const c = clientesTodos().find(c => normCli(c.cliente)===k); if(c) out.cliente = c.cliente;
+  return out;
+}
+function armarEC(cli, desde, hasta, soloPend){
+  const filas = docsEC(cli).map(filaEC).filter(f => (!desde || f.fecha >= desde) && (!hasta || f.fecha <= hasta) && (!soloPend || (f.saldo||0) > 0.004));
+  const sum = k => r2(filas.reduce((a,f) => a + Number(f[k]||0), 0));
+  const datos = datosCliEC(cli);
+  const periodo = desde || hasta ? `${desde ? PDFFAC.dmy(desde) : "inicio"} – ${hasta ? PDFFAC.dmy(hasta) : PDFFAC.dmy(hoyISO())}` : "Todos";
+  return {cliente:datos.cliente || cli, ruc:datos.ruc, email:datos.email, direccion:datos.direccion, telefono:datos.telefono, corte:hoyISO(), periodo, filas,
+          tot:{monto:sum("monto"), cobrado:sum("cobrado"), saldo:sum("saldo")}, soloPend};
+}
+function excelEC(e){
+  const wb = XLSX.utils.book_new(), url = d => d._k==="cot" ? urlDe(d) : fUrl(d);
+  const hoja = (nom, filas, anchos) => { const ws = XLSX.utils.json_to_sheet(filas.length ? filas : [{"(vacío)":""}]); if(anchos) ws["!cols"] = anchos.map(w => ({wch:w}));
+    // enlaces que se abren con un clic
+    const rng = XLSX.utils.decode_range(ws["!ref"]); for(let r=1; r<=rng.e.r; r++) for(let c=0; c<=rng.e.c; c++){ const cel = ws[XLSX.utils.encode_cell({r, c})]; if(cel && typeof cel.v==="string" && /^https?:\/\//.test(cel.v)) cel.l = {Target: cel.v}; }
+    XLSX.utils.book_append_sheet(wb, ws, nom); };
+  hoja("Estado de cuenta", [...e.filas.map(f => ({"Fecha": PDFFAC.dmy(f.fecha), "Documento": f.doc, "Descripción": f.desc, "Monto": f.monto, "Cobrado": f.cobrado, "Saldo": f.saldo ?? "", "Estado": f.estado, "Ver en el portal": url(f.d), "Copia (en la carpeta Documentos)": archivoEC(f.d)})),
+    {}, {"Descripción": "Total facturado", "Monto": e.tot.monto}, {"Descripción": "Total cobrado", "Cobrado": e.tot.cobrado}, {"Descripción": "Saldo pendiente", "Saldo": e.tot.saldo}], [11,16,48,11,11,11,13,52,28]);
+  // detalle: una fila por línea de cada documento, con todas las columnas que se usaron con este cliente
+  const extra = []; e.filas.forEach(f => (f.d.cols||[]).forEach(c => { if(!extra.some(x => x.k===c.k)) extra.push(c); }));
+  const det = []; e.filas.forEach(f => (f.d._k==="cot" ? [{desc:`Cotización ${f.d.numero} (en cobro)`, total:f.monto}] : (f.d.items||[])).forEach((it,i) => {
+    const o = {"Documento": f.doc, "Fecha del documento": PDFFAC.dmy(f.fecha), "Fila": i+1, "Descripción": String(it.desc||"").replace(/\n/g, " ")};
+    extra.forEach(c => o[c.t] = c.tipo==="fecha" && it[c.k] ? PDFFAC.dmy(it[c.k]) : (it[c.k] ?? ""));
+    Object.assign(o, {"Cantidad": it.cant ?? "", "Precio unitario": it.precio ?? "", "Total": it.total ?? "", "Evidencia fotográfica": f.d._k==="cot" ? "" : enlacesFotos(f.d, i).join("  "), "Anexos": f.d._k==="cot" ? "" : enlaceDocs(f.d, i)});
+    det.push(o); }));
+  hoja("Detalle", det);
+  const ab = []; e.filas.forEach(f => (f.d.cobro?.abonos||[]).forEach(a => ab.push({"Documento": f.doc, "Fecha": PDFFAC.dmy(a.fecha), "Monto": a.monto, "Método": a.metodo||"", "Nota": a.nota||""})));
+  hoja("Abonos", ab, [16,11,11,16,30]);
+  hoja("Cliente", [{"Cliente": e.cliente, "CIP/RUC": e.ruc||"", "Email": e.email||"", "Dirección": e.direccion||"", "Teléfono": e.telefono||"", "Fecha de corte": PDFFAC.dmy(e.corte), "Período": e.periodo}], [30,20,26,36,14,12,24]);
+  return new Uint8Array(XLSX.write(wb, {type:"array", bookType:"xlsx"}));
+}
+const archivoEC = d => d.origen==="control" ? "" : d._k==="cot" ? nombrePDF(d) : fNombre(d);
+async function pdfDocEC(d){   // copia del recibo/factura/cotización
+  if(d.origen==="control") return null;
+  if(d._k==="cot"){ const c = (HIST?.cotizaciones||[]).find(x => x.codigo===d.codigo); return c ? bytesCot(c) : null; }
+  if(d.pdfOriginal) return pdfPortal(d.codigo);
+  return pdfBytes(fPdf(d));
+}
+const nombreEC = e => `Estado de cuenta ${e.numero ? e.numero + " - " : ""}${e.cliente.replace(/[\\/:*?"<>|]+/g, "").trim()} - ${e.corte}`;
+const ecSiguiente = () => Math.max(0, Number(HIST?.ecUltimo||0), ...(HIST?.estados||[]).map(x => x.n)) + 1;
+const ecNumero = (n, cli) => "EC-" + (inicial(cli||"") || "X") + String(n).padStart(3, "0");   // EC-W001: inicial del cliente + consecutivo único
+async function publicarEC(e){   // número, QR y portal (solo datos esenciales); queda en el historial
+  await recargarHist();
+  const n = ecSiguiente(), numero = ecNumero(n, e.cliente);
+  const codigo = numero.replace(/-/g,"") + "-" + [...crypto.getRandomValues(new Uint8Array(8))].map(b=>ALF[b%ALF.length]).join("").replace(/^(.{4})/,"$1-");
+  const ec = {...e, numero, codigo, url: CFG.site + "?c=" + codigo};
+  const pdf = pdfBytes(PDFFAC.estadoCuenta(FAC_ASSETS, ec));
+  const k = await clavesPortal(codigo), pp = `data/${k.id}.pdf.bin`, pj = `data/${k.id}.json`;
+  const ep = await cifrar(k.key, pdf), bin = new Uint8Array(12+ep.ct.length); bin.set(ep.iv,0); bin.set(ep.ct,12);
+  await ghPut(CFG.repoVal, pp, bin, null, `Publicar PDF · Estado de cuenta ${numero}`);
+  const portal = {tipo:"Estado de cuenta", numero, cliente:e.cliente, ruc:e.ruc||undefined, fecha:e.corte, periodo:e.periodo, documentos:e.filas.length,
+                  facturado:e.tot.monto, cobrado:e.tot.cobrado, total:e.tot.saldo, pdf:true};
+  const ej = await cifrar(k.key, te.encode(JSON.stringify(portal)));
+  await ghPut(CFG.repoVal, pj, te.encode(JSON.stringify({iv:b64(ej.iv), ct:b64(ej.ct)})), null, `Publicar datos · Estado de cuenta ${numero}`);
+  const reg = {n, numero, codigo, cliente:e.cliente, fecha:e.corte, periodo:e.periodo, soloPend:!!e.soloPend, documentos:e.filas.map(f => f.d.numero), facturado:e.tot.monto, cobrado:e.tot.cobrado, saldo:e.tot.saldo, creado:new Date().toISOString()};
+  for(let i=0;i<3;i++){ try{ await recargarHist(); (HIST.estados ||= []).push(reg); HIST.ecUltimo = Math.max(Number(HIST.ecUltimo||0), n); await guardarHist(`Estado de cuenta ${numero} · ${e.cliente}`); break; }
+    catch(err){ if(err.status!==409 || i===2) throw err; HIST.estados = (HIST.estados||[]).filter(x => x.codigo!==codigo); } }
+  return {ec, pdf};
+}
+$("rp-ec").onclick = async () => {
+  try{ await Promise.all([cargarFac(), recargarHist()]); }catch(err){}
+  const cls = clientesEC();
+  const {caja, cerrar} = modal(`<h2 style="margin-bottom:6px">📄 Estado de cuenta</h2>
+    <p class="hint" style="margin-bottom:10px">Al emitirlo recibe su número y su QR (el cliente lo valida en el portal), y se descarga un .zip con el PDF, el Excel con todo el detalle y la copia de cada recibo o factura.</p>
+    <label>Cliente</label><select id="ec-cli">${cls.length ? cls.map(c => `<option value="${esc(c.nombre)}">${esc(c.nombre)} · ${c.n} doc.${c.saldo > 0.004 ? " · saldo " + money(c.saldo) : ""}</option>`).join("") : '<option value="">Aún no hay recibos ni facturas</option>'}</select>
+    <div class="grid g2" style="margin-top:10px"><div><label>Desde</label><input type="date" class="in" id="ec-desde"></div><div><label>Hasta</label><input type="date" class="in" id="ec-hasta"></div></div>
+    <label class="chk" style="margin-top:10px"><input type="checkbox" id="ec-pend"> Solo pendientes de cobro</label>
+    <div class="pedbox"><label>Emisor</label>
+      <div class="seg seg-mini"><label class="segopt"><input type="radio" name="ec-em" value="igual" checked hidden> Mantener mis datos de siempre</label><label class="segopt"><input type="radio" name="ec-em" value="editar" hidden> Editar</label></div>
+      <div class="hint" id="ec-em-res" style="margin-top:4px"></div>
+      <div id="ec-em-box" class="hidden" style="margin-top:8px"><div class="grid g2">
+        <div><label>Nombre de la empresa</label><input type="text" class="in" id="ec-em-nom"></div>
+        <div><label style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">Identificación <span class="seg seg-mini"><label class="segopt"><input type="radio" name="ec-em-rt" value="RUC" checked hidden> RUC</label><label class="segopt"><input type="radio" name="ec-em-rt" value="CIP" hidden> CIP</label></span></label><input type="text" class="in" id="ec-em-ruc" placeholder="Opcional"></div>
+        <div><label>Dirección</label><input type="text" class="in" id="ec-em-dir"></div><div><label>Email</label><input type="email" class="in" id="ec-em-email"></div><div><label>Teléfono</label><input type="text" class="in" id="ec-em-tel"></div></div></div>
+    </div>
+    <div class="box" id="ec-res" style="background:var(--blue-bg);margin-top:12px"></div>
+    <div class="status" id="ec-st"></div>
+    <div class="actions" style="margin-top:12px"><button class="b-ghost" data-cerrar>Cancelar</button><button class="b-blue" id="ec-prev">Vista previa PDF</button><button class="b-navy" id="ec-zip">Emitir y descargar .zip</button></div>`);
+  const ed = emisorDef(); $("ec-em-nom").value = ed.nombre||""; $("ec-em-ruc").value = ed.ruc||""; $("ec-em-dir").value = ed.direccion||""; $("ec-em-email").value = ed.email||""; $("ec-em-tel").value = ed.telefono||"";
+  caja.querySelector(`input[name="ec-em-rt"][value="${ed.rucTipo==="CIP" ? "CIP" : "RUC"}"]`).checked = true;
+  const emis = () => caja.querySelector('input[name="ec-em"]:checked').value==="igual" ? ed
+    : {nombre:$("ec-em-nom").value.trim(), rucTipo:caja.querySelector('input[name="ec-em-rt"]:checked').value, ruc:$("ec-em-ruc").value.trim(), direccion:$("ec-em-dir").value.trim(), email:$("ec-em-email").value.trim(), telefono:$("ec-em-tel").value.trim()};
+  const armar = () => ({...armarEC($("ec-cli").value, $("ec-desde").value, $("ec-hasta").value, $("ec-pend").checked), emisor: emis()});
+  const resumen = () => { const ed2 = caja.querySelector('input[name="ec-em"]:checked').value==="igual"; $("ec-em-box").classList.toggle("hidden", ed2);
+    $("ec-em-res").textContent = ed2 ? [ed.nombre, idEmisor(ed)].filter(Boolean).join(" · ") : "Estos datos solo se usan en este estado de cuenta.";
+    if(!$("ec-cli").value){ $("ec-res").textContent = "No hay documentos para armar un estado de cuenta."; return; }
+    const e = armar(); $("ec-res").innerHTML = e.filas.length ? `<b>${e.filas.length}</b> documento(s) · facturado <b>${money(e.tot.monto)}</b> · cobrado <b>${money(e.tot.cobrado)}</b> · saldo pendiente <b>${money(e.tot.saldo)}</b>` : "No hay documentos con esos filtros."; };
+  caja.querySelectorAll("select,input").forEach(el => el.addEventListener("change", resumen)); caja.querySelectorAll("input").forEach(el => el.addEventListener("input", resumen)); resumen();
+  const valido = () => { const e = armar(), st = $("ec-st"); if(!e.filas.length){ st.className = "status bad"; st.textContent = "No hay documentos con esos filtros."; return null; }
+    if(!e.emisor.nombre){ st.className = "status bad"; st.textContent = "Falta el nombre del emisor."; return null; } return e; };
+  $("ec-prev").onclick = () => { const e = valido(); if(e) abrirPDF(PDFFAC.estadoCuenta(FAC_ASSETS, e)); };
+  $("ec-zip").onclick = async () => {
+    const e = valido(); if(!e) return; const st = $("ec-st"); $("ec-zip").disabled = true; st.className = "status"; st.textContent = "Preparando…";
+    try{
+      if(!window.JSZip) await cargarScript(JSZIP_URL);
+      st.textContent = "Publicando el estado de cuenta en el portal…";
+      const {ec, pdf} = await publicarEC(e);
+      const zip = new JSZip(), base = nombreEC(ec);
+      zip.file(base + ".pdf", pdf);
+      zip.file(base + ".xlsx", excelEC(ec));
+      for(let i=0; i<e.filas.length; i++){ const d = e.filas[i].d; st.textContent = `Copiando documentos ${i+1} de ${e.filas.length}…`;
+        try{ const b = await pdfDocEC(d); if(b) zip.file("Documentos/" + archivoEC(d), b); }catch(err){ console.warn("copia", d.numero, err); } }
+      st.textContent = "Comprimiendo…";
+      const blob = await zip.generateAsync({type:"blob"}), a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = base + ".zip"; document.body.appendChild(a); a.click(); a.remove();
+      st.className = "status ok"; st.innerHTML = `✓ Estado de cuenta <b>${esc(ec.numero)}</b> emitido y descargado · <a href="${ec.url}" target="_blank" rel="noopener">Ver en el portal</a>
+        <div class="actions" style="justify-content:flex-start;margin-top:8px"><button class="b-ghost b-sm b-share" id="ec-sh">📤 Compartir PDF</button></div>`;
+      $("ec-sh").onclick = () => compartirPDF(pdf, base + ".pdf", `Estado de cuenta ${ec.numero} · Grupo Σ LEAN`, st, mensajeWA("Estado de cuenta", {numero:ec.numero, cliente:ec.cliente}, ec.url));
+    }catch(err){ console.error(err); st.className = "status bad"; st.textContent = "No se pudo armar el .zip: " + err.message; }
+    $("ec-zip").disabled = false;
+  };
+};
 /* ----- reporte de la cotización: PDF, Word o Excel; el PDF se imprime antes de la cotización, con su QR ----- */
 let REPDIV = null;
 function repPintar(c){
