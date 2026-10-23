@@ -230,7 +230,7 @@
   .p-ok{background:var(--green-bg);color:var(--green)}.p-warn{background:var(--amber-bg);color:var(--amber)}.p-blue{background:var(--blue-bg);color:var(--blue)}
   /* historial */
   .htools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
-  .b-inf{background:var(--orange);color:var(--navy);border:1px solid var(--orange)}
+  .b-inf{background:#fff;color:var(--navy);border:1px solid var(--orange);box-shadow:inset 0 0 0 1px var(--orange)}
   .htools input{flex:1;min-width:200px}
   table.h{width:100%;border-collapse:collapse;font-size:14px}
   table.h th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--muted);padding:8px;border-bottom:2px solid var(--line);cursor:pointer;white-space:nowrap}
@@ -1476,10 +1476,11 @@ const pdfBytes = doc => new Uint8Array(doc.output("arraybuffer"));
 function mensajeWA(tipo, rec, url){   // mensaje por defecto que acompaña al PDF
   const cli = String(rec.cliente||"").trim();
   const empresa = /\b(s\.?\s?a\.?|inc\.?|corp\.?|ltda\.?|s\.?r\.?l\.?|llc|group|grupo|company|cía|cia)(\b|$)/i.test(cli);
-  const doc = tipo==="Cotización" ? `cotización N° ${rec.numero}` : tipo==="Informe técnico" ? `informe técnico N° ${rec.numero}` : `${tipo==="Factura" ? "factura" : "recibo"} N° ${rec.numero}`;
+  const conRep = tipo==="Cotización" && rec.reporte?.docs?.length;   // cotización con reporte anexado
+  const doc = conRep ? `informe y cotización N° ${rec.numero}` : tipo==="Cotización" ? `cotización N° ${rec.numero}` : tipo==="Informe técnico" ? `informe técnico N° ${rec.numero}` : `${tipo==="Factura" ? "factura" : "recibo"} N° ${rec.numero}`;
   const saludo = empresa || !cli ? `Buen día${cli ? ", " + cli : ""}` : `Hola ${(n => n.charAt(0).toUpperCase() + n.slice(1))(cli.split(/\s+/)[0])}`;
   return `${saludo}, le comparto su ${doc}. Puede verla y validarla aquí: ${url}\nSaludos,\n*Grupo Σ LEAN — Ingeniería & Proyectos*`   // *…* = negrita (solo para WhatsApp)
-    .replace("verla y validarla", tipo==="Cotización" || tipo==="Factura" ? "verla y validarla" : "verlo y validarlo");
+    .replace("verla y validarla", conRep ? "verlos y validarlos" : tipo==="Cotización" || tipo==="Factura" ? "verla y validarla" : "verlo y validarlo");
 }
 /* al compartir se elige la app: para WhatsApp la firma va en negrita (*…*); para las demás, sin asteriscos */
 const sinNegrita = t => String(t||"").replace(/\*([^*\n]+)\*/g, "$1");
