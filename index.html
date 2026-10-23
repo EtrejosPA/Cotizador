@@ -2439,8 +2439,8 @@ $("rp-ec").onclick = async () => {
     <div class="box" id="ec-res" style="background:var(--blue-bg);margin-top:12px"></div>
     <div class="status" id="ec-st"></div>
     <div class="actions" style="margin-top:12px"><button class="b-ghost" data-cerrar>Cancelar</button><button class="b-blue" id="ec-prev" title="Sin número ni QR: se asignan al emitir">Vista previa PDF</button><button class="b-navy" id="ec-zip">Emitir y descargar .zip</button></div>`);
-  const pintarEmitidos = () => { const L = [...(HIST?.estados||[])].reverse(), box = $("ec-emitidos"); if(!L.length){ box.innerHTML = ""; return; }
-    box.innerHTML = `<details class="ec-emi"><summary>📤 Emitidos: volver a compartir <small>(${L.length})</small></summary><div class="ec-emi-l">${L.slice(0,30).map((x,i) => `
+  const pintarEmitidos = () => { const lim = masDias(hoyISO(), -15), L = [...(HIST?.estados||[])].filter(x => (x.fecha||"") >= lim).reverse(), box = $("ec-emitidos"); if(!L.length){ box.innerHTML = ""; return; }
+    box.innerHTML = `<details class="ec-emi"><summary>📤 Emitidos: volver a compartir <small>(${L.length} · últimos 15 días)</small></summary><div class="ec-emi-l">${L.slice(0,30).map((x,i) => `
       <div class="ec-emi-r"><div><b>${esc(x.numero)}</b> · ${esc(x.cliente)}<small>${PDFFAC.dmy(x.fecha)} · ${esc(x.periodo||"Todos")} · saldo ${money(x.saldo||0)}</small></div>
       <div class="ec-emi-b"><button class="b-ghost b-sm" data-ecv="${i}" title="Abrir el PDF">📄</button><button class="b-ghost b-sm b-share" data-ecs="${i}">📤 Compartir</button></div></div>`).join("")}</div><div class="status" id="ec-emi-st"></div></details>`;
     const pdfDe = async x => { const st = $("ec-emi-st"); st.className = "status"; st.textContent = `Descargando ${x.numero} del portal…`; const b = await pdfPortal(x.codigo); st.textContent = ""; return b; };
