@@ -1547,7 +1547,8 @@ function mensajeWA(tipo, rec, url){   // mensaje por defecto que acompaña al PD
   const empresa = /\b(s\.?\s?a\.?|inc\.?|corp\.?|ltda\.?|s\.?r\.?l\.?|llc|group|grupo|company|cía|cia)(\b|$)/i.test(cli);
   const conRep = tipo==="Cotización" && rec.reporte?.docs?.length;   // cotización con reporte anexado
   const doc = conRep ? `informe y cotización N° ${rec.numero}` : tipo==="Cotización" ? `cotización N° ${rec.numero}` : tipo==="Informe técnico" ? `informe técnico N° ${rec.numero}` : tipo==="Estado de cuenta" ? `estado de cuenta N° ${rec.numero}` : `${tipo==="Factura" ? "factura" : "recibo"} N° ${rec.numero}`;
-  const saludo = empresa || !cli ? `Buen día${cli ? ", " + cli : ""}` : `Hola ${(n => n.charAt(0).toUpperCase() + n.slice(1))(cli.split(/\s+/)[0])}`;
+  const ahora = new Date(), min = ahora.getHours()*60 + ahora.getMinutes(), hola = min >= 12*60 + 30 ? "Buenas tardes" : "Buen día";   // hasta las 12:30 «Buen día»; después «Buenas tardes»
+  const saludo = empresa || !cli ? `${hola}${cli ? ", " + cli : ""}` : `${hola}, ${(n => n.charAt(0).toUpperCase() + n.slice(1))(cli.split(/\s+/)[0])}`;
   return `${saludo}, le comparto su ${doc}. Puede verla y validarla aquí: ${url}\nSaludos,\n*Grupo Σ LEAN — Ingeniería & Proyectos*`   // *…* = negrita (solo para WhatsApp)
     .replace("verla y validarla", conRep ? "verlos y validarlos" : tipo==="Cotización" || tipo==="Factura" ? "verla y validarla" : "verlo y validarlo");
 }
